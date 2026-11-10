@@ -3,8 +3,9 @@
 const MINUS = "−";
 const PREFIX_UNITS = new Set(["$", "€", "£", "¥"]);
 
+// fmtNumber prints d decimals, or up to three when d is undefined.
 export const fmtNumber = (v, d) =>
-  v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", MINUS);
+  v.toLocaleString("en-US", d === undefined ? { maximumFractionDigits: 3 } : { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", MINUS);
 
 // signed prints a difference: "+0.12", "−3", "±0".
 export const signed = (v, d) => (v === 0 ? "±0" : `${v > 0 ? "+" : ""}${fmtNumber(v, d)}`);

@@ -78,6 +78,7 @@ func (c *checker) suiteLevel() {
 			}
 		}
 		c.options(q, at)
+		c.questionRange(q, at)
 	}
 	if len(primary) > 1 {
 		c.add(fmt.Sprintf("only one question can be primary, got %s", list(primary)), "questions")
@@ -289,6 +290,7 @@ func (c *checker) item(i int, it Item) {
 		applicable[q.ID] = q
 		asked = append(asked, q)
 		c.options(q, qp)
+		c.questionRange(q, qp)
 		c.questionKeys(q, qp, keys)
 		c.with(q, it.Ask, qp)
 		c.rowSource(q.Each, artifacts, append(qp, "each"))
@@ -393,10 +395,26 @@ func (c *checker) proposal(q Question, v any, at []string) {
 		for k, e := range vs {
 			c.option(q, e, append(slices.Clone(at), idx(k)))
 		}
-	case "scale":
-		c.number(q, v, cmp.Or(q.Min, new(1.0)), cmp.Or(q.Max, new(5.0)), at)
-	case "number":
-		c.number(q, v, q.Min, q.Max, at)
+	case "scale", "number":
+		c.number(q, v, at)
+	}
+}
+
+// bounds returns a scale or number question's range; nil is unbounded.
+func bounds(q Question) (lo, hi *float64) {
+	if q.Kind == "scale" {
+		return cmp.Or(q.Min, new(1.0)), cmp.Or(q.Max, new(5.0))
+	}
+	return q.Min, q.Max
+}
+
+// questionRange checks that a scale or number question's range is not empty.
+func (c *checker) questionRange(q Question, at []string) {
+	if q.Kind != "scale" && q.Kind != "number" {
+		return
+	}
+	if lo, hi := bounds(q); lo != nil && hi != nil && *lo >= *hi {
+		c.add("min must be below max", append(at, "min")...)
 	}
 }
 
@@ -406,8 +424,9 @@ func (c *checker) option(q Question, v any, at []string) {
 	}
 }
 
-// number checks v is a number within the bounds that are set.
-func (c *checker) number(q Question, v any, lo, hi *float64, at []string) {
+// number checks v is a number within the question's bounds.
+func (c *checker) number(q Question, v any, at []string) {
+	lo, hi := bounds(q)
 	n, ok := v.(float64)
 	switch {
 	case !ok:

@@ -1,0 +1,8 @@
+title: Item scale range
+items:
+  - id: a
+    title: First
+    ask:
+      - { id: clarity, kind: scale, label: Clarity, max: 1 }
+  - id: b
+    title: Second

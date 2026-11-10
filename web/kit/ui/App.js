@@ -17,6 +17,7 @@ import { Toolbar, SendSheet, HelpSheet, Toast, Banner } from "./chrome.js";
 const isTyping = el => !!el?.matches?.("textarea, input, select, [contenteditable]");
 const hashId = () => decodeURIComponent(location.hash.slice(1)) || null;
 const NO_FILTERS = { scope: "all", group: null, search: "", where: [], sort: null };
+const VIEWS = ["review", "table"];
 
 export function App() {
   const [loaded, setLoaded] = useState(null); // { suite, problems, version, fatal, done }
@@ -28,8 +29,10 @@ export function App() {
   const [stale, setStale] = useState(false);
   const [loadErrors, setLoadErrors] = useState([]);
   const [cursor, setCursor] = useState(null); // { artifact, row } under the keyboard row cursor
-  const [mode, setModeState] = useState(() => new URLSearchParams(location.search).get("view")); // null: the suite's default
+  const [mode, setModeState] = useState(() => VIEWS.find(v => v === new URLSearchParams(location.search).get("view")) ?? null); // null: the suite's default
   const [filters, setFilters] = useState(NO_FILTERS); // the table's scope, group, search, column filters and sort
+  const [walk, setWalk] = useState(null); // ids review walks, pinned from the filtered table; null: every item
+  const selIndex = useRef(0); // the selected row's position, so the selection survives the row leaving the filter
   const armed = useRef(null); // { qid, row, until }: a question key waiting for a number
   const dirty = useRef(false);
   const rev = useRef(0); // the server's state revision this tab last saw
@@ -45,8 +48,13 @@ export function App() {
   const cols = useMemo(() => (ordered ? columns(ordered) : []), [ordered]);
   const rows = useMemo(() => (ordered && state ? visible(ordered, state, cols, filters) : []), [ordered, state, cols, filters]);
   const filtered = filters !== NO_FILTERS;
-  // Review follows the table's filtered, sorted list while the current item is in it.
-  const list = filtered && rows.some(i => i.id === currentId) ? rows : items;
+  // Review walks the table's rows as they were when review opened, so answering an item
+  // out of the filter does not change what J and K visit.
+  const list = useMemo(() => {
+    if (!walk) return items;
+    const byId = new Map(items.map(i => [i.id, i]));
+    return walk.map(id => byId.get(id)).filter(Boolean);
+  }, [walk, items]);
   const found = list.findIndex(i => i.id === currentId);
   const index = found >= 0 ? found : 0;
   // In the table, keys act on the selected row only while it is visible.
@@ -150,6 +158,7 @@ export function App() {
     if (i >= 0 && i < list.length) show(list[i].id);
   };
   const setView = v => {
+    if (v === "review") setWalk(filtered ? rows.map(r => r.id) : null);
     const url = new URL(location.href);
     url.searchParams.set("view", v);
     history.replaceState(null, "", url);
@@ -160,10 +169,13 @@ export function App() {
     setView("review");
   };
   const setTableFilters = f => setFilters(f.scope === "all" && !f.group && !f.search && !f.where.length && !f.sort ? NO_FILTERS : f);
-  // selectRow moves the table selection through the visible rows.
+  // selectRow moves the table selection through the visible rows. When the selected row
+  // has left the filter, the row now in its place is next and the one before it previous.
+  const selected = rows.findIndex(r => r.id === currentId);
+  if (selected >= 0) selIndex.current = selected;
   const selectRow = by => {
-    const i = rows.findIndex(r => r.id === currentId);
-    const next = rows[i < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, i + by))];
+    const at = selected >= 0 ? selected + by : by > 0 ? selIndex.current : selIndex.current - 1;
+    const next = rows[Math.max(0, Math.min(rows.length - 1, at))];
     if (next) show(next.id);
   };
 
@@ -197,7 +209,7 @@ export function App() {
   // Keys only reach questions that are on screen: `when` can hide one.
   const onScreen = item ? questions.filter(q => q.each || asked(state, item, questions, q)) : [];
   const targets = item ? rowTargets(item, questions) : [];
-  const binds = !suite ? [] : view === "table" ? tableBindings(suite) : item ? bindings(suite, item, onScreen, targets.length) : [];
+  const binds = !suite ? [] : view === "table" ? tableBindings(onScreen) : item ? bindings(suite, item, onScreen, targets.length) : [];
 
   // The row a per-row key applies to: the cursor row, else the first row of q's artifact.
   function rowFor(q) {
@@ -217,6 +229,7 @@ export function App() {
     const answer = q && (row === undefined ? answersOf(state, item)[q.id] : answersOf(state, item)[q.id]?.[row]);
     const proposed = q && (row === undefined ? item.proposed?.[q.id]?.value : item.proposed?.[q.id]?.value?.[row]);
     const set = v => act.answer(item, q.id, v, row);
+    if (action.qid && !q) return; // the question does not apply to this item
     switch (action.type) {
       case "move": return go(index + action.by);
       case "select": return selectRow(action.by);
@@ -298,6 +311,7 @@ export function App() {
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (!item && view !== "table") return;
+    if (e.key === "Enter" && e.target.closest?.("button, a, summary")) return; // a focused control handles its own Enter
     if (/^[1-9]$/.test(e.key) && armed.current && Date.now() < armed.current.until) {
       e.preventDefault();
       return pickNumber(Number(e.key));
@@ -334,7 +348,7 @@ export function App() {
 
   return html`<div class=${view === "table" ? "app table-mode" : "app"}>
     ${view === "table" ? null : html`<${Sidebar} suite=${suite} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
-      filtered=${list === rows} clearFilters=${() => setFilters(NO_FILTERS)} total=${items.length} />`}
+      filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />`}
     <main class="main">
       <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
       ${view === "table"
@@ -342,7 +356,7 @@ export function App() {
             selected=${currentId} select=${show} open=${open} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />`
         : html`<div class="scroll" ref=${scroller}><div class="content">
             ${banners}
-            ${item ? html`<${ItemView} key=${item.id} suite=${suite} item=${item} state=${state} act=${act} cursor=${cursor} />` : html`<p class="muted">This suite has no items.</p>`}
+            ${item ? html`<${ItemView} key=${item.id} suite=${suite} cols=${cols} item=${item} state=${state} act=${act} cursor=${cursor} />` : html`<p class="muted">This suite has no items.</p>`}
           </div></div>`}
     </main>
     ${sheet === "send" ? html`<${SendSheet} sendLabel=${sendLabel} progress=${progress(suite, state)} actions=${actionQs}

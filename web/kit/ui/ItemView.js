@@ -3,13 +3,13 @@
 import { html } from "../html.js";
 import { controlFor, rendererFor } from "../registry.js";
 import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
-import { cell, columns } from "../core/table.js";
+import { cell } from "../core/table.js";
 import { questionsFor, answersOf, editsOf, valueOf, asked } from "../core/derive.js";
 
 const isSection = q => controlFor(q.kind)?.layout === "section";
 const rowProposal = (p, row) => (p?.value?.[row] !== undefined ? { value: p.value[row], why: p.why } : undefined);
 
-export function ItemView({ suite, item, state, act, cursor }) {
+export function ItemView({ suite, cols, item, state, act, cursor }) {
   const questions = questionsFor(suite, item);
   const answers = answersOf(state, item);
   const edits = editsOf(state, item);
@@ -55,7 +55,7 @@ export function ItemView({ suite, item, state, act, cursor }) {
   const itemTexts = own.filter(q => isSection(q) && q.scope === "item");
 
   return html`
-    <${ItemHeader} item=${item} suite=${suite} />
+    <${ItemHeader} item=${item} suite=${suite} cols=${cols} />
     ${item.show?.length ? html`<div class="show">${item.show.map((a, i) => artifact(a, i, false))}</div>` : null}
     ${rows.length ? html`<div class="card">${rows.map(q => html`<${CardRow} q=${q} control=${control}
         attached=${own.filter(o => o.with === q.id)} note=${controlFor(q.kind)?.note?.(props(q))} />`)}</div>` : null}
@@ -73,7 +73,7 @@ export function ItemView({ suite, item, state, act, cursor }) {
     </details>`)}</div>` : null}`;
 }
 
-function ItemHeader({ item, suite }) {
+function ItemHeader({ item, suite, cols }) {
   return html`
     ${item.badges?.length || item.meta || item.flag ? html`<div class="eyebrow">
       ${item.flag ? html`<span class="badge tone-warning">⚑ Flagged</span>` : null}
@@ -82,13 +82,12 @@ function ItemHeader({ item, suite }) {
     </div>` : null}
     <h1 class=${item.flag || item.values ? "tight" : ""}>${item.title}</h1>
     ${item.flag ? html`<p class="flag-reason">${item.flag}</p>` : null}
-    <${Values} item=${item} suite=${suite} />`;
+    <${Values} item=${item} suite=${suite} cols=${cols} />`;
 }
 
 // Values shows the item's read-only measurements, with the change from the baseline.
-function Values({ item, suite }) {
+function Values({ item, suite, cols: all }) {
   if (!item.values) return null;
-  const all = columns(suite);
   const cols = all.filter(c => c.kind === "value" && item.values[c.def.id] !== undefined);
   return html`<dl class="values">${cols.map(col => {
     const c = cell(col, item, {}, suite);

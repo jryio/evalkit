@@ -1,0 +1,10 @@
+title: Question range
+questions:
+  - id: score
+    kind: number
+    label: Score
+    min: 10
+    max: 0
+items:
+  - id: a
+    title: First

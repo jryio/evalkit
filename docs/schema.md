@@ -106,7 +106,7 @@ The table's columns come from the suite. Nothing is configured per view:
 | Δ after any of the above | `baseline` on a proposal or a value | the difference, toned by `better` once it exceeds `noise`; a categorical change reads "was Fail" |
 | Note | the suite's text questions | the first line of the first answer |
 
-Each column header has a profile of the rows in view: a histogram and the average for numbers, a share bar for choices, ▲/▼ counts for a Δ. Click a bar or a count to filter by it; click the label to sort. The bar above the table filters by flagged items, items with your input, and overridden proposals, by group, and by text. Review follows the table's filters and sort, so J and K walk the same rows.
+Each column header has a profile of the rows in view: a histogram and the average for numbers, a share bar for choices, ▲/▼ counts for a Δ. Click a bar or a count to filter by it; click the label to sort. The bar above the table filters by flagged items, items with your input, and overridden proposals, by group, and by text. Opening review from a filtered or sorted table pins its rows: J and K walk them in the table's order, even after an answer moves an item out of the filter ("Show all" in the sidebar unpins).
 
 A column definition:
 

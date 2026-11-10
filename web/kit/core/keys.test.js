@@ -80,8 +80,9 @@ test("helpRows merges the primary digits and navigation and appends fixed keys",
 });
 
 test("tableBindings move the selection, open it, answer the primary question and filter", () => {
-  const suite = { questions: [{ id: "v", kind: "choice", label: "Verdict", primary: true, options: [{ value: "pass", label: "Pass" }, { value: "fail", label: "Fail" }] }] };
-  const list = tableBindings(suite);
+  const questions = [{ id: "v", kind: "choice", label: "Verdict", primary: true, options: [{ value: "pass", label: "Pass" }, { value: "fail", label: "Fail" }] }];
+  assert.equal(match(tableBindings([]), { key: "1" }), undefined, "no digits without a primary on screen");
+  const list = tableBindings(questions);
   const key = k => match(list, { key: k })?.action;
   assert.deepEqual(key("ArrowDown"), { type: "select", by: 1 });
   assert.deepEqual(key("k"), { type: "select", by: -1 });

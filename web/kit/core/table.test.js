@@ -142,3 +142,29 @@ test("progress counts only flagged items once any item is flagged", () => {
 function pick(c) {
   return { text: c.text, tone: c.tone };
 }
+
+test("cell: a turned-off proposed toggle is blank, and unstepped numbers keep the answer's precision", () => {
+  const toggle = { id: "ok", kind: "toggle", label: "OK" };
+  const score = { id: "s", kind: "number", label: "Score", min: 0, max: 10 };
+  const item = { id: "t", title: "T", revision: "r", proposed: { ok: { value: true }, s: { value: 7 } } };
+  const s2 = { title: "S", questions: [toggle, score], items: [item] };
+  const [okCol, scoreCol] = columns(s2);
+  let state = setAnswer(emptyState(), item, "ok", false);
+  assert.equal(cell(okCol, item, state, s2).text, "");
+  state = setAnswer(state, item, "s", 2.5);
+  assert.equal(cell(scoreCol, item, state, s2).text, "2.5");
+  assert.equal(cell(scoreCol, item, state, s2).from, "7");
+});
+
+test("visible ignores filters on columns that no longer exist", () => {
+  assert.deepEqual(ids(visible(suite, emptyState(), columns(suite), { where: [{ column: "v:gone", value: 1 }] })), ["a", "b", "c"]);
+});
+
+test("profile survives an inverted range", () => {
+  const q = { id: "n", kind: "number", label: "N", min: 10, max: 0 };
+  const item = { id: "x", title: "X", revision: "r", proposed: { n: { value: 3 } } };
+  const s2 = { title: "S", questions: [q], items: [item] };
+  const [col] = columns(s2);
+  assert.equal(col.range, null);
+  assert.equal(profile(col, [item], emptyState(), s2).n, 1);
+});

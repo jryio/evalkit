@@ -15,10 +15,7 @@ export function bindings(suite, item, questions, rows = 0) {
     add(["ArrowUp"], "Previous row", { type: "row", by: -1 }, { id: "rows" });
   }
 
-  const primary = questions.find(q => q.primary);
-  const primaryRow = primary && { id: primary.id, label: `${primary.label}: ${primary.options.map(o => lower(o.label)).join(", ")}` };
-  primary?.options.forEach((o, i) =>
-    add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, primaryRow));
+  primaryKeys(add, questions.find(q => q.primary), "");
 
   for (const q of questions) {
     const perRow = !!q.each;
@@ -41,18 +38,22 @@ export function bindings(suite, item, questions, rows = 0) {
   return out;
 }
 
+// primaryKeys binds 1–9 to the primary question's options, when it is on screen.
+function primaryKeys(add, primary, suffix) {
+  const row = primary && { id: primary.id, label: `${primary.label}${suffix}: ${primary.options.map(o => lower(o.label)).join(", ")}` };
+  primary?.options.forEach((o, i) =>
+    add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, row));
+}
+
 // tableBindings are the table view's keys: move the selection, open it, answer its
-// primary question, filter.
-export function tableBindings(suite) {
+// primary question, filter. questions are those on screen for the selected row.
+export function tableBindings(questions) {
   const out = [];
   const add = (keys, label, action, row) => out.push({ keys, label, action, row });
   add(["ArrowDown", "j"], "Next row", { type: "select", by: 1 }, { id: "rows", label: "Next / previous row" });
   add(["ArrowUp", "k"], "Previous row", { type: "select", by: -1 }, { id: "rows" });
   add(["Enter"], "Open the row for review", { type: "open" });
-  const primary = (suite.questions || []).find(q => q.primary);
-  const primaryRow = primary && { id: primary.id, label: `${primary.label} of the selected row: ${primary.options.map(o => lower(o.label)).join(", ")}` };
-  primary?.options.forEach((o, i) =>
-    add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, primaryRow));
+  primaryKeys(add, questions.find(q => q.primary), " of the selected row");
   add(["/"], "Filter items", { type: "focus", target: "table-search" });
   add(["?"], "Keyboard shortcuts", { type: "help" });
   return out;

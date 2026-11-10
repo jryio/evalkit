@@ -318,6 +318,15 @@ func TestLoad_InvalidSuites(t *testing.T) {
 			item: "a", kept: []string{"Second"},
 		},
 		{
+			name: "number question min not below max", file: "question-min-max.yaml",
+			contains: []string{"min must be below max"}, line: 6, path: "questions[0].min", fatal: true,
+		},
+		{
+			name: "item scale question max at the default min", file: "ask-scale-min-max.yaml",
+			contains: []string{"min must be below max"}, line: 6, path: "items[0].ask[0].min",
+			item: "a", kept: []string{"Second"},
+		},
+		{
 			name: "duplicate ask label", file: "duplicate-label.yaml",
 			contains: []string{"duplicate question label"}, line: 7, path: "items[0].ask[1].label", warning: true,
 			item: "a", kept: []string{"First", "Second"}, askOf: "a", ask: []string{"why"},
@@ -433,8 +442,8 @@ func TestLoad_KeepsKeyOrder(t *testing.T) {
 	}
 }
 
-// The surrogate pair makes yaml.v3 reject the line, so it goes through canonicalJSON.
-func TestLoad_JSONLFallbackKeepsKeyOrder(t *testing.T) {
+// canonicalJSON keeps key order and turns the surrogate pair into one rune.
+func TestLoad_JSONLKeepsKeyOrder(t *testing.T) {
 	t.Parallel()
 	path := writeDir(t, map[string]string{
 		"suite.yaml": "title: Order\nitems_from: runs.jsonl\n",
@@ -475,9 +484,11 @@ func TestLoad_ItemsFrom(t *testing.T) {
 	const inline = "title: Runs\nitems:\n  - { id: a, title: A }\n"
 	tests := []struct {
 		name     string
-		files    map[string]string // suite.yaml and the files beside it
+		dir      string            // the suite's directory under the temp dir
+		files    map[string]string // suite.yaml and the files beside it, relative to the temp dir
 		items    []string          // id=title of each Doc item, in order
 		problems []string          // prefix of each Problem.String(), in order
+		fatal    bool
 	}{
 		{
 			name: "string form appends after inline items",
@@ -552,7 +563,7 @@ func TestLoad_ItemsFrom(t *testing.T) {
 				"runs.jsonl": jsonl("a", "A2"),
 			},
 			items:    []string{"a=A"},
-			problems: []string{`runs.jsonl:1:7: error: items[1].id (item a): duplicate item id "a" (first at items[0])`},
+			problems: []string{`runs.jsonl:1:1: error: items[1].id (item a): duplicate item id "a" (first at items[0])`},
 		},
 		{
 			name: "unfinished last line and blank lines are skipped",
@@ -604,7 +615,7 @@ func TestLoad_ItemsFrom(t *testing.T) {
 				"runs.jsonl": jsonl("b", "B") + `{"id":"c","title":"C","show":[{"kind":"chartt"}]}` + "\n" + jsonl("d", "D"),
 			},
 			items:    []string{"a=A", "b=B", "d=D"},
-			problems: []string{`runs.jsonl:2:39: error: items[2].show[0].kind (item c): unknown kind "chartt"`},
+			problems: []string{`runs.jsonl:2:1: error: items[2].show[0].kind (item c): unknown kind "chartt"`},
 		},
 		{
 			name: "schema error in a line hides only that item",
@@ -632,13 +643,97 @@ func TestLoad_ItemsFrom(t *testing.T) {
 			items:    []string{"a=A", "b=B"},
 			problems: []string{`suite.yaml:4:26: warning: items_from[1]: "later/*.jsonl" matches no file yet`},
 		},
+		{
+			name: "a directory is not a file",
+			files: map[string]string{
+				"suite.yaml":   inline + "items_from: runs\n",
+				"runs/1.jsonl": jsonl("b", "B"),
+			},
+			items:    []string{"a=A"},
+			problems: []string{`suite.yaml:4:13: warning: items_from: "runs" matches no file yet`},
+		},
+		{
+			name: "bad glob pattern",
+			files: map[string]string{
+				"suite.yaml":   inline + "items_from: \"runs/[.jsonl\"\n",
+				"runs/1.jsonl": jsonl("b", "B"),
+			},
+			problems: []string{`suite.yaml:4:13: error: items_from: bad glob pattern "runs/[.jsonl"`},
+			fatal:    true,
+		},
+		{
+			name: "plain path in a directory with glob characters",
+			dir:  "b [v2]",
+			files: map[string]string{
+				"b [v2]/suite.yaml":   "title: Runs\nitems_from: runs/1.jsonl\n",
+				"b [v2]/runs/1.jsonl": jsonl("b", "B"),
+			},
+			items: []string{"b=B"},
+		},
+		{
+			name: "glob in a directory with glob characters",
+			dir:  "b [v2]",
+			files: map[string]string{
+				"b [v2]/suite.yaml":   "title: Runs\nitems_from: runs/*.jsonl\n",
+				"b [v2]/runs/1.jsonl": jsonl("b", "B"),
+				"b [v2]/runs/2.jsonl": jsonl("c", "C"),
+			},
+			items: []string{"b=B", "c=C"},
+		},
+		{
+			name: "two objects on one line",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"b","title":"B"} {"id":"c","title":"C"}` + "\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{"runs.jsonl:1:1: error: JSON syntax: unexpected data after the JSON value"},
+		},
+		{
+			name: "data after the object",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"x","title":"x"} junk` + "\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{"runs.jsonl:1:1: error: JSON syntax: unexpected data after the JSON value"},
+		},
+		{
+			name: "YAML flow mapping",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": "{id: yamlish, title: t}\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{"runs.jsonl:1:1: error: JSON syntax: invalid character 'i'"},
+		},
+		{
+			name: "trailing comma",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + `{"id": "x",}` + "\n",
+			},
+			items:    []string{"a=A", "b=B"},
+			problems: []string{"runs.jsonl:2:1: error: JSON syntax: invalid character '}' looking for beginning of object key string"},
+		},
+		{
+			name: "control characters YAML does not allow raw",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"d1","title":"del\u007f"}` + "\n" +
+					"{\"id\":\"d2\",\"title\":\"del\x7f\"}\n" +
+					"{\"id\":\"n1\",\"title\":\"nel\xc2\x85\"}\n",
+			},
+			items: []string{"a=A", "d1=del\x7f", "d2=del\x7f", "n1=nel\xc2\x85"},
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			res := load(t, writeDir(t, tc.files))
-			if res.Fatal {
-				t.Fatalf("Fatal = true, problems = %v", res.Problems)
+			root := filepath.Dir(writeDir(t, tc.files))
+			res := load(t, filepath.Join(root, tc.dir, "suite.yaml"))
+			if res.Fatal != tc.fatal {
+				t.Fatalf("Fatal = %v, want %v; problems = %v", res.Fatal, tc.fatal, res.Problems)
 			}
 			if len(res.Problems) != len(tc.problems) {
 				t.Fatalf("problems = %v, want %d", res.Problems, len(tc.problems))

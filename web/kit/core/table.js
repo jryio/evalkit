@@ -6,6 +6,7 @@ import { autoDecimals, deltaTone, fmtNumber, signed, stepDecimals, withUnit } fr
 
 const QUESTION_KINDS = new Set(["choice", "multi", "toggle", "scale", "number", "action"]);
 const isNum = v => typeof v === "number" && Number.isFinite(v);
+const bounded = (lo, hi) => (isNum(lo) && isNum(hi) && lo < hi ? [lo, hi] : null);
 const boxed = v => (v !== null && typeof v === "object" ? v : { value: v });
 const TONE_RANK = { negative: 0, warning: 1, neutral: 2, positive: 3 };
 
@@ -34,12 +35,9 @@ export function columns(suite) {
 
 function questionColumn(q, items) {
   const base = { id: `q:${q.id}`, kind: "question", q, label: q.label ?? q.id };
-  if (q.kind === "scale") return { ...base, type: "number", align: "right", decimals: 0, range: [q.min ?? 1, q.max ?? 5], integer: true };
-  if (q.kind === "number") {
-    const values = items.map(i => i.proposed?.[q.id]?.value).filter(isNum);
-    const range = q.min !== undefined && q.max !== undefined ? [q.min, q.max] : null;
-    return { ...base, type: "number", align: "right", unit: q.unit, decimals: stepDecimals(q.step) ?? autoDecimals(values), range };
-  }
+  if (q.kind === "scale") return { ...base, type: "number", align: "right", decimals: 0, range: bounded(q.min ?? 1, q.max ?? 5), integer: true };
+  // Without a step, a human answer may be finer than the proposals: print up to three decimals.
+  if (q.kind === "number") return { ...base, type: "number", align: "right", unit: q.unit, decimals: stepDecimals(q.step), range: bounded(q.min, q.max) };
   if (q.kind === "choice") return { ...base, type: "options", options: q.options, iconsOnly: q.options.every(o => o.icon) };
   if (q.kind === "toggle") return { ...base, type: "options", options: [{ value: true, label: "Yes", icon: "check" }] };
   return { ...base, type: "text" };
@@ -49,8 +47,7 @@ function valueColumn(c, items) {
   const values = items.map(i => boxed(i.values?.[c.id]).value).filter(v => v !== null && v !== undefined);
   const base = { id: `v:${c.id}`, kind: "value", def: c, label: c.label ?? c.id, unit: c.unit, better: c.better, noise: c.noise };
   if (values.length && values.every(isNum)) {
-    const range = c.min !== undefined && c.max !== undefined ? [c.min, c.max] : null;
-    return { ...base, type: "number", align: "right", decimals: c.decimals ?? autoDecimals(values), range };
+    return { ...base, type: "number", align: "right", decimals: c.decimals ?? autoDecimals(values), range: bounded(c.min, c.max) };
   }
   if (values.length && values.every(v => typeof v === "boolean")) {
     const t = good => (c.better ? ((c.better === "higher") === good ? "positive" : "negative") : undefined);
@@ -64,7 +61,7 @@ function deltaColumn(of) {
 }
 
 function baselineOf(col, item) {
-  if (col.kind === "question") return item.proposed?.[col.q.id]?.baseline;
+  if (col.kind === "question") return item.proposed?.[col.q.id]?.baseline ?? undefined;
   if (col.kind === "value") return boxed(item.values?.[col.def.id]).baseline ?? undefined;
   return undefined;
 }
@@ -94,6 +91,7 @@ export function cell(col, item, state, suite) {
     out.human = answer !== undefined;
     if (out.human && proposed && JSON.stringify(proposed.value) !== JSON.stringify(answer)) out.from = display(col, proposed.value).text;
     if (col.q.kind === "action") return { ...out, ...actionCell(col.q, item, answer) };
+    if (col.q.kind === "toggle" && value !== true) return out; // false is a turned-off proposal
   }
   if (value === undefined || value === null) return out;
   return { ...out, ...display(col, value) };
@@ -159,6 +157,7 @@ export function profile(col, items, state, suite) {
     const values = cells.map(c => c.value).filter(isNum);
     if (!values.length) return { type: "number", n: 0, bins: [] };
     const range = col.range ?? [Math.min(...values), Math.max(...values)];
+    if (!(range[0] <= range[1])) return { type: "number", n: values.length, mean: values.reduce((a, b) => a + b, 0) / values.length, bins: [] };
     return { type: "number", n: values.length, mean: values.reduce((a, b) => a + b, 0) / values.length, range, bins: histogram(values, range, col) };
   }
   if (col.type === "options") {
@@ -218,7 +217,8 @@ export function visible(suite, state, cols, view) {
     SCOPES[scope](item, state) &&
     (!group || item.group === group) &&
     terms.every(t => searchText(item).includes(t)) &&
-    where.every(f => byId.has(f.column) && matches(f, byId.get(f.column), item, state, suite)));
+    // A filter on a column that a live reload removed no longer applies.
+    where.every(f => !byId.has(f.column) || matches(f, byId.get(f.column), item, state, suite)));
   const col = sort && byId.get(sort.column);
   return col ? sortBy(rows, i => cell(col, i, state, suite).sort, sort.dir) : rows;
 }

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -277,12 +278,15 @@ func jsonlFiles(dir string, itemsFrom any) (files []string, issues []issue) {
 	}
 	seen := map[string]bool{}
 	for i, entry := range entries {
-		matches, _ := filepath.Glob(filepath.Join(dir, entry))
+		matches, err := expand(dir, entry)
+		if err != nil {
+			issues = append(issues, issue{ptr: ptrs[i], msg: fmt.Sprintf("bad glob pattern %q", entry)})
+			continue
+		}
 		if len(matches) == 0 {
 			issues = append(issues, issue{ptr: ptrs[i], msg: fmt.Sprintf("%q matches no file yet", entry), warning: true})
 			continue
 		}
-		slices.Sort(matches)
 		for _, m := range matches {
 			if !seen[m] {
 				seen[m] = true
@@ -291,6 +295,38 @@ func jsonlFiles(dir string, itemsFrom any) (files []string, issues []issue) {
 		}
 	}
 	return files, issues
+}
+
+// expand returns the files entry, a path or glob relative to dir, names, sorted.
+// Only entry is a pattern: dir may contain glob meta characters.
+func expand(dir, entry string) ([]string, error) {
+	path := filepath.Join(dir, entry)
+	if !strings.ContainsAny(entry, `*?[\`) {
+		if fi, err := os.Stat(path); err == nil && fi.Mode().IsRegular() {
+			return []string{path}, nil
+		}
+		return nil, nil
+	}
+	matches, err := filepath.Glob(filepath.Join(escapeGlob(dir), entry))
+	slices.Sort(matches)
+	return matches, err
+}
+
+// escapeGlob quotes the glob meta characters in a literal path. A backslash is a
+// separator on Windows and an escape elsewhere.
+func escapeGlob(path string) string {
+	var b strings.Builder
+	for _, r := range path {
+		switch {
+		case r == '*' || r == '?' || r == '[':
+			b.WriteString("[" + string(r) + "]")
+		case r == '\\' && runtime.GOOS != "windows":
+			b.WriteString(`\\`)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // mergeItems appends the items of each JSONL source to the items sequence of the
@@ -359,33 +395,30 @@ func parseLines(src source) ([]*yaml.Node, []Problem) {
 			bad("each line must be a JSON object")
 			continue
 		}
-		setLine(doc.Content[0], i+1)
+		setPos(doc.Content[0], i+1)
 		nodes = append(nodes, doc.Content[0])
 	}
 	return nodes, problems
 }
 
-// parseLine parses one JSONL line. yaml.v3 reads most JSON as is; a line it
-// rejects, such as one with escaped UTF-16 surrogate pairs, is re-encoded first.
+// parseLine parses one JSONL line strictly as JSON, then reads its canonical
+// form as YAML.
 func parseLine(line string) (*yaml.Node, error) {
-	var doc yaml.Node
-	if yaml.Unmarshal([]byte(line), &doc) == nil {
-		return &doc, nil
-	}
 	canon, err := canonicalJSON(line)
 	if err != nil {
 		return nil, err
 	}
-	var again yaml.Node
-	if err := yaml.Unmarshal([]byte(canon), &again); err != nil {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(canon), &doc); err != nil {
 		_, msg := yamlLine(err.Error())
 		return nil, errors.New(msg)
 	}
-	return &again, nil
+	return &doc, nil
 }
 
 // canonicalJSON re-encodes one JSON value with encoding/json, keeping key and
-// element order. Go writes non-ASCII as UTF-8, so surrogate pairs become runes.
+// element order, into text yaml.v3 reads as the same value: surrogate pairs
+// become runes, and runes YAML does not allow raw are escaped.
 func canonicalJSON(line string) (string, error) {
 	dec := json.NewDecoder(strings.NewReader(line))
 	dec.UseNumber()
@@ -433,7 +466,13 @@ func copyJSON(dec *json.Decoder, b *strings.Builder) error {
 		b.WriteString(end.(json.Delim).String())
 	case string:
 		s, _ := json.Marshal(t)
-		b.Write(s)
+		for _, r := range string(s) {
+			if yamlPrintable(r) {
+				b.WriteRune(r)
+			} else {
+				fmt.Fprintf(b, `\u%04x`, r)
+			}
+		}
 	case json.Number:
 		b.WriteString(t.String())
 	case bool:
@@ -444,10 +483,24 @@ func copyJSON(dec *json.Decoder, b *strings.Builder) error {
 	return nil
 }
 
-func setLine(n *yaml.Node, line int) {
-	n.Line = line
+// yamlPrintable reports whether yaml.v3 keeps r as is inside a double-quoted
+// scalar. YAML allows NEL (#x85) raw, but yaml.v3 folds it like a line break.
+func yamlPrintable(r rune) bool {
+	switch {
+	case r == '\t' || r == '\n' || r == '\r':
+		return true
+	case r >= 0x20 && r <= 0x7E, r >= 0xA0 && r <= 0xD7FF, r >= 0xE000 && r <= 0xFFFD, r >= 0x10000 && r <= 0x10FFFF:
+		return true
+	}
+	return false
+}
+
+// setPos points n and its subtree at a JSONL line. Columns in the canonical text
+// do not match the original line, so they are all 1.
+func setPos(n *yaml.Node, line int) {
+	n.Line, n.Column = line, 1
 	for _, c := range n.Content {
-		setLine(c, line)
+		setPos(c, line)
 	}
 }
 

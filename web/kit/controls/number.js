@@ -1,5 +1,6 @@
 // A number field with a unit. It keeps its own text while typing so "1." survives.
-// With both min and max (a bounded score) a slider sits beside it.
+// With both min and max (a bounded score) a slider sits beside it; it lets go of focus
+// after a drag so the kit's keys work again.
 import { html, useState, useEffect } from "../html.js";
 import { cx } from "../ui/bits.js";
 
@@ -21,7 +22,7 @@ export default function NumberField({ q, value, answer, proposed, set, row }) {
     ${q.unit ? html`<span class="unit">${q.unit}</span>` : null}
     ${q.min !== undefined && q.max !== undefined && row === undefined ? html`<input type="range" min=${q.min} max=${q.max} step=${q.step ?? "any"}
         value=${value ?? q.min} class=${cx("number-slider", answer === undefined && "tentative", value === undefined && "empty")} aria-label=${q.label}
-        onInput=${e => set(Number(e.currentTarget.value))} />` : null}
+        onInput=${e => set(Number(e.currentTarget.value))} onPointerUp=${e => e.currentTarget.blur()} />` : null}
   </span>`;
 }
 

@@ -20,11 +20,14 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
     document.querySelector(`tr[data-id="${CSS.escape(selected ?? "")}"]`)?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
+  // filterBy sets a column's filter; choosing the active one again clears it. A bin is
+  // stored without its count, which changes as answers change.
   const filterBy = (col, f) => {
     const current = view.where.find(w => w.column === col.id);
-    const same = current && JSON.stringify({ ...current, column: undefined }) === JSON.stringify(f);
+    const same = current && (f.bin ? current.bin && sameBin(current.bin, f.bin) : f.tone ? current.tone === f.tone : current.value === f.value && !current.bin && !current.tone);
     const rest = view.where.filter(w => w.column !== col.id);
-    setView({ ...view, where: same ? rest : [...rest, { column: col.id, ...f }] });
+    const next = f.bin ? { bin: { lo: f.bin.lo, hi: f.bin.hi, first: f.bin.first, last: f.bin.last, label: f.bin.label } } : f;
+    setView({ ...view, where: same ? rest : [...rest, { column: col.id, ...next }] });
   };
   const sortBy = col => {
     const s = view.sort?.column === col.id ? view.sort : null;
