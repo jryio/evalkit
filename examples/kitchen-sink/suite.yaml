@@ -1,0 +1,384 @@
+# Kitchen sink: every artifact kind and every question kind once.
+# It is the component catalog and the visual test fixture.
+title: Kitchen sink
+description: Every evalkit artifact and question kind.
+send: Send to Claude
+groups:
+  - { id: artifacts, label: Artifacts }
+  - { id: controls, label: Controls }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: right, label: Looks right, tone: positive, icon: check }
+      - { value: work, label: Needs work, tone: warning, icon: approx }
+      - { value: broken, label: Broken, tone: negative, icon: cross }
+  - id: notes
+    kind: text
+    label: Notes for Claude
+    key: n
+    placeholder: Anything the renderer got wrong?
+
+items:
+  - id: text
+    group: artifacts
+    title: Text with a length limit
+    subtitle: text · editable · compare
+    badges: [{ label: text, tone: accent }]
+    meta: An editable draft beside a read-only reference
+    show:
+      - id: draft
+        kind: text
+        label: Draft
+        editable: true
+        width: half
+        limit: { target: [200, 300], max: 500 }
+        text: |-
+          * Checkout API decodes each request once: ~35% fewer allocations, ~18% less CPU per request
+          * Up next: encode each outbound carrier quote request once, then cut live heap per pod
+      - id: reference
+        kind: text
+        label: Gold answer
+        width: half
+        status: { label: On track, tone: positive }
+        text: Decode-once is live in prod. Allocations per request are down a third and CPU per request is down a fifth.
+
+  - id: list-table
+    group: artifacts
+    title: List and table
+    subtitle: list · table
+    badges: [{ label: list, tone: accent }, { label: table, tone: accent }]
+    show:
+      - id: evidence
+        kind: list
+        label: Evidence
+        rows:
+          - id: e1
+            title: Decode-once live in prod (SHOP-412)
+            badge: { label: Used, tone: positive }
+            ask: false
+            links: [{ label: "git: #318 decode once at ingress", url: "https://git.example.com/acme/checkout/pull/318" }]
+          - id: e2
+            title: Hand-written JSON codec paused after SHOP-377 regressed
+            detail: Neutral results, superseded by decode-once
+            links: [{ label: "tracker: SHOP-377", url: "https://tracker.example.com/SHOP-377" }]
+      - kind: table
+        label: Sources checked
+        columns:
+          - { key: source, label: Source }
+          - { key: status, label: Status }
+          - { key: items, label: Items, align: right }
+          - { key: notes, label: Notes, muted: true }
+        rows:
+          - { source: tracker, status: ok, items: 104, notes: "" }
+          - { source: git, status: ok, items: 195, notes: merge time from closedAt }
+          - { source: "chat:from-me", status: { value: failed, tone: negative }, items: 0, notes: rate limited }
+    ask:
+      - { id: should_be_in, kind: toggle, label: Should be in, each: evidence }
+
+  - id: code
+    group: artifacts
+    title: Code with line numbers
+    subtitle: code
+    badges: [{ label: code, tone: accent }]
+    show:
+      - kind: code
+        label: checkout/decode.go
+        language: go
+        start: 118
+        highlight: [125, 126]
+        code: |-
+          // decodeOnce parses the checkout request a single time at ingress and
+          // hands every carrier quote the same immutable view.
+          func decodeOnce(r *http.Request) (*Order, error) {
+          	body, err := io.ReadAll(io.LimitReader(r.Body, maxBody))
+          	if err != nil {
+          		return nil, fmt.Errorf("read body: %w", err)
+          	}
+          	order := orderPool.Get().(*Order)
+          	if err := json.Unmarshal(body, order); err != nil {
+          		orderPool.Put(order)
+          		return nil, fmt.Errorf("decode: %w", err)
+          	}
+          	return order, nil
+          }
+
+  - id: diff
+    group: artifacts
+    title: Unified diff
+    subtitle: diff
+    badges: [{ label: diff, tone: accent }]
+    show:
+      - kind: diff
+        label: checkout/carriers.go
+        language: go
+        highlight: [54]
+        diff: |-
+          diff --git a/checkout/carriers.go b/checkout/carriers.go
+          index 3f2a1c0..9b7e4d2 100644
+          --- a/checkout/carriers.go
+          +++ b/checkout/carriers.go
+          @@ -48,14 +48,15 @@ func (p *Pool) quoteAll(ctx context.Context, order *Order) []Quote {
+           	quotes := make(chan Quote, len(p.carriers))
+           	var wg sync.WaitGroup
+           	for _, c := range p.carriers {
+          -		wg.Add(1)
+          -		go func(c Carrier) {
+          -			defer wg.Done()
+          -			body, _ := json.Marshal(c.Adapt(order))
+          -			quotes <- c.Quote(ctx, body)
+          -		}(c)
+          +		wg.Go(func() {
+          +			body, err := c.Encode(order)
+          +			if err != nil {
+          +				return
+          +			}
+          +			quotes <- c.Quote(ctx, body)
+          +		})
+           	}
+           	wg.Wait()
+           	close(quotes)
+
+  - id: tests
+    group: artifacts
+    title: Test results
+    subtitle: tests
+    badges: [{ label: tests, tone: accent }]
+    show:
+      - kind: tests
+        label: CI · go test ./checkout/...
+        tests:
+          - name: checkout
+            children:
+              - { name: TestDecodeOnce, status: pass, duration: 0.012 }
+              - { name: TestDecodeOnce_OversizedBody, status: pass, duration: 0.004 }
+              - name: TestQuoteAll
+                children:
+                  - { name: all_carriers_called, status: pass, duration: 0.031 }
+                  - name: encode_error_skips_carrier
+                    status: fail
+                    duration: 0.208
+                    output: |-
+                      carriers_test.go:88: got 2 quotes, want 3
+                          the carrier whose Encode failed was dropped without a no-quote result
+              - { name: TestRateRounding, status: skip, duration: 0 }
+          - name: checkout/carriers
+            children:
+              - { name: TestGroundParams, status: pass, duration: 0.044 }
+              - { name: TestFreightParams, status: pass, duration: 0.019 }
+
+  - id: metrics
+    group: artifacts
+    title: Metrics
+    subtitle: metrics · tiles and table
+    badges: [{ label: metrics, tone: accent }]
+    show:
+      - kind: metrics
+        label: search-api canary vs fleet
+        metrics:
+          - { label: Allocations / request, value: 1810, baseline: 2790, better: lower }
+          - { label: CPU / request, value: 0.41, baseline: 0.50, unit: ms, better: lower, decimals: 2 }
+          - { label: p99 latency, value: 41.6, baseline: 42.5, unit: ms, better: lower, decimals: 1 }
+          - { label: Working set, value: 1.31, baseline: 1.20, unit: GiB, better: lower, decimals: 2 }
+      - kind: metrics
+        label: All guardrails
+        layout: table
+        columns: { baseline: Fleet, value: Canary }
+        metrics:
+          - { label: p50 latency, value: 12.1, baseline: 12.3, unit: ms, better: lower, decimals: 1 }
+          - { label: p99 latency, value: 41.6, baseline: 42.5, unit: ms, better: lower, decimals: 1 }
+          - { label: Error rate, value: 0.031, baseline: 0.030, unit: "%", better: lower, decimals: 3 }
+          - { label: Zero-result rate, value: 4.2, baseline: 4.3, unit: "%", better: lower, decimals: 1 }
+
+  - id: chart
+    group: artifacts
+    title: Charts
+    subtitle: chart · line and bar
+    badges: [{ label: chart, tone: accent }]
+    show:
+      - kind: chart
+        label: CPU per request
+        width: half
+        unit: ms
+        y_min: 0
+        x: ["2026-11-05T14:00:00Z", "2026-11-05T15:00:00Z", "2026-11-05T16:00:00Z", "2026-11-05T17:00:00Z", "2026-11-05T18:00:00Z", "2026-11-05T19:00:00Z", "2026-11-05T20:00:00Z", "2026-11-05T21:00:00Z"]
+        series:
+          - { label: Fleet, values: [0.50, 0.51, 0.49, 0.50, 0.52, 0.50, 0.49, 0.51], tone: neutral }
+          - { label: Canary, values: [0.50, 0.50, 0.42, 0.41, 0.42, 0.40, 0.41, 0.41], tone: accent }
+        marks: [{ x: "2026-11-05T15:30:00Z", label: canary pinned }]
+      - kind: chart
+        label: Allocations per request by endpoint
+        width: half
+        type: bar
+        x: [query, suggest, facets, related]
+        series:
+          - { label: Before, values: [940, 610, 720, 520], tone: neutral }
+          - { label: After, values: [56, 410, 470, 350], tone: accent }
+
+  - id: markdown
+    group: artifacts
+    title: Markdown
+    subtitle: markdown
+    badges: [{ label: markdown, tone: accent }]
+    show:
+      - kind: markdown
+        label: Invoice INV-2026-0418
+        text: |-
+          # Northwind Freight LLC
+          **Invoice** INV-2026-0418 · issued **Oct 31, 2026** · due **Nov 30, 2026**
+
+          Bill to: Acme Inc., 400 Harbor Way, Oakland, CA 94607
+
+          | Description | Qty | Unit price | Amount |
+          |---|---:|---:|---:|
+          | Pallet freight SF to Reno | 3 | $410.00 | $1,230.00 |
+          | Liftgate delivery | 1 | $85.00 | $85.00 |
+
+          Subtotal **$1,315.00**, tax 8.625% **$113.42**, total **$1,428.42**.
+
+          > Pay by ACH to account ending 4417. Late fee 1.5% per month.
+
+  - id: json
+    group: artifacts
+    title: JSON tree
+    subtitle: json
+    badges: [{ label: json, tone: accent }]
+    show:
+      - kind: json
+        label: Tool call arguments
+        open: 1
+        data:
+          origin: SFO
+          destination: JFK
+          depart: "2026-12-18"
+          passengers: [{ type: adult, count: 2 }, { type: child, count: 1 }]
+          cabin: economy
+          flexible: true
+          max_price: null
+
+  - id: transcript
+    group: artifacts
+    title: Agent transcript
+    subtitle: transcript
+    badges: [{ label: transcript, tone: accent }]
+    show:
+      - id: run
+        kind: transcript
+        label: Airline agent · task 17
+        rows:
+          - { id: s1, role: system, text: "You are an airline support agent. Follow the policy: basic economy fares cannot be changed." }
+          - { id: s2, role: user, text: "I need to move my Dec 18 SFO to JFK flight to Dec 20. Booking ZK41QP." }
+          - { id: s3, role: tool_call, name: get_reservation, input: { booking: ZK41QP } }
+          - { id: s4, role: tool_result, name: get_reservation, output: { fare: basic_economy, flights: [{ number: UA 1622, date: "2026-12-18" }] } }
+          - { id: s5, role: assistant, text: "I can move you to Dec 20. The change fee is $75." }
+          - { id: s6, role: tool_call, name: change_flight, input: { booking: ZK41QP, date: "2026-12-20" } }
+          - { id: s7, role: tool_result, name: change_flight, error: true, output: "fare rules forbid changes on basic_economy" }
+    ask:
+      - { id: first_wrong, kind: pick, label: First wrong step, from: run, key: w }
+
+  - id: image
+    group: artifacts
+    title: Image
+    subtitle: image
+    badges: [{ label: image, tone: accent }]
+    show:
+      - kind: image
+        label: The starter suite
+        src: assets/evalkit-starter.png
+        alt: "The evalkit review page for the starter suite: a sidebar with two items, and the checkout outage summary with its prompt, an editable three-bullet output with a length meter, a Verdict row with Close proposed, and a notes box"
+        caption: The starter suite from evalkit init, light theme, at 1440 × 900.
+
+  - id: controls
+    group: controls
+    title: Every question kind
+    subtitle: choice · multi · toggle · action · scale · number · pick · text
+    badges: [{ label: controls, tone: accent }]
+    meta: Proposed values show the agent's reason until you change them
+    proposed:
+      risk: { value: medium, why: One carrier adapter changed; the rest are untouched. }
+    show:
+      - id: options
+        kind: list
+        label: Candidate fixes
+        rows:
+          - { id: f1, title: Return a no-quote result when Encode fails, detail: Keeps the result count equal to the carrier count }
+          - { id: f2, title: Retry Encode once, detail: Hides real encoding bugs }
+          - { id: f3, title: Log and drop, detail: Current behavior }
+    ask:
+      - id: risk
+        kind: choice
+        label: Risk
+        key: r
+        options:
+          - { value: low, label: Low, tone: positive }
+          - { value: medium, label: Medium, tone: warning }
+          - { value: high, label: High, tone: negative }
+      - id: tags
+        kind: multi
+        label: Tags
+        options:
+          - { value: perf, label: Performance, key: p }
+          - { value: correctness, label: Correctness, key: c }
+          - { value: style, label: Style, key: s }
+      - { id: followup, kind: toggle, label: Follow-up ticket, key: f }
+      - id: confidence
+        kind: scale
+        label: Confidence
+        key: o
+        min: 1
+        max: 5
+        labels: [Guessing, Certain]
+      - { id: floor, kind: number, label: Minimum price, unit: USD, min: 0, max: 50, step: 0.05 }
+      - { id: best, kind: pick, label: Best fix, from: options, key: b }
+      - id: merge
+        kind: action
+        label: Merge
+        key: m
+        summary: Claude merges the PR after CI passes.
+        states:
+          off: { button: Approve merge, note: Nothing merges until you approve }
+          on: { button: Approved, note: Merges when you send, badge: Merge }
+          done: { button: Merged, badge: Merged }
+      - { id: why, kind: text, label: "What would change your verdict?" }
+
+  - id: table-rows
+    group: controls
+    title: Per-row checks on a table
+    subtitle: table rows · when · tally
+    badges: [{ label: tally, tone: accent }]
+    meta: Mark a field Wrong to reveal its correction box; the tally updates live
+    proposed:
+      check: { value: { vendor: correct, total: correct }, why: Extractor confidence ≥ 0.9 }
+    show:
+      - id: fields
+        kind: table
+        label: Extracted fields
+        columns:
+          - { key: field, label: Field }
+          - { key: value, label: Extracted }
+        rows:
+          - { id: vendor, field: Vendor, value: Northwind Freight LLC }
+          - { id: number, field: Invoice number, value: INV-2026-0418 }
+          - { id: due, field: Due date, value: "2026-11-03" }
+          - { id: tax, field: Tax, value: "$1,428.42" }
+          - { id: total, field: Total, value: "$1,428.42" }
+      - kind: tally
+        label: Quality
+        question: check
+        stats:
+          - { label: Precision, count: [correct], of: [correct, wrong] }
+          - { label: Recall, count: [correct], of: [correct, missing] }
+          - { label: Checked, count: [correct, wrong, missing], of: rows }
+    ask:
+      - id: check
+        kind: choice
+        label: Check
+        each: fields
+        key: c
+        options:
+          - { value: correct, label: Correct, tone: positive, icon: check }
+          - { value: wrong, label: Wrong, tone: negative, icon: cross }
+          - { value: missing, label: Missing, tone: warning, icon: question }
+      - { id: fix, kind: text, label: Correct value, each: fields, when: { check: [wrong, missing] } }

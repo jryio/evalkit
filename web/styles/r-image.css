@@ -1,0 +1,5 @@
+/* Image: a bordered figure that opens full size on click, caption below. */
+.image { margin: 0; }
+.image a { display: block; width: fit-content; max-width: 100%; }
+.image img { display: block; max-width: 100%; height: auto; border: 1px solid var(--separator); border-radius: var(--radius); cursor: zoom-in; }
+.image figcaption { margin-top: 8px; font-size: 13px; color: var(--secondary); }

@@ -1,0 +1,46 @@
+// Built-in kinds. Adding one: write the module, register it here, add it to the schema.
+import { registerControl, registerRenderer } from "./registry.js";
+import Choice from "./controls/choice.js";
+import Multi from "./controls/multi.js";
+import Toggle from "./controls/toggle.js";
+import Action from "./controls/action.js";
+import Text from "./controls/text.js";
+import Scale from "./controls/scale.js";
+import NumberField from "./controls/number.js";
+import Pick from "./controls/pick.js";
+import TextArtifact from "./renderers/text.js";
+import List from "./renderers/list.js";
+import Table from "./renderers/table.js";
+import CodeArtifact from "./renderers/code.js";
+import DiffArtifact from "./renderers/diff.js";
+import TestsArtifact from "./renderers/tests.js";
+import MetricsArtifact from "./renderers/metrics.js";
+import ChartArtifact from "./renderers/chart.js";
+import MarkdownArtifact from "./renderers/markdown.js";
+import JsonArtifact from "./renderers/json.js";
+import TranscriptArtifact from "./renderers/transcript.js";
+import ImageArtifact from "./renderers/image.js";
+import Tally from "./renderers/tally.js";
+
+registerControl("choice", Choice);
+registerControl("multi", Multi);
+registerControl("toggle", Toggle);
+registerControl("action", Action);
+registerControl("text", Text);
+registerControl("scale", Scale);
+registerControl("number", NumberField);
+registerControl("pick", Pick);
+
+registerRenderer("text", TextArtifact);
+registerRenderer("list", List);
+registerRenderer("table", Table);
+registerRenderer("code", CodeArtifact);
+registerRenderer("diff", DiffArtifact);
+registerRenderer("tests", TestsArtifact);
+registerRenderer("metrics", MetricsArtifact);
+registerRenderer("chart", ChartArtifact);
+registerRenderer("markdown", MarkdownArtifact);
+registerRenderer("json", JsonArtifact);
+registerRenderer("transcript", TranscriptArtifact);
+registerRenderer("image", ImageArtifact);
+registerRenderer("tally", Tally);

@@ -1,0 +1,14 @@
+title: Proposed scale not a number
+questions:
+  - id: clarity
+    kind: scale
+    label: Clarity
+    min: 0
+    max: 3
+items:
+  - id: a
+    title: First
+    proposed:
+      clarity: { value: high }
+  - id: b
+    title: Second

@@ -1,0 +1,15 @@
+title: Row without an id
+items:
+  - id: a
+    title: First
+    show:
+      - id: rows
+        kind: table
+        columns: [{ key: name, label: Name }]
+        rows:
+          - { id: r1, name: R1 }
+          - { name: R2 }
+    ask:
+      - { id: keep, kind: toggle, label: Keep, each: rows }
+  - id: b
+    title: Second

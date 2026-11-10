@@ -1,0 +1,11 @@
+title: Per-row question with another
+items:
+  - id: a
+    title: First
+    show:
+      - { id: rows, kind: list, rows: [{ id: r1, title: R1 }] }
+    ask:
+      - { id: flag, kind: toggle, label: Flag }
+      - { id: keep, kind: toggle, label: Keep, each: rows, with: flag }
+  - id: b
+    title: Second

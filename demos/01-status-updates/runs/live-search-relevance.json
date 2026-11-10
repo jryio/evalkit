@@ -1,0 +1,165 @@
+{
+ "slug": "live-search-relevance",
+ "mode": "normal",
+ "project": "Search relevance",
+ "project_id": "P-ACME-087",
+ "window_start": "2026-10-19T16:45:03Z",
+ "window_end": "2026-11-09T23:59:59Z",
+ "previous_update": "* Ranking model v2 trained; offline NDCG@10 +6%\n* A/B test starts Oct 20 on 20% of traffic",
+ "days_since_last": 21,
+ "draft": "* Ranking model v2 A/B on 20% of traffic: click-through +3.2%, zero-result searches -18%\n* p95 latency up 40 ms \u2192 over the 250 ms budget, so the ramp to 50% is on hold\n* Mei is moving feature lookups into the index to win the latency back",
+ "chars": 238,
+ "health": "atRisk",
+ "health_reason": "Relevance wins are real, but the latency regression blocks the ramp and the fix has no date yet.",
+ "actual": null,
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "Model v2 A/B (20%): CTR +3.2%, zero-result searches -18%, add-to-cart from search +1.1%",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1984",
+     "url": "https://tracker.example.com/acme/issue/ACME-1984"
+    },
+    {
+     "type": "github",
+     "label": "#455 v2 scoring service",
+     "url": "https://git.example.com/acme/search/pull/455"
+    },
+    {
+     "type": "slack",
+     "label": "#search-quality 2026-11-03 Sam: week-2 A/B readout",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "p95 search latency 228 \u2192 268 ms; ramp to 50% paused",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2011",
+     "url": "https://tracker.example.com/acme/issue/ACME-2011"
+    },
+    {
+     "type": "slack",
+     "label": "#search-quality 2026-11-06 Ravi: holding the ramp",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Fix in progress: precompute features into the index (Mei)",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2015",
+     "url": "https://tracker.example.com/acme/issue/ACME-2015"
+    },
+    {
+     "type": "github",
+     "label": "#461 index-time feature store (draft)",
+     "url": "https://git.example.com/acme/search/pull/461"
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Synonym list refreshed for 1,200 product terms",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Small content change, no measured effect yet",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2003",
+     "url": "https://tracker.example.com/acme/issue/ACME-2003"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Offline eval harness moved to nightly CI",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Tooling; evidence behind o1",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#449 nightly offline eval",
+     "url": "https://git.example.com/acme/search/pull/449"
+    }
+   ]
+  },
+  {
+   "id": "o6",
+   "title": "Spelling-correction vendor evaluation started",
+   "rank": 6,
+   "included": false,
+   "cut_reason": "Separate project on the roadmap",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#search-quality 2026-10-28 Dana: vendor shortlist",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o7",
+   "title": "Search health dashboard rebuilt",
+   "rank": 7,
+   "included": false,
+   "cut_reason": "Tooling; evidence for o1 and o2",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2008",
+     "url": "https://tracker.example.com/acme/issue/ACME-2008"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 29,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 21,
+   "notes": "acme/search only"
+  },
+  {
+   "source": "slack:#search-quality",
+   "status": "ok",
+   "items": 44,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 3,
+   "notes": ""
+  }
+ ],
+ "questions": [
+  "Is 250 ms p95 still the hard budget, or can the ramp go ahead at 268 ms?",
+  "Should the vendor evaluation be mentioned here or in its own project?"
+ ]
+}

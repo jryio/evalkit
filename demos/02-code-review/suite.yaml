@@ -1,0 +1,612 @@
+# Code review findings: triage what the /code-review agent found before Claude
+# posts the valid findings as inline PR comments.
+title: Code review findings
+description: Triage the /code-review agent's findings on four PRs before Claude posts the valid ones as inline review comments.
+send: Send to Claude
+groups:
+  - { id: checkout, label: acme/checkout }
+  - { id: deploy, label: acme/deploy }
+reviewed: [review]
+questions:
+  - id: triage
+    kind: choice
+    label: Finding
+    each: findings
+    key: t
+    options:
+      - { value: valid, label: Valid, tone: positive, icon: check }
+      - { value: false_positive, label: False positive, tone: negative, icon: cross }
+      - { value: nit, label: Nit, tone: neutral }
+  - id: severity
+    kind: choice
+    label: Severity
+    each: findings
+    key: s
+    options:
+      - { value: high, label: High, tone: negative }
+      - { value: medium, label: Medium, tone: warning }
+      - { value: low, label: Low, tone: neutral }
+  - id: review
+    kind: choice
+    label: Review
+    primary: true
+    options:
+      - { value: approve, label: Approve, tone: positive, icon: check }
+      - { value: changes, label: Request changes, tone: negative, icon: cross }
+      - { value: comment, label: Comment, tone: neutral }
+  - id: post
+    kind: action
+    label: Post
+    key: a
+    summary: Claude posts the findings marked Valid as inline review comments.
+    states:
+      off: { button: Approve posting, note: Only findings marked Valid are posted }
+      on: { button: Approved, note: Posts when you send, badge: Post }
+      done: { button: Posted to GitHub, note: reply on GitHub from here on, badge: Posted }
+  - id: notes
+    kind: text
+    label: Notes for Claude
+    key: n
+    placeholder: What did the reviewer miss?
+
+items:
+  - id: pr-412
+    group: checkout
+    title: "tax: cache rates per region"
+    short: "#412 Cache tax rates"
+    subtitle: 4 findings · dkim
+    badges: [{ label: "#412", tone: accent }]
+    meta: dkim · +49 −2 · 2 files · opened Nov 4
+    proposed:
+      severity:
+        value: { f1: high, f2: medium, f3: medium, f4: low }
+        why: Reviewer agent's estimate
+    show:
+      - id: findings
+        kind: list
+        label: Findings
+        rows:
+          - id: f1
+            title: get reads the cache map without taking the lock
+            detail: 'get reads c.entries with no lock while put writes it under c.mu. Two checkouts that miss the cache for the same region at once crash the pod with "fatal error: concurrent map read and map write".'
+            at: { artifact: diff, line: 23, label: "cache.go:23" }
+            links: [{ label: concurrency }, { label: CONFIRMED }]
+          - id: f2
+            title: RateFor drops the caller's context
+            detail: fetch gets context.Background(), so when the shopper closes the page or the 3 s checkout deadline passes, the tax API call keeps running for the full 10 s client timeout and its span is cut from the checkout trace.
+            at: { artifact: diff, line: 59, label: "client.go:59" }
+            links: [{ label: correctness }, { label: CONFIRMED }]
+          - id: f3
+            title: A failed fetch is cached as a 0% rate
+            detail: If the tax API returns 503, put stores an empty Rate for the region and every order shipped there is charged no tax for the next 10 minutes.
+            at: { artifact: diff, line: 63, label: "client.go:63" }
+            links: [{ label: correctness }, { label: PLAUSIBLE }]
+          - id: f4
+            title: cachedRate.hits is never set or read
+            detail: No wrong output. hits is stored on every entry and nothing updates it; drop the field or count hits in get.
+            at: { artifact: diff, line: 13, label: "cache.go:13" }
+            links: [{ label: simplification }, { label: CONFIRMED }]
+      - id: diff
+        kind: diff
+        label: 2 files changed
+        language: go
+        highlight: [13, 23, 59, 63]
+        diff: |-
+          diff --git a/tax/cache.go b/tax/cache.go
+          new file mode 100644
+          index 0000000..3c7e9b2
+          --- /dev/null
+          +++ b/tax/cache.go
+          @@ -0,0 +1,34 @@
+          +package tax
+          +
+          +import (
+          +	"sync"
+          +	"time"
+          +)
+          +
+          +const CacheTTL = 10 * time.Minute
+          +
+          +type cachedRate struct {
+          +	rate    Rate
+          +	fetched time.Time
+          +	hits    int
+          +}
+          +
+          +// rateCache holds the last rate fetched for each region.
+          +type rateCache struct {
+          +	mu      sync.Mutex
+          +	entries map[string]cachedRate
+          +}
+          +
+          +func (c *rateCache) get(region string) (Rate, bool) {
+          +	e, ok := c.entries[region]
+          +	if !ok || time.Since(e.fetched) > CacheTTL {
+          +		return Rate{}, false
+          +	}
+          +	return e.rate, true
+          +}
+          +
+          +func (c *rateCache) put(region string, r Rate) {
+          +	c.mu.Lock()
+          +	defer c.mu.Unlock()
+          +	c.entries[region] = cachedRate{rate: r, fetched: time.Now()}
+          +}
+          diff --git a/tax/client.go b/tax/client.go
+          index 8a41c2d..f19e6b7 100644
+          --- a/tax/client.go
+          +++ b/tax/client.go
+          @@ -41,16 +41,29 @@ type Client struct {
+           	http    *http.Client
+           	baseURL string
+          +	cache   rateCache
+           }
+
+           func NewClient(baseURL string, hc *http.Client) *Client {
+          -	return &Client{http: hc, baseURL: baseURL}
+          +	return &Client{
+          +		http:    hc,
+          +		baseURL: baseURL,
+          +		cache:   rateCache{entries: map[string]cachedRate{}},
+          +	}
+           }
+
+           // RateFor returns the sales tax rate for a shipping region.
+           func (c *Client) RateFor(ctx context.Context, region string) (Rate, error) {
+          -	return c.fetch(ctx, region)
+          +	if r, ok := c.cache.get(region); ok {
+          +		return r, nil
+          +	}
+          +	r, err := c.fetch(context.Background(), region)
+          +	if err != nil {
+          +		return Rate{}, err
+          +	}
+          +	c.cache.put(region, r)
+          +	return r, nil
+           }
+
+           func (c *Client) fetch(ctx context.Context, region string) (Rate, error) {
+           	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/rates/"+region, nil)
+           	if err != nil {
+    context:
+      - kind: tests
+        label: CI · go test ./...
+        tests:
+          - name: tax
+            children:
+              - name: TestRateFor
+                children:
+                  - { name: cache_hit, status: pass, duration: 0.002 }
+                  - { name: cache_miss_fetches, status: pass, duration: 0.006 }
+                  - { name: expired_entry_refetches, status: pass, duration: 0.004 }
+              - { name: TestNewClient, status: pass, duration: 0.001 }
+          - name: checkout
+            children:
+              - name: TestTotals
+                children:
+                  - { name: taxed_region, status: pass, duration: 0.007 }
+                  - { name: tax_api_down_fails_order, status: pass, duration: 0.009 }
+              - { name: TestPlaceOrder, status: pass, duration: 0.018 }
+      - kind: markdown
+        label: PR description
+        text: |-
+          ## Summary
+          - `RateFor` keeps each region's tax rate for 10 minutes instead of calling the tax API on every checkout.
+          - The tax API is the slowest call in order placement, and most orders ship to the same few regions.
+          - Part of CHK-311: get checkout p95 under 400 ms.
+
+          ## Test plan
+          - [x] `go test ./tax/...`
+          - [x] New cache hit, miss and expiry cases
+          - [ ] Load test on staging at twice peak checkout traffic
+
+  - id: pr-418
+    group: checkout
+    title: "payments: encode each charge request once"
+    short: "#418 Encode once"
+    subtitle: 5 findings · rpatel
+    badges: [{ label: "#418", tone: accent }, { label: CI failing, tone: negative }]
+    meta: rpatel · +32 −3 · 2 files · opened Nov 7
+    proposed:
+      severity:
+        value: { f1: high, f2: low, f3: medium, f4: medium, f5: low }
+        why: Reviewer agent's estimate
+    show:
+      - id: findings
+        kind: list
+        label: Findings
+        rows:
+          - id: f1
+            title: Buffer goes back to the pool while the gateway still reads the body
+            detail: When a charge hits the 2 s gateway timeout, client.Do returns while the transport is still writing the body. The deferred putBuf hands the buffer to the next checkout, whose encode overwrites it, so the gateway can receive a body that mixes two charges.
+            at: { artifact: diff, line: 119, label: "gateway.go:119" }
+            links: [{ label: concurrency }, { label: CONFIRMED }]
+          - id: f2
+            title: Encode error path drops the buffer instead of returning it
+            detail: A NaN amount from a failed currency conversion makes Encode fail; encodeCharge returns without putBuf, so every such request allocates a fresh buffer.
+            at: { artifact: diff, line: 24, label: "encode.go:24" }
+            links: [{ label: efficiency }, { label: CONFIRMED }]
+          - id: f3
+            title: Reused buffer can carry bytes from the previous charge
+            detail: A buffer last used for a 3 KB charge with 40 line items is reused for a 400-byte refund; the refund body keeps the tail of the old JSON and the gateway rejects it as malformed.
+            at: { artifact: diff, line: 12, label: "encode.go:12" }
+            links: [{ label: correctness }, { label: PLAUSIBLE }]
+          - id: f4
+            title: Buffers of any size go back to the pool
+            detail: One 900 KB charge for a bulk order grows a buffer to 1 MB and putBuf keeps it pooled, so heap per pod ratchets up instead of settling.
+            at: { artifact: diff, line: 17, label: "encode.go:17" }
+            links: [{ label: efficiency }, { label: PLAUSIBLE }]
+          - id: f5
+            title: ContentLength is already set by NewRequestWithContext
+            detail: No wrong output. NewRequestWithContext sets ContentLength from the *bytes.Reader, so this line repeats the same value.
+            at: { artifact: diff, line: 126, label: "gateway.go:126" }
+            links: [{ label: simplification }, { label: CONFIRMED }]
+      - id: diff
+        kind: diff
+        label: 2 files changed
+        language: go
+        highlight: [12, 17, 24, 119, 126]
+        diff: |-
+          diff --git a/payments/encode.go b/payments/encode.go
+          new file mode 100644
+          index 0000000..5b0e7d3
+          --- /dev/null
+          +++ b/payments/encode.go
+          @@ -0,0 +1,27 @@
+          +package payments
+          +
+          +import (
+          +	"bytes"
+          +	"encoding/json"
+          +	"sync"
+          +)
+          +
+          +var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+          +
+          +func getBuf() *bytes.Buffer {
+          +	buf := bufPool.Get().(*bytes.Buffer)
+          +	buf.Reset()
+          +	return buf
+          +}
+          +
+          +func putBuf(buf *bytes.Buffer) { bufPool.Put(buf) }
+          +
+          +// encodeCharge writes a charge request into a pooled buffer. The caller
+          +// returns the buffer with putBuf once nothing reads the body anymore.
+          +func encodeCharge(c *ChargeRequest) (*bytes.Buffer, error) {
+          +	buf := getBuf()
+          +	if err := json.NewEncoder(buf).Encode(c); err != nil {
+          +		return nil, err
+          +	}
+          +	return buf, nil
+          +}
+          diff --git a/payments/gateway.go b/payments/gateway.go
+          index 4d7a2c9..9e1b05f 100644
+          --- a/payments/gateway.go
+          +++ b/payments/gateway.go
+          @@ -112,16 +112,18 @@ func (g *Gateway) Charge(ctx context.Context, c *ChargeRequest) (*ChargeResult, error) {
+           	ctx, cancel := context.WithTimeout(ctx, g.timeout)
+           	defer cancel()
+
+          -	body, err := json.Marshal(c)
+          +	buf, err := encodeCharge(c)
+           	if err != nil {
+           		return nil, fmt.Errorf("encode charge: %w", err)
+           	}
+          -	g.audit.Record(c.OrderID, body)
+          +	defer putBuf(buf)
+          +	g.audit.Record(c.OrderID, buf.Bytes())
+
+          -	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.baseURL+"/charges", bytes.NewReader(body))
+          +	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.baseURL+"/charges", bytes.NewReader(buf.Bytes()))
+           	if err != nil {
+           		return nil, err
+           	}
+          +	req.ContentLength = int64(buf.Len())
+           	req.Header.Set("Content-Type", "application/json")
+           	req.Header.Set("Idempotency-Key", c.IdempotencyKey)
+           	resp, err := g.client.Do(req)
+    context:
+      - kind: tests
+        label: CI · go test ./...
+        tests:
+          - name: payments
+            children:
+              - { name: TestEncodeCharge, status: pass, duration: 0.002 }
+              - name: TestCharge
+                children:
+                  - { name: approved, status: pass, duration: 0.009 }
+                  - { name: declined_returns_error, status: pass, duration: 0.005 }
+                  - name: gateway_timeout_returns_error
+                    status: fail
+                    duration: 0.162
+                    output: |-
+                      ==================
+                      WARNING: DATA RACE
+                      Write at 0x00c0001b4000 by goroutine 64:
+                        bytes.(*Buffer).Write()
+                            /usr/local/go/src/bytes/buffer.go:182
+                        encoding/json.(*Encoder).Encode()
+                            /usr/local/go/src/encoding/json/stream.go:231
+                        git.example.com/acme/checkout/payments.encodeCharge()
+                            payments/encode.go:23
+                      Previous read at 0x00c0001b4000 by goroutine 58:
+                        bytes.(*Reader).Read()
+                            /usr/local/go/src/bytes/reader.go:44
+                        net/http.(*transferWriter).writeBody()
+                            /usr/local/go/src/net/http/transfer.go:372
+                        net/http.(*persistConn).writeLoop()
+                            /usr/local/go/src/net/http/transport.go:2558
+                      ==================
+                          testing.go:1490: race detected during execution of test
+                      --- FAIL: TestCharge/gateway_timeout_returns_error (0.16s)
+              - { name: TestRefund, status: pass, duration: 0.027 }
+          - name: orders
+            children:
+              - { name: TestPlaceOrder, status: pass, duration: 0.052 }
+              - { name: TestIdempotency, status: pass, duration: 0.008 }
+      - kind: markdown
+        label: PR description
+        text: |-
+          ## Summary
+          - Encode each charge request once into a pooled `bytes.Buffer` and use it for both the audit record and the HTTP body.
+          - Drops one full-body allocation per gateway call. Part of CHK-298: cut allocations in order placement.
+
+          ## Test plan
+          - [x] `go test ./payments/...`
+          - [ ] `go test -race ./...` in CI
+          - [ ] Load test: allocations per order and heap per pod
+
+  - id: pr-423
+    group: checkout
+    title: "cart: merge the guest cart on sign-in"
+    short: "#423 Merge guest cart"
+    subtitle: 3 findings · mchen
+    badges: [{ label: "#423", tone: accent }]
+    meta: mchen · +20 −9 · 2 files · opened Nov 8
+    proposed:
+      severity:
+        value: { f1: high, f2: medium, f3: low }
+        why: Reviewer agent's estimate
+    show:
+      - id: findings
+        kind: list
+        label: Findings
+        rows:
+          - id: f1
+            title: New account carts panic on the first merge
+            detail: 'An account that has never added an item loads with Items == nil. The rewrite drops the nil check, so dst.Items[sku] = total panics with "assignment to entry in nil map" and sign-in returns 500.'
+            at: { artifact: diff, line: 30, label: "merge.go:30" }
+            links: [{ label: correctness }, { label: CONFIRMED }]
+          - id: f2
+            title: Deleting from src.Items while ranging over it can skip items
+            detail: With three out-of-stock SKUs in the guest cart, deleting during the range can skip one, so it is merged into the account cart anyway.
+            at: { artifact: diff, line: 22, label: "merge.go:22" }
+            links: [{ label: correctness }, { label: PLAUSIBLE }]
+          - id: f3
+            title: The quantity cap can be the built-in min
+            detail: No wrong output. total := min(dst.Items[sku]+qty, maxQty) says the same in one line.
+            at: { artifact: diff, line: 27, label: "merge.go:27" }
+            links: [{ label: simplification }, { label: CONFIRMED }]
+      - id: diff
+        kind: diff
+        label: 2 files changed
+        language: go
+        highlight: [22, 27, 30]
+        diff: |-
+          diff --git a/cart/merge.go b/cart/merge.go
+          index 2e9f4a1..b7c03d8 100644
+          --- a/cart/merge.go
+          +++ b/cart/merge.go
+          @@ -14,14 +14,22 @@ type Cart struct {
+           // maxQty caps one line item, matching the storefront's quantity picker.
+           const maxQty = 10
+
+          -// Merge moves the guest cart's items into the account cart.
+          -func Merge(dst, src *Cart) {
+          -	if dst.Items == nil {
+          -		dst.Items = make(map[string]int, len(src.Items))
+          -	}
+          -	for sku, qty := range src.Items {
+          -		dst.Items[sku] = qty
+          -	}
+          +// Merge adds the guest cart's items to the account cart, caps each line
+          +// at maxQty, and drops items that went out of stock while the guest shopped.
+          +func Merge(dst, src *Cart, inStock func(sku string) bool) {
+          +	for sku := range src.Items {
+          +		if !inStock(sku) {
+          +			delete(src.Items, sku)
+          +		}
+          +	}
+          +	for sku, qty := range src.Items {
+          +		total := dst.Items[sku] + qty
+          +		if total > maxQty {
+          +			total = maxQty
+          +		}
+          +		dst.Items[sku] = total
+          +	}
+          +	dst.UpdatedAt = src.UpdatedAt
+           }
+
+           func (c *Cart) Count() int {
+          diff --git a/cart/merge_test.go b/cart/merge_test.go
+          index 7c5d0e2..41a9f8b 100644
+          --- a/cart/merge_test.go
+          +++ b/cart/merge_test.go
+          @@ -41,11 +41,14 @@ func TestMerge(t *testing.T) {
+           		{name: "guest items added", dst: items("A", 1), src: items("B", 2), want: items("A", 1, "B", 2)},
+           		{name: "empty guest cart", dst: items("A", 1), src: items(), want: items("A", 1)},
+          +		{name: "quantities add up", dst: items("A", 3), src: items("A", 4), want: items("A", 7)},
+          +		{name: "capped at maxQty", dst: items("A", 8), src: items("A", 5), want: items("A", 10)},
+          +		{name: "out of stock dropped", dst: items("A", 1), src: items("X", 2), want: items("A", 1)},
+           	}
+           	for _, tc := range cases {
+           		t.Run(tc.name, func(t *testing.T) {
+           			dst, src := &Cart{Items: tc.dst}, &Cart{Items: tc.src}
+          -			Merge(dst, src)
+          +			Merge(dst, src, func(sku string) bool { return sku != "X" })
+           			assert.Equal(t, tc.want, dst.Items)
+           		})
+           	}
+           }
+    context:
+      - kind: tests
+        label: CI · go test ./...
+        tests:
+          - name: cart
+            children:
+              - name: TestMerge
+                children:
+                  - { name: guest_items_added, status: pass, duration: 0.001 }
+                  - { name: empty_guest_cart, status: pass, duration: 0.001 }
+                  - { name: quantities_add_up, status: pass, duration: 0.001 }
+                  - { name: capped_at_maxQty, status: pass, duration: 0.001 }
+                  - { name: out_of_stock_dropped, status: pass, duration: 0.001 }
+              - { name: TestCount, status: pass, duration: 0.002 }
+          - name: session
+            children:
+              - { name: TestSignIn, status: pass, duration: 0.034 }
+              - { name: TestSignOut, status: pass, duration: 0.011 }
+      - kind: markdown
+        label: PR description
+        text: |-
+          ## Summary
+          - Sign-in adds the guest cart's quantities to the account cart instead of overwriting them.
+          - Each line is capped at `maxQty`, and items that went out of stock while the shopper was signed out are dropped.
+          - Fixes CHK-340 and CHK-342.
+
+          ## Test plan
+          - [x] `go test ./cart/...` with new add-up, cap and out-of-stock cases
+          - [ ] Sign in on staging with a guest cart and a brand-new account
+
+  - id: pr-87
+    group: deploy
+    title: "checkout: one-step canary demote"
+    short: "#87 One-step demote"
+    subtitle: 3 findings · sortiz
+    badges: [{ label: "#87", tone: accent }]
+    meta: sortiz · +14 −2 · 3 files · opened Nov 3
+    proposed:
+      severity:
+        value: { f1: high, f2: medium, f3: medium }
+        why: Reviewer agent's estimate
+    show:
+      - id: findings
+        kind: list
+        label: Findings
+        rows:
+          - id: f1
+            title: Chart default turns on the canary branch for the prod release
+            detail: 'The chart now ships canary: {enabled: false}, a non-empty map, so "if .Values.canary" is true for the prod checkout release too. The next sync renders replicas: 0 and scales prod checkout to zero pods.'
+            at: { artifact: diff, line: 24, label: "deployment.yaml:24" }
+            links: [{ label: correctness }, { label: CONFIRMED }]
+          - id: f2
+            title: HPA scales the demoted canary straight back up
+            detail: 'With canary.enabled false the deployment renders replicas: 0, but the HPA keeps minReplicas 2 and scales it back to 2 pods, so the canary keeps serving traffic.'
+            at: { artifact: diff, line: 17, label: "values-canary.yaml:17" }
+            links: [{ label: correctness }, { label: PLAUSIBLE }]
+          - id: f3
+            title: The version label now carries the image tag, not canary
+            detail: 'With image.tag 2026.11.03-7d1e4b2 the canary pods are labeled app.kubernetes.io/version: "2026.11.03-7d1e4b2", so the alert rules that select version="canary" match no series and never fire.'
+            at: { artifact: diff, line: 46, label: "deployment.yaml:46" }
+            links: [{ label: correctness }, { label: PLAUSIBLE }]
+      - id: diff
+        kind: diff
+        label: 3 files changed
+        language: yaml
+        highlight: [17, 24, 46]
+        diff: |-
+          diff --git a/releases/checkout/values-canary.yaml b/releases/checkout/values-canary.yaml
+          index 6e1f0a3..c2d94b7 100644
+          --- a/releases/checkout/values-canary.yaml
+          +++ b/releases/checkout/values-canary.yaml
+          @@ -1,17 +1,19 @@
+          -replicaCount: 2
+          +# One-step demote: set canary.enabled to false and sync.
+          +canary:
+          +  enabled: true
+          +  replicaCount: 2
+
+           image:
+             tag: 2026.11.03-7d1e4b2  # set by the release pipeline
+
+           podLabels:
+             track: canary
+          -  app.kubernetes.io/version: canary
+
+           env:
+             PAYMENTS_SANDBOX: "false"
+
+           autoscaling:
+             enabled: true
+             minReplicas: 2
+             maxReplicas: 4
+             targetCPUUtilizationPercentage: 65
+          diff --git a/charts/checkout/templates/deployment.yaml b/charts/checkout/templates/deployment.yaml
+          index 3a8e5d1..e07b4c2 100644
+          --- a/charts/checkout/templates/deployment.yaml
+          +++ b/charts/checkout/templates/deployment.yaml
+          @@ -21,7 +21,11 @@
+               {{- toYaml . | nindent 4 }}
+               {{- end }}
+           spec:
+          +  {{- if .Values.canary }}
+          +  replicas: {{ if .Values.canary.enabled }}{{ .Values.canary.replicaCount }}{{ else }}0{{ end }}
+          +  {{- else }}
+             replicas: {{ .Values.replicaCount }}
+          +  {{- end }}
+             selector:
+               matchLabels:
+                 {{- include "checkout.selectorLabels" . | nindent 6 }}
+          @@ -39,6 +43,7 @@ spec:
+                   {{- with .Values.podLabels }}
+                   {{- toYaml . | nindent 8 }}
+                   {{- end }}
+          +        app.kubernetes.io/version: {{ .Values.image.tag | quote }}
+               spec:
+                 serviceAccountName: {{ include "checkout.serviceAccountName" . }}
+                 containers:
+          diff --git a/charts/checkout/values.yaml b/charts/checkout/values.yaml
+          index 9d2b6f4..1ae7c53 100644
+          --- a/charts/checkout/values.yaml
+          +++ b/charts/checkout/values.yaml
+          @@ -72,3 +72,8 @@ autoscaling:
+             minReplicas: 8
+             maxReplicas: 48
+             targetCPUUtilizationPercentage: 65
+          +
+          +# Canary track. Only the checkout-canary release turns it on.
+          +canary:
+          +  enabled: false
+          +  replicaCount: 2
+    context:
+      - kind: tests
+        label: CI · go test ./...
+        tests:
+          - name: tests/render
+            children:
+              - name: TestCanary
+                children:
+                  - { name: enabled_renders_replica_count, status: pass, duration: 0.27 }
+                  - { name: disabled_renders_zero_replicas, status: pass, duration: 0.25 }
+              - name: TestProd
+                children:
+                  - { name: renders_hpa, status: pass, duration: 0.34 }
+                  - { name: image_tag_from_values, status: pass, duration: 0.28 }
+          - name: tests/policy
+            children:
+              - { name: TestNoLatestTags, status: pass, duration: 0.07 }
+              - { name: TestProbesSet, status: pass, duration: 0.10 }
+      - kind: markdown
+        label: PR description
+        text: |-
+          ## Summary
+          - Adds `canary.enabled`, so demoting the checkout canary is one values change: set it to false and sync.
+          - The canary release stays installed at zero replicas, so promoting is the reverse flip.
+          - Moves the `app.kubernetes.io/version` pod label from the canary values into the chart.
+
+          ## Test plan
+          - [x] `go test ./tests/...` renders the canary enabled and disabled
+          - [x] `helm diff upgrade checkout-canary charts/checkout -f releases/checkout/values-canary.yaml` against prod-us-east
+    done:
+      post: { at: "2026-11-09T17:45:00Z", url: "https://git.example.com/acme/deploy/pull/87" }

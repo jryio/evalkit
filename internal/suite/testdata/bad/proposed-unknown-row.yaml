@@ -1,0 +1,12 @@
+title: Proposed unknown row
+items:
+  - id: a
+    title: First
+    show:
+      - { id: rows, kind: list, rows: [{ id: r1, title: R1 }] }
+    ask:
+      - { id: keep, kind: toggle, label: Keep, each: rows }
+    proposed:
+      keep: { value: { r1: true, r9: true } }
+  - id: b
+    title: Second

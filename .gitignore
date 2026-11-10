@@ -1,0 +1,10 @@
+.claude/
+# Review output written beside each suite (not the internal/feedback package).
+/demos/*/feedback/
+/examples/*/feedback/
+*.test
+/bin/
+/dist/
+.DS_Store
+# Vendored JS is source here, even if a global ignore says vendor/.
+!web/vendor/

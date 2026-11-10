@@ -1,0 +1,162 @@
+{
+ "slug": "live-mobile-checkout",
+ "mode": "normal",
+ "project": "Mobile checkout",
+ "project_id": "P-ACME-112",
+ "window_start": "2026-10-26T15:02:11Z",
+ "window_end": "2026-11-09T23:59:59Z",
+ "previous_update": "* Apple Pay behind a flag for 10% of iOS users\n* Saved cards API in review; Android next",
+ "days_since_last": 14,
+ "draft": "* Apple Pay live for all iOS users: checkout completion +4.1 pts (61.8% \u2192 65.9%)\n* Saved cards shipped on Android; 38% of repeat buyers use one\n* Next \u2192 Google Pay, then retire the old web-view checkout",
+ "chars": 202,
+ "health": "onTrack",
+ "health_reason": "Both payment paths shipped on schedule; Google Pay is the last piece before the Dec 15 cutover.",
+ "actual": null,
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "Apple Pay ramped 10% \u2192 100% on iOS; completion 61.8% \u2192 65.9% over 7 days",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2141",
+     "url": "https://tracker.example.com/acme/issue/ACME-2141"
+    },
+    {
+     "type": "github",
+     "label": "#812 ramp Apple Pay to 100%",
+     "url": "https://git.example.com/acme/mobile-app/pull/812"
+    },
+    {
+     "type": "slack",
+     "label": "#mobile-checkout 2026-11-04 Dana: completion up 4 pts",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Saved cards on Android (v5.18): 38% of repeat buyers pay with a saved card",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2150",
+     "url": "https://tracker.example.com/acme/issue/ACME-2150"
+    },
+    {
+     "type": "github",
+     "label": "#826 saved cards on Android",
+     "url": "https://git.example.com/acme/mobile-app/pull/826"
+    },
+    {
+     "type": "slack",
+     "label": "#mobile-checkout 2026-11-07 Ravi: 38% adoption",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Next: Google Pay, then retire the web-view checkout",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2163",
+     "url": "https://tracker.example.com/acme/issue/ACME-2163"
+    },
+    {
+     "type": "linear",
+     "label": "ACME-2170",
+     "url": "https://tracker.example.com/acme/issue/ACME-2170"
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Android 12 checkout crash fixed (crash rate 0.4% \u2192 0.05%)",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Bug fix inside the saved-cards rollout; would push past 300 chars",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1788",
+     "url": "https://tracker.example.com/acme/issue/ACME-1788"
+    },
+    {
+     "type": "github",
+     "label": "#790 guard payment sheet lifecycle",
+     "url": "https://git.example.com/acme/mobile-app/pull/790"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Design review for one-tap reorder",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Exploration, no decision yet",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#mobile-design 2026-11-03 Mei: one-tap reorder mocks",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o6",
+   "title": "Payments SDK bumped to 24.3",
+   "rank": 6,
+   "included": false,
+   "cut_reason": "Routine dependency bump",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#819 bump payments SDK",
+     "url": "https://git.example.com/acme/mobile-app/pull/819"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 42,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 37,
+   "notes": "merged PRs in acme/mobile-app and acme/payments"
+  },
+  {
+   "source": "slack:#mobile-checkout",
+   "status": "ok",
+   "items": 58,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 6,
+   "notes": "keywords checkout, apple pay, saved cards"
+  }
+ ],
+ "questions": [],
+ "posted": {
+  "url": "https://tracker.example.com/acme/project/live-mobile-checkout/updates",
+  "at": "2026-11-09T21:40:12Z"
+ }
+}

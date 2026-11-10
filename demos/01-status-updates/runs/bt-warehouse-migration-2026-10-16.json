@@ -1,0 +1,124 @@
+{
+ "slug": "bt-warehouse-migration-2026-10-16",
+ "mode": "blind",
+ "project": "Data warehouse migration",
+ "project_id": "P-ACME-064",
+ "window_start": "2026-09-18T17:00:00Z",
+ "window_end": "2026-10-16T17:00:00Z",
+ "previous_update": "* 24 of 48 models ported\n* Finance models started",
+ "days_since_last": 28,
+ "draft": "* 31 of 48 models ported; finance models in progress\n* Finance revenue totals differ from the old warehouse by 0.7%, cause unknown\n* Nov 30 cutover at risk until the gap is explained",
+ "chars": 182,
+ "health": "atRisk",
+ "health_reason": "Unexplained finance mismatch; the cutover date depends on it.",
+ "actual": {
+  "body": "* 31 of 48 dbt models ported to the new warehouse\n* Finance dashboards next",
+  "health": "onTrack"
+ },
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "31 of 48 models ported; finance models in progress",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1877",
+     "url": "https://tracker.example.com/acme/issue/ACME-1877"
+    },
+    {
+     "type": "github",
+     "label": "#196 port finance staging models",
+     "url": "https://git.example.com/acme/warehouse/pull/196"
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Finance revenue totals off by 0.7% vs the old warehouse; cause unknown",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-10-14 Mei: 0.7% gap on revenue",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Nov 30 cutover at risk",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-10-15 Dana: is Nov 30 still real?",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Query cost dashboard for the new warehouse",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Tooling",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1890",
+     "url": "https://tracker.example.com/acme/issue/ACME-1890"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Two analysts onboarded to the new warehouse",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Adoption detail; too early",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1893",
+     "url": "https://tracker.example.com/acme/issue/ACME-1893"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 38,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 22,
+   "notes": ""
+  },
+  {
+   "source": "slack:#data-platform",
+   "status": "ok",
+   "items": 64,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 5,
+   "notes": ""
+  }
+ ],
+ "questions": [
+  "Was the 0.7% gap known outside the data team on Oct 16?"
+ ]
+}

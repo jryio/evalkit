@@ -1,0 +1,179 @@
+{
+ "slug": "live-warehouse-migration",
+ "mode": "normal",
+ "project": "Data warehouse migration",
+ "project_id": "P-ACME-064",
+ "window_start": "2026-10-16T17:20:00Z",
+ "window_end": "2026-11-09T23:59:59Z",
+ "previous_update": "* 31 of 48 dbt models ported to the new warehouse\n* Finance dashboards next",
+ "days_since_last": 24,
+ "draft": "* 41 of 48 models ported; row counts match on 39\n* Finance revenue tables differ by 0.7% \u2192 two source loaders write local time, not UTC\n* Nov 30 cutover will slip; new date once the loaders are fixed",
+ "chars": 199,
+ "health": "offTrack",
+ "health_reason": "The cutover date will be missed; the finance mismatch has a cause but no fix date.",
+ "actual": null,
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "41 of 48 models ported; row counts match on 39",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1877",
+     "url": "https://tracker.example.com/acme/issue/ACME-1877"
+    },
+    {
+     "type": "github",
+     "label": "#203 port orders models",
+     "url": "https://git.example.com/acme/warehouse/pull/203"
+    },
+    {
+     "type": "github",
+     "label": "#209 port customer models",
+     "url": "https://git.example.com/acme/warehouse/pull/209"
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Finance revenue tables off by 0.7%: two loaders write local time, not UTC",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1902",
+     "url": "https://tracker.example.com/acme/issue/ACME-1902"
+    },
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-11-05 Mei: found the 0.7%",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Nov 30 cutover slips; new date after the loader fix",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1910",
+     "url": "https://tracker.example.com/acme/issue/ACME-1910"
+    },
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-11-08 Dana: we won't make Nov 30",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Old warehouse costs $14k/month while both run in parallel",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Cost context; belongs in the cutover plan, not this update",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-11-02 Sam: double-run cost",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "BI tool switched to the new warehouse for 6 of 22 dashboards",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Too early to report; most dashboards wait on finance tables",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1915",
+     "url": "https://tracker.example.com/acme/issue/ACME-1915"
+    }
+   ]
+  },
+  {
+   "id": "o6",
+   "title": "dbt upgraded to 1.9",
+   "rank": 6,
+   "included": false,
+   "cut_reason": "Routine upgrade",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#206 upgrade dbt",
+     "url": "https://git.example.com/acme/warehouse/pull/206"
+    }
+   ]
+  },
+  {
+   "id": "o7",
+   "title": "Ingestion lag alerting added",
+   "rank": 7,
+   "included": false,
+   "cut_reason": "Tooling",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#211 lag alert",
+     "url": "https://git.example.com/acme/warehouse/pull/211"
+    }
+   ]
+  },
+  {
+   "id": "o8",
+   "title": "Ravi out Nov 1-8",
+   "rank": 8,
+   "included": false,
+   "cut_reason": "Staffing detail; not for a project update",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-10-30 Ravi: out next week",
+     "url": ""
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 51,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 26,
+   "notes": ""
+  },
+  {
+   "source": "slack:#data-platform",
+   "status": "ok",
+   "items": 73,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 8,
+   "notes": ""
+  }
+ ],
+ "questions": [
+  "Name a new cutover date now (Dec 14?) or wait for the loader fix?",
+  "Should the $14k/month double-run cost be in this update?"
+ ]
+}

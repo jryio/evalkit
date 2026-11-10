@@ -1,0 +1,67 @@
+# A starter evalkit suite. Edit it, then: evalkit serve
+# Reference: evalkit docs · every kind once: evalkit init --example <dir>
+title: My eval
+description: Grade each output with 1–3, add notes with N, and press ⌘↵ to send your feedback to the agent.
+send: Send to agent
+
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: good, label: Good, tone: positive, icon: check }
+      - { value: close, label: Close, tone: warning, icon: approx }
+      - { value: bad, label: Bad, tone: negative, icon: cross }
+  - id: notes
+    kind: text
+    label: Notes for the agent
+    key: n
+    placeholder: What would you change?
+
+items:
+  - id: incident-summary
+    title: Summarize the checkout outage
+    subtitle: writing
+    proposed:
+      verdict: { value: close, why: "Self-check: the third bullet repeats the first." }
+    show:
+      - kind: markdown
+        label: Prompt
+        text: "Summarize yesterday's checkout outage for #eng in three bullets."
+      - id: output
+        kind: text
+        label: Output
+        editable: true
+        limit: { target: [120, 280], max: 400 }
+        text: |-
+          * Checkout failed for 23 minutes (14:02–14:25 UTC) after a config push disabled the payment retry path
+          * Rolled back at 14:25; no orders were lost, 1,240 were retried automatically
+          * The config push skipped review; config changes now need an approval
+
+  - id: retry-helper
+    title: Add retries with backoff
+    subtitle: code
+    show:
+      - kind: markdown
+        label: Prompt
+        text: Wrap `fetchQuote` so it retries twice with exponential backoff, but never past the request deadline.
+      - kind: code
+        label: Output
+        language: go
+        code: |-
+          func fetchWithRetry(ctx context.Context, c QuoteClient, req []byte) (Quote, error) {
+          	delay := 20 * time.Millisecond
+          	for attempt := 0; ; attempt++ {
+          		q, err := c.Fetch(ctx, req)
+          		if err == nil || attempt == 2 {
+          			return q, err
+          		}
+          		select {
+          		case <-time.After(delay):
+          			delay *= 2
+          		case <-ctx.Done():
+          			return Quote{}, ctx.Err()
+          		}
+          	}
+          }

@@ -1,0 +1,14 @@
+title: Row without an id, suite question
+questions:
+  - { id: best, kind: pick, label: Best, from: options }
+items:
+  - id: a
+    title: First
+    context:
+      - id: options
+        kind: table
+        columns: [{ key: name, label: Name }]
+        rows:
+          - { name: O1 }
+  - id: b
+    title: Second

@@ -1,0 +1,65 @@
+/* code and diff renderers. Token colors follow the Xcode default light and dark themes;
+   these are the only raw colors outside tokens.css. */
+:root {
+  --code-keyword: #9b2393;
+  --code-string: #c41a16;
+  --code-number: #1c00cf;
+  --code-comment: #5d6c79;
+  --code-function: #326d74;
+  --code-type: #0b4f79;
+  --code-punct: #262626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --code-keyword: #fc5fa3;
+    --code-string: #fc6a5d;
+    --code-number: #d0bf69;
+    --code-comment: #7f8c98;
+    --code-function: #67b7a4;
+    --code-type: #5dd8ff;
+    --code-punct: #d9d9d9;
+  }
+}
+
+/* The panel scrolls sideways; the table grows to the longest line. */
+.code-panel { background: var(--panel); border-radius: var(--radius); padding: 12px 0; font: 13px/1.6 var(--mono); tab-size: 4; overflow-x: auto; }
+.code-table { border-collapse: collapse; width: auto; min-width: 100%; font: inherit; }
+.code-table td { border: 0; vertical-align: top; }
+.code-num { box-sizing: content-box; min-width: 3ch; padding: 0 16px 0 0; text-align: right; color: var(--tertiary); white-space: nowrap; user-select: none; -webkit-user-select: none; font-variant-numeric: tabular-nums; }
+.code-num:first-child { padding-left: 16px; }
+.code-text { width: 100%; white-space: pre; padding: 0 16px 0 0; }
+.code-sign { padding: 0 8px 0 0; white-space: pre; user-select: none; -webkit-user-select: none; }
+
+.code-hl > td { background: var(--warning-tint); }
+.code-hl > .code-num { color: var(--text); }
+
+/* Diff rows */
+.diff-file > td { font-size: 13px; font-weight: 600; padding: 0 16px 8px; }
+tbody + tbody > .diff-file > td { padding-top: 12px; border-top: 1px solid var(--separator); }
+.diff-hunk > td { background: var(--fill); color: var(--secondary); padding-top: 4px; padding-bottom: 4px; }
+/* max-width 0 keeps a long hunk header from widening the table; it truncates instead. */
+.diff-hunk > .code-text { max-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.diff-add > td { background: var(--positive-tint); }
+.diff-add > .code-sign { color: var(--positive-text); }
+.diff-del > td { background: var(--negative-tint); }
+.diff-del > .code-sign { color: var(--negative-text); }
+.diff-note > td { color: var(--secondary); }
+.diff-hl > td { background: var(--warning-tint); }
+.diff-hl > td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+.diff-hl > .code-num { color: var(--text); }
+
+.diff-counts { display: inline-flex; gap: 6px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.diff-count-add { color: var(--positive-text); }
+.diff-count-del { color: var(--negative-text); }
+
+/* Prism tokens */
+.code-panel .token.keyword, .code-panel .token.boolean { color: var(--code-keyword); font-weight: 600; }
+.code-panel .token.string, .code-panel .token.char, .code-panel .token.regex { color: var(--code-string); }
+.code-panel .token.number, .code-panel .token.constant { color: var(--code-number); }
+.code-panel .token.comment, .code-panel .token.coord { color: var(--code-comment); }
+.code-panel .token.function, .code-panel .token.attr-name { color: var(--code-function); }
+.code-panel .token.class-name, .code-panel .token.builtin, .code-panel .token.property, .code-panel .token.key, .code-panel .token.tag { color: var(--code-type); }
+.code-panel .token.operator, .code-panel .token.punctuation { color: var(--code-punct); }
+.code-panel .token.inserted { color: var(--positive-text); }
+.code-panel .token.deleted { color: var(--negative-text); }

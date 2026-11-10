@@ -1,0 +1,10 @@
+title: Each
+items:
+  - id: a
+    title: First
+    show:
+      - { id: rows, kind: list, rows: [{ id: r1, title: R1 }] }
+    ask:
+      - { id: keep, kind: toggle, label: Keep, each: evidence }
+  - id: b
+    title: Second

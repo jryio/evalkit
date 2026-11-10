@@ -1,0 +1,8 @@
+title: Reserved key
+items:
+  - id: a
+    title: First
+    ask:
+      - { id: note, kind: text, label: Note, key: j }
+  - id: b
+    title: Second

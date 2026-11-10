@@ -1,0 +1,12 @@
+title: Proposed scale out of range
+questions:
+  - id: clarity
+    kind: scale
+    label: Clarity
+items:
+  - id: a
+    title: First
+    proposed:
+      clarity: { value: 7 }
+  - id: b
+    title: Second

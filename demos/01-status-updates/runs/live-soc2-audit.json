@@ -1,0 +1,147 @@
+{
+ "slug": "live-soc2-audit",
+ "mode": "normal",
+ "project": "SOC 2 audit",
+ "project_id": "P-ACME-130",
+ "window_start": "2026-10-27T14:10:30Z",
+ "window_end": "2026-11-09T23:59:59Z",
+ "previous_update": "* Auditor kickoff done; 112 controls in scope\n* Evidence collection 60% complete",
+ "days_since_last": 13,
+ "draft": "* Evidence for 104 of 112 controls uploaded; auditor fieldwork starts Nov 17\n* Access reviews done for all 14 production systems\n* Open: vendor risk reviews for 3 suppliers (Sam), due Nov 14",
+ "chars": 190,
+ "health": "onTrack",
+ "health_reason": "Fieldwork date holds; the 8 open controls all have owners and due dates before Nov 17.",
+ "actual": null,
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "Evidence uploaded for 104 of 112 controls (was 67)",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2202",
+     "url": "https://tracker.example.com/acme/issue/ACME-2202"
+    },
+    {
+     "type": "slack",
+     "label": "#soc2 2026-11-06 Dana: 104 of 112",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Quarterly access reviews completed for 14 production systems",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2210",
+     "url": "https://tracker.example.com/acme/issue/ACME-2210"
+    },
+    {
+     "type": "linear",
+     "label": "ACME-2211",
+     "url": "https://tracker.example.com/acme/issue/ACME-2211"
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Vendor risk reviews open for 3 suppliers; owner Sam, due Nov 14",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2224",
+     "url": "https://tracker.example.com/acme/issue/ACME-2224"
+    },
+    {
+     "type": "slack",
+     "label": "#soc2 2026-11-07 Sam: 3 vendor questionnaires out",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Laptop disk encryption enforced by MDM on all 212 devices",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "One of the 104 controls; detail for the auditor, not this update",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2195",
+     "url": "https://tracker.example.com/acme/issue/ACME-2195"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Branch protection required on every repo",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Already counted in o1",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#77 require reviews on main",
+     "url": "https://git.example.com/acme/infra/pull/77"
+    }
+   ]
+  },
+  {
+   "id": "o6",
+   "title": "Security policies re-approved by leadership",
+   "rank": 6,
+   "included": false,
+   "cut_reason": "Backstory; done before this window",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2150 policy sign-off",
+     "url": "https://tracker.example.com/acme/issue/ACME-2150"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 33,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 9,
+   "notes": "acme/infra and acme/compliance"
+  },
+  {
+   "source": "slack:#soc2",
+   "status": "ok",
+   "items": 27,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "failed",
+   "items": 0,
+   "notes": "search timed out twice; channel history covers the window"
+  }
+ ],
+ "questions": [],
+ "posted": {
+  "url": "https://tracker.example.com/acme/project/live-soc2-audit/updates",
+  "at": "2026-11-09T22:05:47Z"
+ }
+}

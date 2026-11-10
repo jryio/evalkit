@@ -1,0 +1,344 @@
+# Price recommendations: synthetic numbers only; never applied to a live catalog.
+title: Price recommendations
+description: Approve the model's price per product, adjust it if needed, and stage the approved prices in the staging catalog.
+send: Send to Claude
+reviewed: [verdict]
+groups:
+  - { id: outdoor, label: Outdoor }
+  - { id: home, label: Home and office }
+questions:
+  - { id: approve, kind: toggle, label: Apply, each: products, key: y }
+  - id: price
+    kind: number
+    label: New price
+    each: products
+    unit: USD
+    min: 0
+    max: 500
+    when: { approve: [true] }
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: ship, label: Ship approved, tone: positive, icon: check }
+      - { value: revise, label: Revise model, tone: warning, icon: approx }
+      - { value: reject, label: Reject all, tone: negative, icon: cross }
+  - id: stage
+    kind: action
+    label: Stage
+    key: a
+    summary: Claude writes the approved prices to the staging catalog and opens a PR. Nothing reaches the live store without the normal promote.
+    states:
+      "off": { button: Let Claude stage these, note: Nothing changes until you approve }
+      "on": { button: Approved, note: Stages the rows marked Apply when you send, badge: Stage }
+      done: { button: Staged, badge: Staged }
+  - id: notes
+    kind: text
+    label: Notes for Claude
+    key: n
+    placeholder: Which recommendations look wrong, and why?
+
+items:
+  - id: trailhead-supply
+    group: outdoor
+    title: Trailhead Supply
+    subtitle: 5 changes · +62 $/day
+    badges: [{ label: Synthetic, tone: neutral }]
+    meta: trailhead-supply.example.com · model pricing-v4 · last 28 days
+    proposed:
+      price:
+        value: { tent_2p_us: 199.0, pack_40l_us: 135.0, stove_eu: 62.0, bottle_row: 22.0, socks_us: 16.5 }
+        why: Model recommendation
+    show:
+      - kind: metrics
+        label: If every recommendation ships
+        metrics:
+          - { label: Revenue / day, value: 1542.7, baseline: 1481.0, unit: USD, better: higher, decimals: 0 }
+          - { label: Conversion rate, value: 3.12, baseline: 3.15, unit: "%", better: higher, decimals: 2 }
+          - { label: Products changed, value: 5 }
+      - id: products
+        kind: table
+        label: Products
+        columns: &columns
+          - { key: sku, label: SKU }
+          - { key: category, label: Category }
+          - { key: region, label: Region }
+          - { key: current, label: Current, align: right }
+          - { key: recommended, label: Model, align: right }
+          - { key: revenue, label: $ / day, align: right }
+          - { key: conversion, label: Conversion, align: right }
+        rows:
+          - id: tent_2p_us
+            sku: TS-TENT-2P
+            category: Tents
+            region: US
+            current: $189.00
+            recommended: $199.00
+            revenue: { value: "+41.2", tone: positive }
+            conversion: { value: -1.1 pp, tone: neutral }
+          - id: pack_40l_us
+            sku: TS-PACK-40L
+            category: Backpacks
+            region: US
+            current: $129.00
+            recommended: $135.00
+            revenue: { value: "+9.8", tone: positive }
+            conversion: { value: -0.6 pp, tone: neutral }
+          - id: stove_eu
+            sku: TS-STOVE-1
+            category: Stoves
+            region: EU
+            current: $59.00
+            recommended: $62.00
+            revenue: { value: "+6.1", tone: positive }
+            conversion: { value: -0.4 pp, tone: neutral }
+          - id: bottle_row
+            sku: TS-BTL-750
+            category: Bottles
+            region: Rest of world
+            current: $24.00
+            recommended: $22.00
+            revenue: { value: "+3.9", tone: positive }
+            conversion: { value: +1.8 pp, tone: neutral }
+          - id: socks_us
+            sku: TS-SOCK-M
+            category: Socks
+            region: US
+            current: $16.00
+            recommended: $16.50
+            revenue: { value: "+0.7", tone: positive }
+            conversion: { value: -0.2 pp, tone: neutral }
+      - kind: chart
+        type: bar
+        label: Expected revenue by price · TS-TENT-2P, US
+        unit: USD
+        y_min: 0
+        x: [$169, $179, $189, $199, $209, $219]
+        series:
+          - { label: Revenue / day, values: [301.4, 322.0, 338.6, 379.8, 352.1, 318.5], tone: accent }
+    context:
+      - kind: markdown
+        label: How the model chose
+        text: |-
+          **Tents still sell through at $199 in the US; every change stays inside the 3 pp conversion guardrail.**
+
+          - Demand curve from 28 days of orders per product and region.
+          - Recommended price maximizes expected revenue with a conversion guardrail of −3 pp.
+          - Products whose price would move more than 15% need a human approval even inside the guardrail.
+
+          All numbers in this demo are synthetic.
+
+  - id: pedal-and-spoke
+    group: outdoor
+    title: Pedal & Spoke
+    subtitle: 4 changes · -2 $/day
+    badges: [{ label: Synthetic, tone: neutral }]
+    meta: pedal-and-spoke.example.com · model pricing-v4 · last 28 days
+    proposed:
+      price:
+        value: { helmet_us: 69.0, lights_us: 47.0, lock_eu: 38.0, tube_row: 8.5 }
+        why: Model recommendation
+    show:
+      - kind: metrics
+        label: If every recommendation ships
+        metrics:
+          - { label: Revenue / day, value: 1368.4, baseline: 1370.0, unit: USD, better: higher, decimals: 0 }
+          - { label: Conversion rate, value: 3.24, baseline: 3.15, unit: "%", better: higher, decimals: 2 }
+          - { label: Products changed, value: 4 }
+      - id: products
+        kind: table
+        label: Products
+        columns: *columns
+        rows:
+          - id: helmet_us
+            sku: PS-HELM-01
+            category: Helmets
+            region: US
+            current: $79.00
+            recommended: $69.00
+            revenue: { value: "-12.4", tone: negative }
+            conversion: { value: +4.9 pp, tone: neutral }
+          - id: lights_us
+            sku: PS-LIGHT-SET
+            category: Lights
+            region: US
+            current: $44.00
+            recommended: $47.00
+            revenue: { value: "+8.3", tone: positive }
+            conversion: { value: -0.9 pp, tone: neutral }
+          - id: lock_eu
+            sku: PS-LOCK-U
+            category: Locks
+            region: EU
+            current: $35.00
+            recommended: $38.00
+            revenue: { value: "+2.2", tone: positive }
+            conversion: { value: -1.4 pp, tone: neutral }
+          - id: tube_row
+            sku: PS-TUBE-700
+            category: Tubes
+            region: Rest of world
+            current: $8.00
+            recommended: $8.50
+            revenue: { value: "+0.3", tone: positive }
+            conversion: { value: -0.1 pp, tone: neutral }
+      - kind: chart
+        type: bar
+        label: Expected revenue by price · PS-HELM-01, US
+        unit: USD
+        y_min: 0
+        x: [$59, $64, $69, $74, $79, $84]
+        series:
+          - { label: Revenue / day, values: [241.0, 258.3, 270.2, 279.5, 282.6, 268.9], tone: accent }
+    context:
+      - kind: markdown
+        label: How the model chose
+        text: |-
+          **Lowers the US helmet to $69 for conversion (+4.9 pp), although expected revenue at $69 is $12/day below the current $79.**
+
+          - Demand curve from 28 days of orders per product and region.
+          - Recommended price maximizes expected revenue with a conversion guardrail of −3 pp.
+          - Products whose price would move more than 15% need a human approval even inside the guardrail.
+
+          All numbers in this demo are synthetic.
+
+  - id: lumen-home
+    group: home
+    title: Lumen Home
+    subtitle: 3 changes · +9 $/day
+    badges: [{ label: Synthetic, tone: neutral }]
+    meta: lumen-home.example.com · model pricing-v4 · last 28 days
+    proposed:
+      price:
+        value: { lamp_us: 120.0, throw_us: 49.0, mugs_us: 34.0, candle_row: 16.0 }
+        why: Model recommendation
+    show:
+      - kind: metrics
+        label: If every recommendation ships
+        metrics:
+          - { label: Revenue / day, value: 1489.9, baseline: 1481.0, unit: USD, better: higher, decimals: 0 }
+          - { label: Conversion rate, value: 3.08, baseline: 3.15, unit: "%", better: higher, decimals: 2 }
+          - { label: Products changed, value: 3 }
+      - id: products
+        kind: table
+        label: Products
+        columns: *columns
+        rows:
+          - id: lamp_us
+            sku: LH-LAMP-ARC
+            category: Lighting
+            region: US
+            current: $120.00
+            recommended: $120.00
+            revenue: { value: "+0.0", tone: neutral }
+            conversion: { value: +0.0 pp, tone: neutral }
+          - id: throw_us
+            sku: LH-THROW-WL
+            category: Textiles
+            region: US
+            current: $45.00
+            recommended: $49.00
+            revenue: { value: "+4.6", tone: positive }
+            conversion: { value: -2.7 pp, tone: neutral }
+          - id: mugs_us
+            sku: LH-MUG-SET4
+            category: Kitchen
+            region: US
+            current: $32.00
+            recommended: $34.00
+            revenue: { value: "+3.1", tone: positive }
+            conversion: { value: -1.9 pp, tone: neutral }
+          - id: candle_row
+            sku: LH-CANDLE-L
+            category: Candles
+            region: Rest of world
+            current: $18.00
+            recommended: $16.00
+            revenue: { value: "+1.2", tone: positive }
+            conversion: { value: +2.3 pp, tone: neutral }
+      - kind: chart
+        type: bar
+        label: Expected revenue by price · LH-THROW-WL, US
+        unit: USD
+        y_min: 0
+        x: [$37, $41, $45, $49, $53, $57]
+        series:
+          - { label: Revenue / day, values: [96.2, 104.5, 110.3, 114.9, 108.0, 97.6], tone: accent }
+    context:
+      - kind: markdown
+        label: How the model chose
+        text: |-
+          **Small gains; the rest-of-world candle price goes down to win back conversion lost after the October price rise.**
+
+          - Demand curve from 28 days of orders per product and region.
+          - Recommended price maximizes expected revenue with a conversion guardrail of −3 pp.
+          - Products whose price would move more than 15% need a human approval even inside the guardrail.
+
+          All numbers in this demo are synthetic.
+
+  - id: quill-paper-co
+    group: home
+    title: Quill Paper Co.
+    subtitle: 3 changes · +25 $/day
+    badges: [{ label: Synthetic, tone: neutral }]
+    meta: quill-paper.example.com · model pricing-v4 · last 28 days
+    proposed:
+      price:
+        value: { planner_us: 42.0, pens_eu: 24.0, notebook_us: 14.5 }
+        why: Model recommendation
+    show:
+      - kind: metrics
+        label: If every recommendation ships
+        metrics:
+          - { label: Revenue / day, value: 1469.0, baseline: 1444.0, unit: USD, better: higher, decimals: 0 }
+          - { label: Conversion rate, value: 2.98, baseline: 3.15, unit: "%", better: higher, decimals: 2 }
+          - { label: Products changed, value: 3 }
+      - id: products
+        kind: table
+        label: Products
+        columns: *columns
+        rows:
+          - id: planner_us
+            sku: QP-PLAN-26
+            category: Planners
+            region: US
+            current: $28.00
+            recommended: $42.00
+            revenue: { value: "+18.7", tone: positive }
+            conversion: { value: -6.8 pp, tone: negative }
+          - id: pens_eu
+            sku: QP-PEN-FT
+            category: Pens
+            region: EU
+            current: $22.00
+            recommended: $24.00
+            revenue: { value: "+5.4", tone: positive }
+            conversion: { value: -2.1 pp, tone: neutral }
+          - id: notebook_us
+            sku: QP-NB-A5
+            category: Notebooks
+            region: US
+            current: $14.00
+            recommended: $14.50
+            revenue: { value: "+0.9", tone: positive }
+            conversion: { value: -0.3 pp, tone: neutral }
+      - kind: chart
+        type: bar
+        label: Expected revenue by price · QP-PLAN-26, US
+        unit: USD
+        y_min: 0
+        x: [$21, $28, $35, $42, $49, $56]
+        series:
+          - { label: Revenue / day, values: [98.4, 121.6, 133.0, 140.3, 126.9, 104.2], tone: accent }
+    context:
+      - kind: markdown
+        label: How the model chose
+        text: |-
+          **US planner +50% breaks the 3 pp conversion guardrail (−6.8 pp); the model flags it for a human.**
+
+          - Demand curve from 28 days of orders per product and region.
+          - Recommended price maximizes expected revenue with a conversion guardrail of −3 pp.
+          - Products whose price would move more than 15% need a human approval even inside the guardrail.
+
+          All numbers in this demo are synthetic.

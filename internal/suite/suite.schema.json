@@ -1,0 +1,1306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evalkit.local/suite.schema.json",
+  "title": "evalkit suite",
+  "description": "A suite lists items for a human to review. Each item shows artifacts and asks questions.",
+  "type": "object",
+  "required": [
+    "title",
+    "items"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "description": "One or two sentences telling the reviewer what to do; shown under the title."
+    },
+    "send": {
+      "type": "string",
+      "description": "Label of the submit button. Default: Send."
+    },
+    "reviewed": {
+      "description": "An item counts as reviewed when any of these questions has an answer. Default: the primary question.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/group"
+      }
+    },
+    "questions": {
+      "description": "Asked of every item (narrow with a question's groups).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/question"
+      }
+    },
+    "renderers": {
+      "description": "Custom artifact kinds: kind -> ES module path relative to the suite file. The module's default export is the component.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
+    },
+    "tone": {
+      "enum": [
+        "positive",
+        "warning",
+        "negative",
+        "neutral",
+        "accent"
+      ]
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z0-9]$",
+      "description": "One lowercase letter or digit."
+    },
+    "icon": {
+      "enum": [
+        "check",
+        "approx",
+        "cross",
+        "question"
+      ]
+    },
+    "tag": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "tone": {
+          "$ref": "#/$defs/tone"
+        }
+      }
+    },
+    "link": {
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": [
+        "value",
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "tone": {
+          "$ref": "#/$defs/tone"
+        },
+        "icon": {
+          "$ref": "#/$defs/icon"
+        },
+        "key": {
+          "$ref": "#/$defs/key"
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "choice",
+            "multi",
+            "toggle",
+            "action",
+            "text",
+            "scale",
+            "number",
+            "pick"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Ask only items in these groups."
+        },
+        "with": {
+          "$ref": "#/$defs/id",
+          "description": "Render in the row of this question."
+        },
+        "each": {
+          "$ref": "#/$defs/id",
+          "description": "Ask once per row of the artifact with this id."
+        },
+        "when": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            }
+          },
+          "description": "Ask only when another question's answer is one of these values (per row for per-row questions)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "choice"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "options"
+            ],
+            "properties": {
+              "options": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "$ref": "#/$defs/option"
+                }
+              },
+              "primary": {
+                "type": "boolean",
+                "description": "Number keys 1-9 pick its options."
+              },
+              "status": {
+                "type": "boolean",
+                "description": "Its tone colors the sidebar dot."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "multi"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "options"
+            ],
+            "properties": {
+              "options": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/option"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "action"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "states"
+            ],
+            "properties": {
+              "summary": {
+                "type": "string",
+                "description": "Send sheet sentence about what the agent will do."
+              },
+              "states": {
+                "type": "object",
+                "required": [
+                  "off"
+                ],
+                "additionalProperties": false,
+                "description": "Labels per state: off (not approved), on (approved), done (the agent recorded the result).",
+                "properties": {
+                  "off": {
+                    "$ref": "#/$defs/actionState",
+                    "required": [
+                      "button"
+                    ]
+                  },
+                  "on": {
+                    "$ref": "#/$defs/actionState"
+                  },
+                  "done": {
+                    "$ref": "#/$defs/actionState"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "text"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "placeholder": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "scale"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "min": {
+                "type": "integer",
+                "description": "Default 1."
+              },
+              "max": {
+                "type": "integer",
+                "maximum": 9,
+                "description": "Default 5."
+              },
+              "labels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Words for the low and high ends."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "number"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "step": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string"
+              },
+              "placeholder": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "pick"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "from"
+            ],
+            "properties": {
+              "from": {
+                "$ref": "#/$defs/id",
+                "description": "Pick one row of the artifact with this id."
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "actionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "button": {
+          "type": "string",
+          "description": "Button text (off, on) or link text (done)."
+        },
+        "note": {
+          "type": "string",
+          "description": "Secondary text beside the button."
+        },
+        "badge": {
+          "type": "string",
+          "description": "Sidebar badge in this state (on, done)."
+        }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "required": [
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {},
+        "why": {
+          "type": "string",
+          "description": "The agent's reason, shown beside the control."
+        }
+      }
+    },
+    "done": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "id",
+        "title"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "group": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "short": {
+          "type": "string",
+          "description": "Sidebar title. Default: title."
+        },
+        "subtitle": {
+          "type": "string",
+          "description": "Sidebar second line."
+        },
+        "badges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        },
+        "meta": {
+          "type": "string",
+          "description": "Secondary text beside the badges."
+        },
+        "show": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "description": "What is under review. Always open."
+        },
+        "ask": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/question"
+          },
+          "description": "Questions for this item only."
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "description": "Supporting material. Collapsed."
+        },
+        "proposed": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/proposal"
+          },
+          "description": "question id -> the agent's proposed answer."
+        },
+        "done": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/done"
+          },
+          "description": "action question id -> result the agent recorded."
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string",
+          "description": "Secondary text beside the label."
+        },
+        "status": {
+          "$ref": "#/$defs/tag",
+          "description": "A tone dot and label beside the label."
+        },
+        "width": {
+          "enum": [
+            "full",
+            "half"
+          ],
+          "description": "half pairs two artifacts side by side."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "text"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "editable": {
+                "type": "boolean"
+              },
+              "key": {
+                "$ref": "#/$defs/key",
+                "description": "Focuses an editable text. Default: e."
+              },
+              "limit": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "target": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "list"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rows"
+            ],
+            "properties": {
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "title"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/id"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "badge": {
+                      "$ref": "#/$defs/tag"
+                    },
+                    "links": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/link"
+                      }
+                    },
+                    "ask": {
+                      "type": "boolean",
+                      "description": "false hides per-row questions on this row."
+                    },
+                    "at": {
+                      "type": "object",
+                      "required": [
+                        "artifact",
+                        "line"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Links the row to a line of another artifact (code or diff); clicking scrolls there.",
+                      "properties": {
+                        "artifact": {
+                          "$ref": "#/$defs/id"
+                        },
+                        "line": {
+                          "type": "integer"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "table"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "columns",
+              "rows"
+            ],
+            "properties": {
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "key",
+                    "label"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "align": {
+                      "enum": [
+                        "left",
+                        "right"
+                      ]
+                    },
+                    "muted": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "code"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "language": {
+                "type": "string",
+                "description": "Prism language id: go, python, javascript, typescript, json, yaml, bash, sql, diff."
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "First line number. Default 1."
+              },
+              "highlight": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "description": "Line numbers to emphasize."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "diff"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "diff"
+            ],
+            "properties": {
+              "diff": {
+                "type": "string",
+                "description": "Unified diff text (git diff output)."
+              },
+              "language": {
+                "type": "string"
+              },
+              "highlight": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "description": "New-side line numbers to emphasize."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "tests"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "tests"
+            ],
+            "properties": {
+              "tests": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/testNode"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "metrics"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "metrics"
+            ],
+            "properties": {
+              "layout": {
+                "enum": [
+                  "tiles",
+                  "table"
+                ],
+                "description": "Default tiles."
+              },
+              "columns": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "baseline": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                },
+                "description": "Table headers. Default Baseline and Value."
+              },
+              "metrics": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "number"
+                    },
+                    "baseline": {
+                      "type": "number"
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "better": {
+                      "enum": [
+                        "higher",
+                        "lower"
+                      ],
+                      "description": "Which direction is an improvement; colors the delta."
+                    },
+                    "decimals": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tolerance": {
+                      "type": "number",
+                      "description": "Percent change treated as neutral. Default 1."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "chart"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "series"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "line",
+                  "bar"
+                ],
+                "description": "Default line."
+              },
+              "x": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                "description": "Numbers, ISO times or category labels."
+              },
+              "series": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "values"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "values": {
+                      "type": "array",
+                      "items": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "tone": {
+                      "$ref": "#/$defs/tone"
+                    }
+                  }
+                }
+              },
+              "unit": {
+                "type": "string"
+              },
+              "y_min": {
+                "type": "number"
+              },
+              "marks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "x",
+                    "label"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "x": {
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "description": "Vertical markers, e.g. a deploy."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "markdown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "json"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {},
+              "open": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Levels expanded at first. Default 1."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "transcript"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "rows"
+            ],
+            "properties": {
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "role"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/id"
+                    },
+                    "role": {
+                      "enum": [
+                        "system",
+                        "user",
+                        "assistant",
+                        "tool_call",
+                        "tool_result"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Tool name for tool_call and tool_result."
+                    },
+                    "input": {
+                      "description": "Tool arguments."
+                    },
+                    "output": {
+                      "description": "Tool result."
+                    },
+                    "error": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "image"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "src"
+            ],
+            "properties": {
+              "src": {
+                "type": "string",
+                "description": "Path relative to the suite file, or an http(s) URL."
+              },
+              "alt": {
+                "type": "string"
+              },
+              "caption": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "tally"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "question",
+              "stats"
+            ],
+            "properties": {
+              "question": {
+                "$ref": "#/$defs/id",
+                "description": "The per-row question whose answers are counted."
+              },
+              "stats": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "count"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean"
+                        ]
+                      },
+                      "description": "Answer values to count."
+                    },
+                    "of": {
+                      "description": "Denominator: answer values, or \"rows\" for every row. Shows a percentage.",
+                      "oneOf": [
+                        {
+                          "const": "rows"
+                        },
+                        {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": [
+                              "string",
+                              "number",
+                              "boolean"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "not": {
+                  "enum": [
+                    "text",
+                    "list",
+                    "table",
+                    "code",
+                    "diff",
+                    "tests",
+                    "metrics",
+                    "chart",
+                    "markdown",
+                    "json",
+                    "transcript",
+                    "image",
+                    "tally"
+                  ]
+                }
+              }
+            }
+          },
+          "then": {
+            "additionalProperties": true
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "testNode": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "fail",
+            "skip"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "description": "Seconds."
+        },
+        "output": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/testNode"
+          }
+        }
+      }
+    }
+  }
+}
