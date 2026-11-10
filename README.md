@@ -2,6 +2,29 @@
 
 A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
 
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: an edited draft, a verdict with flags, notes and answered questions"></a>
+      <br><sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit the draft against a length target, pick a verdict and flags, answer the agent's questions.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: each finding triaged with a severity, proposed severities outlined"></a>
+      <br><sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding and accept or change the proposed severity before anything posts.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: metric tiles with deltas and canary-versus-fleet time series"></a>
+      <br><sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: metric tiles and canary-versus-fleet charts behind a promote, hold or roll back verdict.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: wrong fields corrected, live precision and recall"></a>
+      <br><sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub>
+    </td>
+  </tr>
+</table>
+
 ```sh
 go install github.com/jryio/evalkit/cmd/evalkit@latest   # or: make install, from a checkout
 
