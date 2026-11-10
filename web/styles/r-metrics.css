@@ -1,0 +1,9 @@
+/* metrics: stat tiles, or the kit table with right-aligned numbers */
+.metric-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.metric-tile { border: 1px solid var(--separator); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
+.metric-label { font-size: 13px; color: var(--secondary); }
+.metric-value { font-size: 28px; line-height: 1.25; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; margin-top: 2px; }
+.metric-unit { font-size: 15px; font-weight: 400; color: var(--secondary); margin-left: 4px; letter-spacing: 0; }
+.metric-delta { font-size: 13px; font-weight: 600; color: var(--tone-text); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+.metric-table td.right, .metric-table th.right { padding-left: 16px; white-space: nowrap; }

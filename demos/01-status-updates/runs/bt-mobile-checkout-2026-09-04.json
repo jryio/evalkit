@@ -1,0 +1,120 @@
+{
+ "slug": "bt-mobile-checkout-2026-09-04",
+ "mode": "blind",
+ "project": "Mobile checkout",
+ "project_id": "P-ACME-112",
+ "window_start": "2026-08-21T15:00:00Z",
+ "window_end": "2026-09-04T15:00:00Z",
+ "previous_update": "* Checkout redesign approved; build starts Aug 25",
+ "days_since_last": 14,
+ "draft": "* New one-page checkout in beta for 5% of iOS users: time-to-pay 74 s \u2192 52 s\n* Apple Pay integration started; merchant ID approved\n* Android build of the new checkout next",
+ "chars": 171,
+ "health": "onTrack",
+ "health_reason": "Beta numbers are good and Apple Pay is unblocked.",
+ "actual": {
+  "body": "One-page checkout beta live on iOS (5%). Time to pay down ~30%. Apple Pay in progress.",
+  "health": "onTrack"
+ },
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "One-page checkout beta, 5% of iOS: median time-to-pay 74 s \u2192 52 s",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1702",
+     "url": "https://tracker.example.com/acme/issue/ACME-1702"
+    },
+    {
+     "type": "github",
+     "label": "#744 one-page checkout behind flag",
+     "url": "https://git.example.com/acme/mobile-app/pull/744"
+    },
+    {
+     "type": "slack",
+     "label": "#mobile-checkout 2026-09-02 Dana: beta readout",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Apple Pay merchant ID approved; integration started",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1731",
+     "url": "https://tracker.example.com/acme/issue/ACME-1731"
+    },
+    {
+     "type": "slack",
+     "label": "#mobile-checkout 2026-08-28 Ravi: merchant ID approved",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Next: Android build of the new checkout",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1745",
+     "url": "https://tracker.example.com/acme/issue/ACME-1745"
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Address autocomplete vendor swapped",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Not this project (keyword match only)",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#1290 swap autocomplete vendor",
+     "url": "https://git.example.com/acme/web/pull/1290"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 18,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 12,
+   "notes": ""
+  },
+  {
+   "source": "slack:#mobile-checkout",
+   "status": "ok",
+   "items": 35,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 2,
+   "notes": ""
+  }
+ ],
+ "questions": [
+  "Was 5% still the beta size on Sep 4, or had it grown?"
+ ]
+}

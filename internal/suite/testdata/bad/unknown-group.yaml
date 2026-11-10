@@ -1,0 +1,10 @@
+title: Groups
+groups:
+  - { id: live, label: Live }
+items:
+  - id: a
+    group: lvie
+    title: First
+  - id: b
+    group: live
+    title: Second

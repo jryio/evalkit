@@ -1,0 +1,10 @@
+title: Unknown kind
+items:
+  - id: a
+    title: First
+    show:
+      - kind: chartt
+  - id: b
+    title: Second
+    show:
+      - { kind: text, text: ok }

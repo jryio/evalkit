@@ -1,0 +1,11 @@
+title: With
+questions:
+  - id: flags
+    kind: multi
+    label: Flags
+    with: verdict
+    options:
+      - { value: x, label: X }
+items:
+  - id: a
+    title: First

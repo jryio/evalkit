@@ -1,0 +1,108 @@
+{
+ "slug": "bt-warehouse-migration-2026-08-21",
+ "mode": "blind",
+ "project": "Data warehouse migration",
+ "project_id": "P-ACME-064",
+ "window_start": "2026-08-07T17:00:00Z",
+ "window_end": "2026-08-21T17:00:00Z",
+ "previous_update": null,
+ "days_since_last": 14,
+ "draft": "* New warehouse provisioned; nightly loads running for orders and customers\n* 12 of 48 models ported, row counts match\n* Next \u2192 finance models, the largest and riskiest set",
+ "chars": 172,
+ "health": "onTrack",
+ "health_reason": "Loads are stable, and the porting pace supports the Nov 30 cutover.",
+ "actual": {
+  "body": "Warehouse is up and loading nightly. 12/48 models moved over and validated.",
+  "health": "onTrack"
+ },
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "New warehouse provisioned; nightly loads for orders and customers",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1650",
+     "url": "https://tracker.example.com/acme/issue/ACME-1650"
+    },
+    {
+     "type": "github",
+     "label": "#58 provision warehouse",
+     "url": "https://git.example.com/acme/infra/pull/58"
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "12 of 48 models ported; row counts match",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#188 port first 12 models",
+     "url": "https://git.example.com/acme/warehouse/pull/188"
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Next: finance models",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1671",
+     "url": "https://tracker.example.com/acme/issue/ACME-1671"
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Cost estimate for the parallel run",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Internal planning number",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#data-platform 2026-08-19 Sam: parallel-run estimate",
+     "url": ""
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 16,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 11,
+   "notes": ""
+  },
+  {
+   "source": "slack:#data-platform",
+   "status": "ok",
+   "items": 30,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 0,
+   "notes": "no matches"
+  }
+ ],
+ "questions": []
+}

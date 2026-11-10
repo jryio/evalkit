@@ -1,0 +1,12 @@
+title: Duplicate ids
+items:
+  - id: a
+    title: First
+    show:
+      - { kind: text, text: one }
+  - id: a
+    title: Second
+    show:
+      - { kind: text, text: two }
+  - id: c
+    title: Third

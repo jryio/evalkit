@@ -1,0 +1,19 @@
+title: Primary
+questions:
+  - id: one
+    kind: choice
+    label: One
+    primary: true
+    options:
+      - { value: a, label: A }
+      - { value: b, label: B }
+  - id: two
+    kind: choice
+    label: Two
+    primary: true
+    options:
+      - { value: a, label: A }
+      - { value: b, label: B }
+items:
+  - id: a
+    title: First

@@ -1,0 +1,15 @@
+title: Proposal
+questions:
+  - id: risk
+    kind: choice
+    label: Risk
+    options:
+      - { value: low, label: Low }
+      - { value: high, label: High }
+items:
+  - id: a
+    title: First
+    proposed:
+      risk: { value: medium }
+  - id: b
+    title: Second

@@ -1,0 +1,9 @@
+title: With a text question
+items:
+  - id: a
+    title: First
+    ask:
+      - { id: notes, kind: text, label: Notes }
+      - { id: flag, kind: toggle, label: Flag, with: notes }
+  - id: b
+    title: Second

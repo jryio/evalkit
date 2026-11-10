@@ -1,0 +1,15 @@
+title: Proposed multi not a list
+questions:
+  - id: flags
+    kind: multi
+    label: Flags
+    options:
+      - { value: x, label: X }
+      - { value: y, label: Y }
+items:
+  - id: a
+    title: First
+    proposed:
+      flags: { value: x }
+  - id: b
+    title: Second

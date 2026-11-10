@@ -1,0 +1,381 @@
+# Pairwise preference, Chatbot Arena style. An LLM judge proposes the better
+# response; each human pick agrees with it or overrides it.
+title: Response preference
+description: Pick the better of two responses from Acme's internal engineering assistant; agreeing with or overriding the LLM judge's pick calibrates the judge.
+send: Send to Claude
+groups:
+  - { id: coding, label: Coding }
+  - { id: ops, label: Operations }
+  - { id: writing, label: Writing }
+questions:
+  - id: preference
+    kind: choice
+    label: Preference
+    primary: true
+    options:
+      - { value: a, label: A is better }
+      - { value: b, label: B is better }
+      - { value: tie, label: Tie, tone: neutral }
+      - { value: both_bad, label: Both bad, tone: negative, icon: cross }
+  - { id: score_a, kind: scale, label: A, each: criteria, key: a, min: 1, max: 5 }
+  - { id: score_b, kind: scale, label: B, each: criteria, key: b, min: 1, max: 5 }
+  - id: rationale
+    kind: text
+    label: Rationale
+    key: r
+    placeholder: Why is one better? Name the deciding detail.
+
+items:
+  - id: code-retry-backoff
+    group: coding
+    title: Retry payment provider calls with backoff
+    subtitle: "Judge: B · 0.86"
+    meta: assistant-v12 vs assistant-v13-rc
+    proposed:
+      preference:
+        value: b
+        why: "LLM judge, confidence 0.86: B stops waiting when ctx is done, reuses one idempotency key and closes failed bodies; A sleeps past the 800ms budget and can charge twice."
+    show:
+      - id: prompt
+        kind: markdown
+        label: Prompt
+        text: |-
+          Write a Go helper that retries a charge request to our payment provider with exponential backoff: max 4 attempts, 50ms base. It runs inside the 800ms checkout budget carried on `ctx`.
+      - id: a
+        kind: markdown
+        label: Response A
+        width: half
+        text: |-
+          Here's a simple retry helper with exponential backoff:
+
+          ```go
+          func retryCharge(
+              ctx context.Context, req *http.Request,
+          ) (*http.Response, error) {
+              var res *http.Response
+              var err error
+              delay := 50 * time.Millisecond
+              for i := 0; i < 4; i++ {
+                  res, err = http.DefaultClient.Do(req)
+                  if err == nil && res.StatusCode < 300 {
+                      return res, nil
+                  }
+                  time.Sleep(delay)
+                  delay *= 2
+              }
+              return res, err
+          }
+          ```
+
+          This tries up to 4 times and doubles the delay after each failure (50ms, 100ms, 200ms, 400ms), which gives the provider time to recover. Exponential backoff is the standard way to avoid overwhelming a struggling service. You can make the base delay and attempt count configurable if different providers need different settings.
+      - id: b
+        kind: markdown
+        label: Response B
+        width: half
+        text: |-
+          Pass the body, not a request: an `*http.Request` with a body can't be sent twice, so each attempt builds a new one.
+
+          ```go
+          func chargeWithRetry(
+              ctx context.Context, c *http.Client,
+              url, key string, body []byte,
+          ) (*http.Response, error) {
+              const attempts = 4
+              const base = 50 * time.Millisecond
+              var lastErr error
+              for i := range attempts {
+                  r := bytes.NewReader(body)
+                  req, err := http.NewRequestWithContext(
+                      ctx, "POST", url, r)
+                  if err != nil {
+                      return nil, err
+                  }
+                  req.Header.Set("Idempotency-Key", key)
+                  resp, err := c.Do(req)
+                  switch {
+                  case err != nil:
+                      lastErr = err
+                  case resp.StatusCode >= 500:
+                      resp.Body.Close()
+                      lastErr = fmt.Errorf("status %d",
+                          resp.StatusCode)
+                  default:
+                      return resp, nil
+                  }
+                  if i == attempts-1 {
+                      break
+                  }
+                  n := int64(base << i)
+                  wait := time.Duration(rand.Int64N(n))
+                  select {
+                  case <-ctx.Done():
+                      return nil, ctx.Err()
+                  case <-time.After(wait):
+                  }
+              }
+              return nil, fmt.Errorf("%d attempts: %w",
+                  attempts, lastErr)
+          }
+          ```
+
+          - Every attempt sends the same `Idempotency-Key`, so a retry after a timeout can't charge the card twice.
+          - Full jitter (a random wait below 50ms·2ⁱ) keeps checkout pods from retrying in lockstep during a provider blip.
+          - Only 5xx and transport errors retry. A 402 decline or any other 4xx returns at once.
+          - The `select` stops waiting the moment the 800ms budget runs out.
+          - Failed bodies are closed, so connections go back to the pool.
+      - &rubric
+        id: criteria
+        kind: list
+        label: Rubric
+        rows:
+          - { id: correctness, title: Correctness, detail: "Facts, code and numbers are right" }
+          - { id: helpfulness, title: Helpfulness, detail: "Answers the actual question and is usable as is" }
+          - { id: tone, title: Tone, detail: "Concise, direct, no filler" }
+
+  - id: code-concurrency-cap
+    group: coding
+    title: Cap concurrent inventory calls
+    subtitle: "Judge: Both bad · 0.58"
+    meta: assistant-v13-rc vs assistant-v12
+    proposed:
+      preference:
+        value: both_bad
+        why: "LLM judge, confidence 0.58: errgroup has SetLimit, not WithLimit, and sync.WaitGroup has no SetLimit. Neither compiles."
+    show:
+      - id: prompt
+        kind: markdown
+        label: Prompt
+        text: |-
+          At checkout we reserve stock with one inventory-service call per cart line, one goroutine each (up to ~40 lines). How do I cap it at 8 in flight and still return the first error? We're on Go 1.23.
+      - id: a
+        kind: markdown
+        label: Response A
+        width: half
+        text: |-
+          Use `errgroup.WithLimit` from `golang.org/x/sync/errgroup`. It returns a group capped at n goroutines plus a derived context:
+
+          ```go
+          g, ctx := errgroup.WithLimit(ctx, 8)
+          for _, line := range cart.Lines {
+              g.Go(func() error {
+                  return inv.Reserve(ctx, line.SKU, line.Qty)
+              })
+          }
+          if err := g.Wait(); err != nil {
+              return err
+          }
+          ```
+
+          `g.Go` blocks once 8 calls are in flight and starts the next one when a slot frees up. The first non-nil error cancels `ctx`, so lines still waiting for a slot return early, and `Wait` returns that first error. Since Go 1.22 each loop iteration gets its own `line`, so capturing it in the closure is safe.
+      - id: b
+        kind: markdown
+        label: Response B
+        width: half
+        text: |-
+          You don't need an extra dependency. Since Go 1.23, `sync.WaitGroup` has `SetLimit`, so you can cap concurrency with the standard library alone:
+
+          ```go
+          var wg sync.WaitGroup
+          wg.SetLimit(8)
+          errs := make(chan error, len(cart.Lines))
+          for _, line := range cart.Lines {
+              wg.Go(func() {
+                  err := inv.Reserve(ctx, line.SKU, line.Qty)
+                  if err != nil {
+                      errs <- err
+                  }
+              })
+          }
+          wg.Wait()
+          close(errs)
+          return <-errs
+          ```
+
+          `wg.Go` waits for a free slot when 8 calls are running. Errors go to a channel buffered to the line count, so no goroutine blocks on send. After `Wait` you return the first error, or nil if every call succeeded.
+      - *rubric
+
+  - id: ops-online-index
+    group: ops
+    title: Add an index online
+    subtitle: "Judge: A · 0.77"
+    meta: assistant-v13-rc vs assistant-v12
+    proposed:
+      preference:
+        value: a
+        why: "LLM judge, confidence 0.77: A is more thorough, with lock_timeout, a disk estimate, progress monitoring and a verify step; B is terse."
+    show:
+      - id: prompt
+        kind: markdown
+        label: Prompt
+        text: |-
+          `order_events` has ~400M rows (Postgres 16) and queries filtering on `(customer_id, created_at)` are slow. How do I add the index in prod without blocking writes? We run migrations with goose.
+      - id: a
+        kind: markdown
+        label: Response A
+        width: half
+        text: |-
+          ### Short answer
+          Use `CREATE INDEX CONCURRENTLY`. It builds the index without taking a lock that blocks writes, so inserts into `order_events` keep flowing.
+
+          ### Migration
+
+          ```sql
+          -- +goose Up
+          BEGIN;
+          SET LOCAL lock_timeout = '5s';
+          CREATE INDEX CONCURRENTLY order_events_cust_ts_idx
+              ON order_events (customer_id, created_at);
+          COMMIT;
+
+          -- +goose Down
+          DROP INDEX CONCURRENTLY order_events_cust_ts_idx;
+          ```
+
+          Wrapping the build in an explicit transaction matters at this size: if it fails halfway through a 400M-row scan, Postgres rolls everything back and you are left with no partial index to clean up. `lock_timeout` keeps it from queueing behind a long-running query.
+
+          ### Before you run it
+          - **Disk:** a btree on `(bigint, timestamptz)` over 400M rows is roughly 12–15 GB. Check free space first.
+          - **Timing:** expect two full table scans. Run it off-peak.
+          - **Progress:** watch `pg_stat_progress_create_index` from another session; `phase` and `blocks_done` show how far along it is.
+
+          ### Verify
+          Run `EXPLAIN (ANALYZE, BUFFERS)` on a slow query and confirm the plan uses `order_events_cust_ts_idx`.
+      - id: b
+        kind: markdown
+        label: Response B
+        width: half
+        text: |-
+          Use `CREATE INDEX CONCURRENTLY`. It can't run inside a transaction block, and goose wraps each migration in one by default, so turn that off for this file:
+
+          ```sql
+          -- +goose NO TRANSACTION
+          -- +goose Up
+          CREATE INDEX CONCURRENTLY IF NOT EXISTS
+              order_events_cust_ts_idx
+              ON order_events (customer_id, created_at);
+
+          -- +goose Down
+          DROP INDEX CONCURRENTLY IF EXISTS
+              order_events_cust_ts_idx;
+          ```
+
+          Writes keep flowing during the build, but it waits for older open transactions to finish, so check for long-running ones first.
+
+          If the build fails, it leaves an INVALID index behind, and `IF NOT EXISTS` will skip it on retry. Check before rerunning:
+
+          ```sql
+          SELECT indisvalid FROM pg_index
+          WHERE indexrelid =
+              'order_events_cust_ts_idx'::regclass;
+          ```
+
+          If it returns `false`, drop the index and run the migration again.
+      - *rubric
+
+  - id: ops-timeout-triage
+    group: ops
+    title: Triage a timeout spike to one upstream
+    subtitle: "Judge: Tie · 0.55"
+    meta: assistant-v12 vs assistant-v13-rc
+    proposed:
+      preference:
+        value: tie
+        why: "LLM judge, confidence 0.55: Both give a sound triage order. A isolates first, B rolls back first."
+    show:
+      - id: prompt
+        kind: markdown
+        label: Prompt
+        text: |-
+          Timeouts to one shipping-rate provider (Northwind) went from 2% to 9% at 14:05 UTC. We deployed checkout-api at 14:00. How do I tell quickly whether it's us or them?
+      - id: a
+        kind: markdown
+        label: Response A
+        width: half
+        text: |-
+          Isolate before you act:
+
+          1. **Other providers.** Plot timeout rate per shipping-rate provider for 13:30–14:30. If only Northwind moved, the cause is probably on their side or on our path to them. If every provider moved, it's us.
+          2. **Rollout shape.** The deploy rolled pod by pod. Split Northwind timeouts by image version: if pods still on the old image also jumped at 14:05, the deploy isn't the cause.
+          3. **Where the time goes.** Compare Northwind's response-time histogram before and after. A shift in their p50 points at them; a jump in our encode time or connection waits points at us.
+          4. **The diff.** Check the release for anything touching the Northwind client, request size, or HTTP client settings (`Timeout`, `MaxIdleConnsPerHost`).
+
+          If none of this is conclusive in 15 minutes, roll back. It is cheap and settles the question.
+      - id: b
+        kind: markdown
+        label: Response B
+        width: half
+        text: |-
+          Fastest test: roll back. If the deploy reverts cleanly, it is a five-minute experiment. If Northwind timeouts drop back to 2%, it was us; if they stay at 9%, it wasn't.
+
+          While the rollback runs, look for the usual ways a deploy hurts only one upstream:
+
+          - **Payload size.** A new field in the Northwind rate request can grow every call. Compare bytes sent per request before and after 14:00.
+          - **Connection churn.** A changed client or transport setting can force a new TLS handshake per call. Check dial and handshake counts for Northwind's host.
+          - **Their side.** Check Northwind's status page and ask your account contact whether they changed anything around 14:05.
+
+          Also confirm the other providers held steady. If they all moved, stop looking at Northwind.
+      - *rubric
+
+  - id: writing-incident-summary
+    group: writing
+    title: "Incident summary for #eng"
+    subtitle: "Judge: A · 0.91"
+    meta: assistant-v12 vs assistant-v13-rc
+    proposed:
+      preference:
+        value: a
+        why: "LLM judge, confidence 0.91: A keeps to 4 sentences with the 50 ms vs 5 s cause and the $18k; B runs 7 sentences and drops both."
+    show:
+      - id: prompt
+        kind: markdown
+        label: Prompt
+        text: |-
+          Write a 4-sentence summary of yesterday's incident for #eng. Facts:
+          - 13:12–13:41 UTC, eu-west-1
+          - A config push set the card-payment timeout for EU checkouts to 50 ms instead of 5 s; nearly every card payment timed out and orders dropped to near zero
+          - On-call reverted it; estimated lost revenue ~$18k
+          - Follow-up: the config validator will reject payment timeouts below 1 s
+      - id: a
+        kind: markdown
+        label: Response A
+        width: half
+        text: |-
+          From 13:12 to 13:41 UTC yesterday, a config push set the card-payment timeout for EU checkouts to 50 ms instead of 5 s, so nearly every card payment in eu-west-1 timed out and orders dropped to near zero. On-call reverted the push after 29 minutes, and payments recovered as soon as the old config was live. We estimate about $18k in lost revenue. As a follow-up, the config validator will reject any payment timeout below 1 s, so a typo like this can't ship again.
+      - id: b
+        kind: markdown
+        label: Response B
+        width: half
+        text: |-
+          Hi team, I wanted to take a moment to share a summary of the incident that occurred yesterday. At approximately 13:12 UTC, we experienced an issue in our eu-west-1 region related to a configuration change. The change inadvertently affected payment processing for our EU customers, which had a significant impact on orders. Our on-call team jumped on it quickly and was able to revert the change, resolving the issue at around 13:41 UTC. While the financial impact is still being assessed, early estimates suggest it could be meaningful. Going forward, we are taking steps to strengthen our validation processes to help prevent similar issues from happening again. Please don't hesitate to reach out if you have any questions!
+      - *rubric
+
+  - id: writing-sales-explainer
+    group: writing
+    title: Explain a perf win to sales
+    subtitle: "Judge: B · 0.74"
+    meta: assistant-v13-rc vs assistant-v12
+    proposed:
+      preference:
+        value: b
+        why: "LLM judge, confidence 0.74: B is plain language a seller can repeat; A keeps allocations, GC and working-set jargon."
+    show:
+      - id: prompt
+        kind: markdown
+        label: Prompt
+        text: |-
+          Rewrite this for the sales team so they can mention it to merchants. One short paragraph:
+
+          > Decode-once shipped to prod: allocs/req -35%, CPU/req -18%, p99 -2%, working set +9%.
+      - id: a
+        kind: markdown
+        label: Response A
+        width: half
+        text: |-
+          Great news! Our engineering team shipped a major optimization called decode-once to production. By decoding each storefront API request a single time at ingress rather than once per downstream service, we've reduced heap allocations per request by 35% and CPU utilization per request by 18%. P99 latency is also down 2%, though working set memory increased 9% due to the shared immutable request view. These improvements reduce GC pressure across the API fleet and position us well for future scaling. Merchants should see a faster, more efficient storefront.
+      - id: b
+        kind: markdown
+        label: Response B
+        width: half
+        text: |-
+          Our storefront API now does the same work with less computing power: each request takes about 18% less CPU than before, and response times got slightly faster. For merchants, that means more headroom to absorb traffic spikes like a holiday sale without slowing their stores down, and it keeps our costs in check as volume grows. Nothing changes on their side; they don't need a plugin update or a config change. If a merchant wants more detail, our engineering team is happy to share the before-and-after numbers.
+      - *rubric

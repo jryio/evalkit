@@ -1,0 +1,14 @@
+title: Proposed number out of range
+questions:
+  - id: score
+    kind: number
+    label: Score
+    min: 0
+    max: 100
+items:
+  - id: a
+    title: First
+    proposed:
+      score: { value: -1 }
+  - id: b
+    title: Second

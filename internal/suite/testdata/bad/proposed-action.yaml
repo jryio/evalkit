@@ -1,0 +1,14 @@
+title: Proposed action
+questions:
+  - id: post
+    kind: action
+    label: Post
+    states:
+      off: { button: Post }
+items:
+  - id: a
+    title: First
+    proposed:
+      post: { value: true }
+  - id: b
+    title: Second

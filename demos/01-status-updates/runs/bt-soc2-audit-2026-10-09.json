@@ -1,0 +1,124 @@
+{
+ "slug": "bt-soc2-audit-2026-10-09",
+ "mode": "blind",
+ "project": "SOC 2 audit",
+ "project_id": "P-ACME-130",
+ "window_start": "2026-09-25T14:00:00Z",
+ "window_end": "2026-10-09T14:00:00Z",
+ "previous_update": "* Auditor selected; kickoff Oct 1",
+ "days_since_last": 14,
+ "draft": "* Auditor kickoff done Oct 1; 112 controls in scope\n* Evidence uploaded for 41 of 112 controls; 26 more collected, not yet uploaded\n* No owner yet for vendor risk reviews, which gate fieldwork",
+ "chars": 192,
+ "health": "atRisk",
+ "health_reason": "Vendor risk reviews have no owner, and they gate fieldwork.",
+ "actual": {
+  "body": "* Kickoff with auditor done, 112 controls in scope\n* Evidence collection ~60% (tracked on the compliance board)",
+  "health": "onTrack"
+ },
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "Auditor kickoff Oct 1; 112 controls in scope",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2101",
+     "url": "https://tracker.example.com/acme/issue/ACME-2101"
+    },
+    {
+     "type": "slack",
+     "label": "#soc2 2026-10-01 Dana: kickoff notes",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Evidence: 41 controls uploaded, 26 collected but not uploaded",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2202",
+     "url": "https://tracker.example.com/acme/issue/ACME-2202"
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Vendor risk reviews have no owner",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#soc2 2026-10-07 Dana: who owns vendor reviews?",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "MDM rollout to all laptops started",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "In progress; report when complete",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2195",
+     "url": "https://tracker.example.com/acme/issue/ACME-2195"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Security training completion at 88%",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "One control of 112; below the line",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-2120",
+     "url": "https://tracker.example.com/acme/issue/ACME-2120"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 21,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 3,
+   "notes": ""
+  },
+  {
+   "source": "slack:#soc2",
+   "status": "ok",
+   "items": 19,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 2,
+   "notes": ""
+  }
+ ],
+ "questions": [
+  "Did someone take the vendor reviews before Oct 9?"
+ ]
+}

@@ -1,0 +1,707 @@
+# Demo 3: perf canary verdicts for Acme search-api changes in prod-us-east.
+# Series are synthetic; tile values are the hourly means after the canary pin.
+title: Perf canary verdicts
+description: Decide whether each search-api perf change running on canary pods in prod-us-east gets promoted, held or rolled back.
+send: Send to Claude
+groups:
+- {id: pending, label: Awaiting verdict}
+- {id: decided, label: Decided}
+questions:
+- id: decision
+  kind: choice
+  label: Decision
+  primary: true
+  options:
+  - {value: promote, label: Promote, tone: positive, icon: check}
+  - {value: hold, label: Hold, tone: warning, icon: approx}
+  - {value: rollback, label: Roll back, tone: negative, icon: cross}
+- id: confidence
+  kind: scale
+  label: Confidence
+  key: c
+  min: 1
+  max: 5
+  labels: [Noisy, Clear]
+- id: apply
+  kind: action
+  label: Apply
+  key: a
+  summary: Claude demotes the canary, then merges or reverts the PR to match your decision.
+  states:
+    'off': {button: Let Claude apply it, note: Nothing changes in prod until you approve}
+    'on': {button: Approved, note: Claude runs canary demote after you send, badge: Apply}
+    done: {button: Applied, note: canary demoted, badge: Applied}
+- {id: notes, kind: text, label: Notes for Claude, key: n, placeholder: 'What would change your call?'}
+items:
+- id: eng-1202
+  group: pending
+  title: ENG-1202 · Hand-written JSON for search responses
+  short: Hand-JSON responses
+  subtitle: CPU +7% · p99 +11%
+  badges:
+  - {label: Canary, tone: accent}
+  meta: 2 canary pods vs 40 fleet · prod-us-east · 22 h · Oct 29
+  proposed:
+    decision: {value: rollback, why: 'canary judge: p99 +11% and timeouts +0.13 pp breach their guardrails'}
+  show:
+  - kind: metrics
+    label: Canary vs fleet
+    metrics:
+    - {label: Allocations / request, value: 4945, baseline: 5345, better: lower}
+    - {label: CPU / request, value: 2.18, baseline: 2.04, unit: ms, better: lower, decimals: 2}
+    - {label: p99 latency, value: 103.0, baseline: 92.8, unit: ms, better: lower, decimals: 1}
+    - {label: Working set, value: 2.63, baseline: 2.61, unit: GiB, better: lower, decimals: 2}
+  - kind: chart
+    label: CPU per request
+    width: half
+    type: line
+    unit: ms
+    y_min: 0
+    x: ['2026-10-29T00:00:00Z', '2026-10-29T01:00:00Z', '2026-10-29T02:00:00Z', '2026-10-29T03:00:00Z', '2026-10-29T04:00:00Z', '2026-10-29T05:00:00Z', '2026-10-29T06:00:00Z', '2026-10-29T07:00:00Z', '2026-10-29T08:00:00Z', '2026-10-29T09:00:00Z', '2026-10-29T10:00:00Z', '2026-10-29T11:00:00Z', '2026-10-29T12:00:00Z', '2026-10-29T13:00:00Z', '2026-10-29T14:00:00Z', '2026-10-29T15:00:00Z', '2026-10-29T16:00:00Z', '2026-10-29T17:00:00Z', '2026-10-29T18:00:00Z', '2026-10-29T19:00:00Z', '2026-10-29T20:00:00Z', '2026-10-29T21:00:00Z', '2026-10-29T22:00:00Z', '2026-10-29T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [1.991, 2.006, 2.008, 1.979, 1.964, 1.986, 1.999, 2.017, 1.991, 2.002, 2.047, 2.057, 2.087, 2.088, 2.078, 2.081, 2.13, 2.08, 2.067, 2.053, 2.063, 2.051, 2.03, 2.022]
+    - label: Canary
+      tone: accent
+      values: [2.072, 1.976, 2.174, 2.134, 2.056, 2.153, 2.077, 2.134, 2.095, 2.165, 2.148, 2.201, 2.337, 2.215, 2.26, 2.178, 2.222, 2.258, 2.222, 2.232, 2.21, 2.153, 2.201, 2.133]
+    marks:
+    - {x: '2026-10-29T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Allocations per request
+    width: half
+    type: line
+    y_min: 0
+    x: ['2026-10-29T00:00:00Z', '2026-10-29T01:00:00Z', '2026-10-29T02:00:00Z', '2026-10-29T03:00:00Z', '2026-10-29T04:00:00Z', '2026-10-29T05:00:00Z', '2026-10-29T06:00:00Z', '2026-10-29T07:00:00Z', '2026-10-29T08:00:00Z', '2026-10-29T09:00:00Z', '2026-10-29T10:00:00Z', '2026-10-29T11:00:00Z', '2026-10-29T12:00:00Z', '2026-10-29T13:00:00Z', '2026-10-29T14:00:00Z', '2026-10-29T15:00:00Z', '2026-10-29T16:00:00Z', '2026-10-29T17:00:00Z', '2026-10-29T18:00:00Z', '2026-10-29T19:00:00Z', '2026-10-29T20:00:00Z', '2026-10-29T21:00:00Z', '2026-10-29T22:00:00Z', '2026-10-29T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [5327, 5340, 5324, 5322, 5315, 5315, 5307, 5325, 5353, 5316, 5316, 5381, 5352, 5374, 5377, 5337, 5415, 5400, 5362, 5370, 5350, 5320, 5328, 5331]
+    - label: Canary
+      tone: accent
+      values: [5434, 5338, 4916, 4971, 4876, 4946, 4963, 4905, 4845, 4891, 4950, 4970, 5023, 4915, 4965, 4997, 4962, 4862, 5001, 5063, 4999, 4906, 4921, 4941]
+    marks:
+    - {x: '2026-10-29T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: p99 latency
+    width: half
+    type: line
+    unit: ms
+    x: ['2026-10-29T00:00:00Z', '2026-10-29T01:00:00Z', '2026-10-29T02:00:00Z', '2026-10-29T03:00:00Z', '2026-10-29T04:00:00Z', '2026-10-29T05:00:00Z', '2026-10-29T06:00:00Z', '2026-10-29T07:00:00Z', '2026-10-29T08:00:00Z', '2026-10-29T09:00:00Z', '2026-10-29T10:00:00Z', '2026-10-29T11:00:00Z', '2026-10-29T12:00:00Z', '2026-10-29T13:00:00Z', '2026-10-29T14:00:00Z', '2026-10-29T15:00:00Z', '2026-10-29T16:00:00Z', '2026-10-29T17:00:00Z', '2026-10-29T18:00:00Z', '2026-10-29T19:00:00Z', '2026-10-29T20:00:00Z', '2026-10-29T21:00:00Z', '2026-10-29T22:00:00Z', '2026-10-29T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [90.4, 89.8, 88.4, 90.1, 89.9, 88.9, 89.0, 89.1, 90.8, 91.8, 94.2, 93.7, 93.8, 93.3, 96.9, 96.3, 95.0, 96.3, 94.5, 97.8, 95.3, 94.0, 92.4, 90.0]
+    - label: Canary
+      tone: accent
+      values: [87.5, 91.6, 100.9, 94.5, 97.0, 101.8, 103.1, 97.6, 97.6, 104.0, 105.1, 101.9, 103.6, 104.4, 103.9, 105.5, 110.2, 108.7, 111.5, 105.8, 104.9, 101.9, 102.8, 99.1]
+    marks:
+    - {x: '2026-10-29T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Working set
+    width: half
+    type: line
+    unit: GiB
+    x: ['2026-10-29T00:00:00Z', '2026-10-29T01:00:00Z', '2026-10-29T02:00:00Z', '2026-10-29T03:00:00Z', '2026-10-29T04:00:00Z', '2026-10-29T05:00:00Z', '2026-10-29T06:00:00Z', '2026-10-29T07:00:00Z', '2026-10-29T08:00:00Z', '2026-10-29T09:00:00Z', '2026-10-29T10:00:00Z', '2026-10-29T11:00:00Z', '2026-10-29T12:00:00Z', '2026-10-29T13:00:00Z', '2026-10-29T14:00:00Z', '2026-10-29T15:00:00Z', '2026-10-29T16:00:00Z', '2026-10-29T17:00:00Z', '2026-10-29T18:00:00Z', '2026-10-29T19:00:00Z', '2026-10-29T20:00:00Z', '2026-10-29T21:00:00Z', '2026-10-29T22:00:00Z', '2026-10-29T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [2.576, 2.57, 2.555, 2.511, 2.544, 2.529, 2.535, 2.551, 2.582, 2.601, 2.621, 2.605, 2.637, 2.628, 2.67, 2.687, 2.671, 2.682, 2.675, 2.673, 2.634, 2.616, 2.598, 2.612]
+    - label: Canary
+      tone: accent
+      values: [2.572, 2.549, 2.572, 2.563, 2.562, 2.555, 2.56, 2.55, 2.579, 2.651, 2.644, 2.652, 2.663, 2.685, 2.703, 2.687, 2.71, 2.708, 2.677, 2.664, 2.644, 2.625, 2.652, 2.557]
+    marks:
+    - {x: '2026-10-29T01:30:00Z', label: canary pinned}
+  - kind: metrics
+    layout: table
+    label: Guardrails
+    columns: {baseline: Fleet, value: Canary}
+    metrics:
+    - {label: p50 latency, value: 25.3, baseline: 24.6, unit: ms, better: lower, decimals: 1}
+    - {label: Error rate, value: 0.072, baseline: 0.068, unit: '%', better: lower, decimals: 3, tolerance: 5}
+    - {label: Timeout rate, value: 0.32, baseline: 0.19, unit: '%', better: lower, decimals: 2, tolerance: 5}
+    - {label: Zero-result rate, value: 2.6, baseline: 2.5, unit: '%', better: lower, decimals: 1}
+    - {label: Cache hit rate, value: 77.7, baseline: 78.1, unit: '%', better: higher, decimals: 1}
+  context:
+  - kind: markdown
+    label: Canary plan
+    text: |-
+      **Hypothesis.** A hand-written encoder for search responses replaces reflection-based `encoding/json`. It cuts encode allocations; CPU and latency do not move.
+
+      | Metric | Expected | Guardrail vs fleet |
+      |---|---:|---:|
+      | Allocations / request | −7 to −11% | none |
+      | CPU / request | flat | none |
+      | p99 latency | flat | ≤ +7% |
+      | Working set | flat | ≤ +14% |
+      | Error rate | flat | ≤ +0.04 pp |
+      | Timeout rate | flat | ≤ +0.06 pp |
+      | Zero-result rate | flat | ≤ +0.3 pp |
+      | Cache hit rate | flat | ≥ −0.7 pp |
+
+      Registered in PR #2214 before `canary pin`. Alerts fire on any guardrail breached for 10 min; a human makes the call.
+
+      Demote: `canary demote ENG-1202`
+  - kind: table
+    label: Pods
+    columns:
+    - {key: pod, label: Pod}
+    - {key: image, label: Image}
+    - {key: node, label: Node}
+    - {key: restarts, label: Restarts, align: right}
+    rows:
+    - {pod: search-api-canary-qwx2v89nsn-tbj8d, image: 'search-api:pr-2214-7c29a80', node: ip-10-12-118-206, restarts: 0}
+    - {pod: search-api-canary-qwx2v89nsn-chwn4, image: 'search-api:pr-2214-7c29a80', node: ip-10-12-81-122, restarts: 0}
+    - {pod: search-api-2jf69825fj-gv6v9, image: 'search-api:main-b21ead8', node: ip-10-12-120-244, restarts: 0}
+    - {pod: search-api-2jf69825fj-tx5d7, image: 'search-api:main-b21ead8', node: ip-10-12-92-114, restarts: 2}
+    - {pod: search-api-2jf69825fj-vwm96, image: 'search-api:main-b21ead8', node: ip-10-12-85-135, restarts: 0}
+  - kind: list
+    label: Links
+    rows:
+    - id: pr
+      title: 'PR #2214 Hand-write the search response encoder'
+      links:
+      - {label: Pull request, url: 'https://git.example.com/acme/search-api/pull/2214'}
+    - id: ticket
+      title: ENG-1202
+      links:
+      - {label: Tracker, url: 'https://tracker.example.com/acme/issue/ENG-1202'}
+- id: eng-1203
+  group: pending
+  title: ENG-1203 · Encode each response once
+  short: Encode once
+  subtitle: allocs −19% · errors +0.04 pp
+  badges:
+  - {label: Canary, tone: accent}
+  meta: 2 canary pods vs 40 fleet · prod-us-east · 22 h · Nov 3
+  proposed:
+    decision:
+      value: hold
+      why: 'canary judge: allocs −19%, but error rate +0.04 pp sits on its guardrail; rerun to rule out noise'
+  show:
+  - kind: metrics
+    label: Canary vs fleet
+    metrics:
+    - {label: Allocations / request, value: 3005, baseline: 3710, better: lower}
+    - {label: CPU / request, value: 1.7, baseline: 1.74, unit: ms, better: lower, decimals: 2}
+    - {label: p99 latency, value: 86.9, baseline: 87.2, unit: ms, better: lower, decimals: 1}
+    - {label: Working set, value: 2.79, baseline: 2.82, unit: GiB, better: lower, decimals: 2}
+  - kind: chart
+    label: CPU per request
+    width: half
+    type: line
+    unit: ms
+    y_min: 0
+    x: ['2026-11-03T00:00:00Z', '2026-11-03T01:00:00Z', '2026-11-03T02:00:00Z', '2026-11-03T03:00:00Z', '2026-11-03T04:00:00Z', '2026-11-03T05:00:00Z', '2026-11-03T06:00:00Z', '2026-11-03T07:00:00Z', '2026-11-03T08:00:00Z', '2026-11-03T09:00:00Z', '2026-11-03T10:00:00Z', '2026-11-03T11:00:00Z', '2026-11-03T12:00:00Z', '2026-11-03T13:00:00Z', '2026-11-03T14:00:00Z', '2026-11-03T15:00:00Z', '2026-11-03T16:00:00Z', '2026-11-03T17:00:00Z', '2026-11-03T18:00:00Z', '2026-11-03T19:00:00Z', '2026-11-03T20:00:00Z', '2026-11-03T21:00:00Z', '2026-11-03T22:00:00Z', '2026-11-03T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [1.749, 1.695, 1.707, 1.695, 1.685, 1.691, 1.696, 1.709, 1.724, 1.743, 1.743, 1.767, 1.768, 1.772, 1.775, 1.768, 1.761, 1.781, 1.775, 1.775, 1.766, 1.734, 1.73, 1.713]
+    - label: Canary
+      tone: accent
+      values: [1.708, 1.74, 1.671, 1.636, 1.624, 1.646, 1.664, 1.688, 1.637, 1.703, 1.678, 1.699, 1.715, 1.721, 1.755, 1.773, 1.757, 1.729, 1.754, 1.746, 1.752, 1.723, 1.655, 1.67]
+    marks:
+    - {x: '2026-11-03T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Allocations per request
+    width: half
+    type: line
+    y_min: 0
+    x: ['2026-11-03T00:00:00Z', '2026-11-03T01:00:00Z', '2026-11-03T02:00:00Z', '2026-11-03T03:00:00Z', '2026-11-03T04:00:00Z', '2026-11-03T05:00:00Z', '2026-11-03T06:00:00Z', '2026-11-03T07:00:00Z', '2026-11-03T08:00:00Z', '2026-11-03T09:00:00Z', '2026-11-03T10:00:00Z', '2026-11-03T11:00:00Z', '2026-11-03T12:00:00Z', '2026-11-03T13:00:00Z', '2026-11-03T14:00:00Z', '2026-11-03T15:00:00Z', '2026-11-03T16:00:00Z', '2026-11-03T17:00:00Z', '2026-11-03T18:00:00Z', '2026-11-03T19:00:00Z', '2026-11-03T20:00:00Z', '2026-11-03T21:00:00Z', '2026-11-03T22:00:00Z', '2026-11-03T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [3712, 3662, 3649, 3679, 3689, 3676, 3706, 3693, 3702, 3711, 3702, 3719, 3756, 3712, 3732, 3740, 3725, 3731, 3704, 3720, 3722, 3733, 3724, 3696]
+    - label: Canary
+      tone: accent
+      values: [3660, 3678, 3018, 2941, 2983, 2968, 2978, 2951, 2990, 2992, 3004, 3043, 3025, 2990, 2979, 3013, 3060, 3053, 3010, 3055, 3031, 2999, 3022, 3004]
+    marks:
+    - {x: '2026-11-03T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: p99 latency
+    width: half
+    type: line
+    unit: ms
+    x: ['2026-11-03T00:00:00Z', '2026-11-03T01:00:00Z', '2026-11-03T02:00:00Z', '2026-11-03T03:00:00Z', '2026-11-03T04:00:00Z', '2026-11-03T05:00:00Z', '2026-11-03T06:00:00Z', '2026-11-03T07:00:00Z', '2026-11-03T08:00:00Z', '2026-11-03T09:00:00Z', '2026-11-03T10:00:00Z', '2026-11-03T11:00:00Z', '2026-11-03T12:00:00Z', '2026-11-03T13:00:00Z', '2026-11-03T14:00:00Z', '2026-11-03T15:00:00Z', '2026-11-03T16:00:00Z', '2026-11-03T17:00:00Z', '2026-11-03T18:00:00Z', '2026-11-03T19:00:00Z', '2026-11-03T20:00:00Z', '2026-11-03T21:00:00Z', '2026-11-03T22:00:00Z', '2026-11-03T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [84.8, 85.9, 85.1, 84.3, 84.0, 83.0, 84.1, 83.5, 84.7, 85.7, 86.7, 88.4, 88.1, 91.1, 89.6, 90.9, 89.2, 90.9, 89.0, 89.5, 88.6, 88.4, 87.3, 86.3]
+    - label: Canary
+      tone: accent
+      values: [85.0, 85.2, 82.3, 82.8, 81.8, 83.0, 81.3, 82.9, 85.3, 84.1, 87.0, 85.9, 90.6, 88.3, 92.6, 90.4, 89.3, 91.3, 91.4, 91.5, 90.5, 88.7, 83.9, 87.0]
+    marks:
+    - {x: '2026-11-03T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Working set
+    width: half
+    type: line
+    unit: GiB
+    x: ['2026-11-03T00:00:00Z', '2026-11-03T01:00:00Z', '2026-11-03T02:00:00Z', '2026-11-03T03:00:00Z', '2026-11-03T04:00:00Z', '2026-11-03T05:00:00Z', '2026-11-03T06:00:00Z', '2026-11-03T07:00:00Z', '2026-11-03T08:00:00Z', '2026-11-03T09:00:00Z', '2026-11-03T10:00:00Z', '2026-11-03T11:00:00Z', '2026-11-03T12:00:00Z', '2026-11-03T13:00:00Z', '2026-11-03T14:00:00Z', '2026-11-03T15:00:00Z', '2026-11-03T16:00:00Z', '2026-11-03T17:00:00Z', '2026-11-03T18:00:00Z', '2026-11-03T19:00:00Z', '2026-11-03T20:00:00Z', '2026-11-03T21:00:00Z', '2026-11-03T22:00:00Z', '2026-11-03T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [2.767, 2.767, 2.736, 2.729, 2.747, 2.729, 2.736, 2.777, 2.777, 2.765, 2.806, 2.865, 2.897, 2.868, 2.895, 2.903, 2.9, 2.866, 2.899, 2.876, 2.853, 2.814, 2.808, 2.794]
+    - label: Canary
+      tone: accent
+      values: [2.791, 2.741, 2.711, 2.738, 2.726, 2.685, 2.706, 2.744, 2.736, 2.803, 2.775, 2.815, 2.843, 2.814, 2.888, 2.858, 2.848, 2.846, 2.812, 2.808, 2.866, 2.805, 2.781, 2.773]
+    marks:
+    - {x: '2026-11-03T01:30:00Z', label: canary pinned}
+  - kind: metrics
+    layout: table
+    label: Guardrails
+    columns: {baseline: Fleet, value: Canary}
+    metrics:
+    - {label: p50 latency, value: 23.1, baseline: 23.2, unit: ms, better: lower, decimals: 1}
+    - {label: Error rate, value: 0.105, baseline: 0.067, unit: '%', better: lower, decimals: 3, tolerance: 5}
+    - {label: Timeout rate, value: 0.20, baseline: 0.19, unit: '%', better: lower, decimals: 2, tolerance: 5}
+    - {label: Zero-result rate, value: 2.4, baseline: 2.5, unit: '%', better: lower, decimals: 1}
+    - {label: Cache hit rate, value: 78.2, baseline: 78.3, unit: '%', better: higher, decimals: 1}
+  context:
+  - kind: markdown
+    label: Canary plan
+    text: |-
+      **Hypothesis.** Each search response is encoded once into a pooled buffer that serves both the result-cache write and the HTTP body, instead of one marshal for each.
+
+      | Metric | Expected | Guardrail vs fleet |
+      |---|---:|---:|
+      | Allocations / request | −16 to −23% | none |
+      | CPU / request | flat | none |
+      | p99 latency | flat | ≤ +7% |
+      | Working set | flat | ≤ +14% |
+      | Error rate | flat | ≤ +0.04 pp |
+      | Timeout rate | flat | ≤ +0.06 pp |
+      | Zero-result rate | flat | ≤ +0.3 pp |
+      | Cache hit rate | flat | ≥ −0.7 pp |
+
+      Registered in PR #2251 before `canary pin`. Alerts fire on any guardrail breached for 10 min; a human makes the call.
+
+      Demote: `canary demote ENG-1203`
+  - kind: table
+    label: Pods
+    columns:
+    - {key: pod, label: Pod}
+    - {key: image, label: Image}
+    - {key: node, label: Node}
+    - {key: restarts, label: Restarts, align: right}
+    rows:
+    - {pod: search-api-canary-7vzjw2jp8m-vllwx, image: 'search-api:pr-2251-0742439', node: ip-10-12-117-164, restarts: 0}
+    - {pod: search-api-canary-7vzjw2jp8m-2bj64, image: 'search-api:pr-2251-0742439', node: ip-10-12-73-170, restarts: 0}
+    - {pod: search-api-l5mrtw8wmn-9gh9j, image: 'search-api:main-83221f1', node: ip-10-12-126-17, restarts: 0}
+    - {pod: search-api-l5mrtw8wmn-64glb, image: 'search-api:main-83221f1', node: ip-10-12-113-196, restarts: 0}
+    - {pod: search-api-l5mrtw8wmn-cx7xr, image: 'search-api:main-83221f1', node: ip-10-12-69-164, restarts: 3}
+  - kind: list
+    label: Links
+    rows:
+    - id: pr
+      title: 'PR #2251 Encode each search response once'
+      links:
+      - {label: Pull request, url: 'https://git.example.com/acme/search-api/pull/2251'}
+    - id: ticket
+      title: ENG-1203
+      links:
+      - {label: Tracker, url: 'https://tracker.example.com/acme/issue/ENG-1203'}
+- id: eng-1204
+  group: pending
+  title: ENG-1204 · Share the index snapshot
+  short: Shared snapshot
+  subtitle: working set −37% · p99 flat
+  badges:
+  - {label: Canary, tone: accent}
+  meta: 2 canary pods vs 40 fleet · prod-us-east · 22 h · Nov 4
+  proposed:
+    decision: {value: promote, why: 'canary judge: live heap −56%, working set −37%, every guardrail flat'}
+  show:
+  - kind: metrics
+    label: Canary vs fleet
+    metrics:
+    - {label: Allocations / request, value: 3640, baseline: 3695, better: lower}
+    - {label: CPU / request, value: 1.71, baseline: 1.73, unit: ms, better: lower, decimals: 2}
+    - {label: p99 latency, value: 87.1, baseline: 86.8, unit: ms, better: lower, decimals: 1}
+    - {label: Working set, value: 1.78, baseline: 2.82, unit: GiB, better: lower, decimals: 2}
+    note: live heap after GC 1.94 → 0.85 GiB (−56%)
+  - kind: chart
+    label: CPU per request
+    width: half
+    type: line
+    unit: ms
+    y_min: 0
+    x: ['2026-11-04T00:00:00Z', '2026-11-04T01:00:00Z', '2026-11-04T02:00:00Z', '2026-11-04T03:00:00Z', '2026-11-04T04:00:00Z', '2026-11-04T05:00:00Z', '2026-11-04T06:00:00Z', '2026-11-04T07:00:00Z', '2026-11-04T08:00:00Z', '2026-11-04T09:00:00Z', '2026-11-04T10:00:00Z', '2026-11-04T11:00:00Z', '2026-11-04T12:00:00Z', '2026-11-04T13:00:00Z', '2026-11-04T14:00:00Z', '2026-11-04T15:00:00Z', '2026-11-04T16:00:00Z', '2026-11-04T17:00:00Z', '2026-11-04T18:00:00Z', '2026-11-04T19:00:00Z', '2026-11-04T20:00:00Z', '2026-11-04T21:00:00Z', '2026-11-04T22:00:00Z', '2026-11-04T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [1.706, 1.694, 1.674, 1.671, 1.695, 1.674, 1.684, 1.69, 1.702, 1.718, 1.723, 1.724, 1.749, 1.774, 1.766, 1.757, 1.81, 1.762, 1.771, 1.756, 1.762, 1.747, 1.716, 1.735]
+    - label: Canary
+      tone: accent
+      values: [1.691, 1.682, 1.648, 1.639, 1.704, 1.677, 1.681, 1.711, 1.733, 1.702, 1.72, 1.715, 1.726, 1.737, 1.736, 1.767, 1.786, 1.713, 1.765, 1.727, 1.722, 1.674, 1.642, 1.695]
+    marks:
+    - {x: '2026-11-04T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Allocations per request
+    width: half
+    type: line
+    y_min: 0
+    x: ['2026-11-04T00:00:00Z', '2026-11-04T01:00:00Z', '2026-11-04T02:00:00Z', '2026-11-04T03:00:00Z', '2026-11-04T04:00:00Z', '2026-11-04T05:00:00Z', '2026-11-04T06:00:00Z', '2026-11-04T07:00:00Z', '2026-11-04T08:00:00Z', '2026-11-04T09:00:00Z', '2026-11-04T10:00:00Z', '2026-11-04T11:00:00Z', '2026-11-04T12:00:00Z', '2026-11-04T13:00:00Z', '2026-11-04T14:00:00Z', '2026-11-04T15:00:00Z', '2026-11-04T16:00:00Z', '2026-11-04T17:00:00Z', '2026-11-04T18:00:00Z', '2026-11-04T19:00:00Z', '2026-11-04T20:00:00Z', '2026-11-04T21:00:00Z', '2026-11-04T22:00:00Z', '2026-11-04T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [3682, 3690, 3672, 3660, 3642, 3671, 3689, 3681, 3681, 3689, 3697, 3687, 3703, 3721, 3720, 3717, 3729, 3697, 3734, 3698, 3697, 3717, 3700, 3689]
+    - label: Canary
+      tone: accent
+      values: [3648, 3632, 3644, 3694, 3612, 3617, 3611, 3658, 3667, 3637, 3607, 3650, 3647, 3605, 3718, 3641, 3705, 3597, 3676, 3619, 3678, 3655, 3572, 3570]
+    marks:
+    - {x: '2026-11-04T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: p99 latency
+    width: half
+    type: line
+    unit: ms
+    x: ['2026-11-04T00:00:00Z', '2026-11-04T01:00:00Z', '2026-11-04T02:00:00Z', '2026-11-04T03:00:00Z', '2026-11-04T04:00:00Z', '2026-11-04T05:00:00Z', '2026-11-04T06:00:00Z', '2026-11-04T07:00:00Z', '2026-11-04T08:00:00Z', '2026-11-04T09:00:00Z', '2026-11-04T10:00:00Z', '2026-11-04T11:00:00Z', '2026-11-04T12:00:00Z', '2026-11-04T13:00:00Z', '2026-11-04T14:00:00Z', '2026-11-04T15:00:00Z', '2026-11-04T16:00:00Z', '2026-11-04T17:00:00Z', '2026-11-04T18:00:00Z', '2026-11-04T19:00:00Z', '2026-11-04T20:00:00Z', '2026-11-04T21:00:00Z', '2026-11-04T22:00:00Z', '2026-11-04T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [86.4, 85.3, 83.7, 83.4, 83.2, 82.8, 83.0, 83.3, 85.8, 86.2, 87.2, 87.5, 88.5, 90.3, 91.0, 90.6, 90.8, 88.4, 90.2, 88.4, 87.6, 87.8, 85.5, 84.4]
+    - label: Canary
+      tone: accent
+      values: [84.1, 84.3, 82.3, 83.7, 84.8, 86.0, 81.2, 82.7, 84.8, 87.8, 87.2, 88.4, 90.2, 91.2, 91.1, 87.8, 90.2, 89.1, 88.5, 88.9, 86.9, 87.3, 86.5, 89.9]
+    marks:
+    - {x: '2026-11-04T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Working set
+    width: half
+    type: line
+    unit: GiB
+    x: ['2026-11-04T00:00:00Z', '2026-11-04T01:00:00Z', '2026-11-04T02:00:00Z', '2026-11-04T03:00:00Z', '2026-11-04T04:00:00Z', '2026-11-04T05:00:00Z', '2026-11-04T06:00:00Z', '2026-11-04T07:00:00Z', '2026-11-04T08:00:00Z', '2026-11-04T09:00:00Z', '2026-11-04T10:00:00Z', '2026-11-04T11:00:00Z', '2026-11-04T12:00:00Z', '2026-11-04T13:00:00Z', '2026-11-04T14:00:00Z', '2026-11-04T15:00:00Z', '2026-11-04T16:00:00Z', '2026-11-04T17:00:00Z', '2026-11-04T18:00:00Z', '2026-11-04T19:00:00Z', '2026-11-04T20:00:00Z', '2026-11-04T21:00:00Z', '2026-11-04T22:00:00Z', '2026-11-04T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [2.77, 2.765, 2.752, 2.73, 2.738, 2.753, 2.766, 2.752, 2.779, 2.799, 2.81, 2.835, 2.855, 2.877, 2.903, 2.868, 2.908, 2.875, 2.894, 2.873, 2.856, 2.831, 2.79, 2.795]
+    - label: Canary
+      tone: accent
+      values: [2.773, 2.753, 1.722, 1.715, 1.746, 1.754, 1.745, 1.749, 1.751, 1.777, 1.765, 1.797, 1.8, 1.785, 1.827, 1.796, 1.829, 1.852, 1.83, 1.785, 1.774, 1.809, 1.759, 1.793]
+    marks:
+    - {x: '2026-11-04T01:30:00Z', label: canary pinned}
+  - kind: metrics
+    layout: table
+    label: Guardrails
+    columns: {baseline: Fleet, value: Canary}
+    metrics:
+    - {label: p50 latency, value: 23.0, baseline: 23.0, unit: ms, better: lower, decimals: 1}
+    - {label: Error rate, value: 0.066, baseline: 0.066, unit: '%', better: lower, decimals: 3, tolerance: 5}
+    - {label: Timeout rate, value: 0.18, baseline: 0.18, unit: '%', better: lower, decimals: 2, tolerance: 5}
+    - {label: Zero-result rate, value: 2.5, baseline: 2.5, unit: '%', better: lower, decimals: 1}
+    - {label: Cache hit rate, value: 78.4, baseline: 78.3, unit: '%', better: higher, decimals: 1}
+  context:
+  - kind: markdown
+    label: Canary plan
+    text: |-
+      **Hypothesis.** One shared, read-only index snapshot replaces the per-request copies of the synonym and boost tables, and field names are interned. Live heap drops by about half; latency does not move.
+
+      | Metric | Expected | Guardrail vs fleet |
+      |---|---:|---:|
+      | Allocations / request | flat | none |
+      | CPU / request | flat | none |
+      | p99 latency | flat | ≤ +7% |
+      | Working set | −34 to −52% | ≤ +14% |
+      | Error rate | flat | ≤ +0.04 pp |
+      | Timeout rate | flat | ≤ +0.06 pp |
+      | Zero-result rate | flat | ≤ +0.3 pp |
+      | Cache hit rate | flat | ≥ −0.7 pp |
+
+      Registered in PR #2263 before `canary pin`. Alerts fire on any guardrail breached for 10 min; a human makes the call.
+
+      Demote: `canary demote ENG-1204`
+  - kind: table
+    label: Pods
+    columns:
+    - {key: pod, label: Pod}
+    - {key: image, label: Image}
+    - {key: node, label: Node}
+    - {key: restarts, label: Restarts, align: right}
+    rows:
+    - {pod: search-api-canary-s4vnsmhf6z-nnztn, image: 'search-api:pr-2263-c537712', node: ip-10-12-84-134, restarts: 0}
+    - {pod: search-api-canary-s4vnsmhf6z-9xhsd, image: 'search-api:pr-2263-c537712', node: ip-10-12-73-64, restarts: 0}
+    - {pod: search-api-vgwqtx48gq-5cdr9, image: 'search-api:main-9a37397', node: ip-10-12-100-71, restarts: 2}
+    - {pod: search-api-vgwqtx48gq-v9c7z, image: 'search-api:main-9a37397', node: ip-10-12-111-206, restarts: 0}
+    - {pod: search-api-vgwqtx48gq-mxx4s, image: 'search-api:main-9a37397', node: ip-10-12-97-106, restarts: 0}
+  - kind: list
+    label: Links
+    rows:
+    - id: pr
+      title: 'PR #2263 Share one index snapshot across requests'
+      links:
+      - {label: Pull request, url: 'https://git.example.com/acme/search-api/pull/2263'}
+    - id: ticket
+      title: ENG-1204
+      links:
+      - {label: Tracker, url: 'https://tracker.example.com/acme/issue/ENG-1204'}
+- id: eng-1205
+  group: pending
+  title: ENG-1205 · Typed filter params
+  short: Typed params
+  subtitle: allocs, CPU, p99 all inside noise
+  badges:
+  - {label: Canary, tone: accent}
+  meta: 2 canary pods vs 40 fleet · prod-us-east · 22 h · Nov 9
+  proposed:
+    decision: {value: promote, why: 'canary judge: no measurable change and no guardrail moved; safe to ship as cleanup'}
+  show:
+  - kind: metrics
+    label: Canary vs fleet
+    metrics:
+    - {label: Allocations / request, value: 3698, baseline: 3680, better: lower}
+    - {label: CPU / request, value: 1.72, baseline: 1.72, unit: ms, better: lower, decimals: 2}
+    - {label: p99 latency, value: 87.6, baseline: 87.4, unit: ms, better: lower, decimals: 1}
+    - {label: Working set, value: 2.83, baseline: 2.81, unit: GiB, better: lower, decimals: 2}
+  - kind: chart
+    label: CPU per request
+    width: half
+    type: line
+    unit: ms
+    y_min: 0
+    x: ['2026-11-09T00:00:00Z', '2026-11-09T01:00:00Z', '2026-11-09T02:00:00Z', '2026-11-09T03:00:00Z', '2026-11-09T04:00:00Z', '2026-11-09T05:00:00Z', '2026-11-09T06:00:00Z', '2026-11-09T07:00:00Z', '2026-11-09T08:00:00Z', '2026-11-09T09:00:00Z', '2026-11-09T10:00:00Z', '2026-11-09T11:00:00Z', '2026-11-09T12:00:00Z', '2026-11-09T13:00:00Z', '2026-11-09T14:00:00Z', '2026-11-09T15:00:00Z', '2026-11-09T16:00:00Z', '2026-11-09T17:00:00Z', '2026-11-09T18:00:00Z', '2026-11-09T19:00:00Z', '2026-11-09T20:00:00Z', '2026-11-09T21:00:00Z', '2026-11-09T22:00:00Z', '2026-11-09T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [1.689, 1.694, 1.696, 1.702, 1.657, 1.667, 1.668, 1.683, 1.694, 1.689, 1.722, 1.709, 1.747, 1.736, 1.76, 1.766, 1.759, 1.751, 1.744, 1.732, 1.762, 1.738, 1.745, 1.712]
+    - label: Canary
+      tone: accent
+      values: [1.716, 1.693, 1.67, 1.625, 1.703, 1.705, 1.725, 1.731, 1.661, 1.624, 1.74, 1.735, 1.705, 1.715, 1.779, 1.816, 1.773, 1.734, 1.78, 1.782, 1.697, 1.751, 1.684, 1.705]
+    marks:
+    - {x: '2026-11-09T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Allocations per request
+    width: half
+    type: line
+    y_min: 0
+    x: ['2026-11-09T00:00:00Z', '2026-11-09T01:00:00Z', '2026-11-09T02:00:00Z', '2026-11-09T03:00:00Z', '2026-11-09T04:00:00Z', '2026-11-09T05:00:00Z', '2026-11-09T06:00:00Z', '2026-11-09T07:00:00Z', '2026-11-09T08:00:00Z', '2026-11-09T09:00:00Z', '2026-11-09T10:00:00Z', '2026-11-09T11:00:00Z', '2026-11-09T12:00:00Z', '2026-11-09T13:00:00Z', '2026-11-09T14:00:00Z', '2026-11-09T15:00:00Z', '2026-11-09T16:00:00Z', '2026-11-09T17:00:00Z', '2026-11-09T18:00:00Z', '2026-11-09T19:00:00Z', '2026-11-09T20:00:00Z', '2026-11-09T21:00:00Z', '2026-11-09T22:00:00Z', '2026-11-09T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [3687, 3630, 3658, 3670, 3652, 3633, 3643, 3669, 3677, 3668, 3681, 3704, 3682, 3723, 3680, 3727, 3676, 3718, 3695, 3668, 3689, 3690, 3685, 3672]
+    - label: Canary
+      tone: accent
+      values: [3670, 3616, 3679, 3716, 3689, 3698, 3682, 3729, 3768, 3767, 3652, 3670, 3669, 3698, 3784, 3703, 3721, 3709, 3647, 3668, 3680, 3670, 3683, 3672]
+    marks:
+    - {x: '2026-11-09T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: p99 latency
+    width: half
+    type: line
+    unit: ms
+    x: ['2026-11-09T00:00:00Z', '2026-11-09T01:00:00Z', '2026-11-09T02:00:00Z', '2026-11-09T03:00:00Z', '2026-11-09T04:00:00Z', '2026-11-09T05:00:00Z', '2026-11-09T06:00:00Z', '2026-11-09T07:00:00Z', '2026-11-09T08:00:00Z', '2026-11-09T09:00:00Z', '2026-11-09T10:00:00Z', '2026-11-09T11:00:00Z', '2026-11-09T12:00:00Z', '2026-11-09T13:00:00Z', '2026-11-09T14:00:00Z', '2026-11-09T15:00:00Z', '2026-11-09T16:00:00Z', '2026-11-09T17:00:00Z', '2026-11-09T18:00:00Z', '2026-11-09T19:00:00Z', '2026-11-09T20:00:00Z', '2026-11-09T21:00:00Z', '2026-11-09T22:00:00Z', '2026-11-09T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [85.5, 85.1, 84.6, 83.9, 84.6, 83.1, 85.0, 84.8, 84.9, 84.9, 88.0, 88.0, 89.0, 90.5, 89.6, 90.8, 91.0, 91.5, 90.1, 90.8, 88.2, 87.7, 86.4, 85.3]
+    - label: Canary
+      tone: accent
+      values: [88.6, 86.1, 85.0, 85.1, 84.9, 81.7, 84.1, 86.4, 83.9, 86.8, 87.3, 86.9, 87.0, 89.3, 91.6, 92.7, 88.3, 91.8, 92.4, 86.9, 87.0, 90.2, 89.6, 88.4]
+    marks:
+    - {x: '2026-11-09T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Working set
+    width: half
+    type: line
+    unit: GiB
+    x: ['2026-11-09T00:00:00Z', '2026-11-09T01:00:00Z', '2026-11-09T02:00:00Z', '2026-11-09T03:00:00Z', '2026-11-09T04:00:00Z', '2026-11-09T05:00:00Z', '2026-11-09T06:00:00Z', '2026-11-09T07:00:00Z', '2026-11-09T08:00:00Z', '2026-11-09T09:00:00Z', '2026-11-09T10:00:00Z', '2026-11-09T11:00:00Z', '2026-11-09T12:00:00Z', '2026-11-09T13:00:00Z', '2026-11-09T14:00:00Z', '2026-11-09T15:00:00Z', '2026-11-09T16:00:00Z', '2026-11-09T17:00:00Z', '2026-11-09T18:00:00Z', '2026-11-09T19:00:00Z', '2026-11-09T20:00:00Z', '2026-11-09T21:00:00Z', '2026-11-09T22:00:00Z', '2026-11-09T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [2.794, 2.734, 2.751, 2.73, 2.744, 2.713, 2.736, 2.76, 2.782, 2.779, 2.78, 2.823, 2.837, 2.865, 2.87, 2.868, 2.884, 2.906, 2.885, 2.858, 2.857, 2.807, 2.799, 2.787]
+    - label: Canary
+      tone: accent
+      values: [2.783, 2.778, 2.753, 2.793, 2.741, 2.756, 2.798, 2.699, 2.773, 2.825, 2.781, 2.83, 2.898, 2.88, 2.896, 2.957, 2.846, 2.93, 2.854, 2.889, 2.878, 2.846, 2.814, 2.824]
+    marks:
+    - {x: '2026-11-09T01:30:00Z', label: canary pinned}
+  - kind: metrics
+    layout: table
+    label: Guardrails
+    columns: {baseline: Fleet, value: Canary}
+    metrics:
+    - {label: p50 latency, value: 23.3, baseline: 23.2, unit: ms, better: lower, decimals: 1}
+    - {label: Error rate, value: 0.065, baseline: 0.067, unit: '%', better: lower, decimals: 3, tolerance: 5}
+    - {label: Timeout rate, value: 0.19, baseline: 0.18, unit: '%', better: lower, decimals: 2, tolerance: 5}
+    - {label: Zero-result rate, value: 2.5, baseline: 2.4, unit: '%', better: lower, decimals: 1}
+    - {label: Cache hit rate, value: 78.2, baseline: 78.3, unit: '%', better: higher, decimals: 1}
+  context:
+  - kind: markdown
+    label: Canary plan
+    text: |-
+      **Hypothesis.** Typed structs replace `map[string]any` for the filter, sort and facet params. This is a correctness cleanup; no metric should move beyond noise.
+
+      | Metric | Expected | Guardrail vs fleet |
+      |---|---:|---:|
+      | Allocations / request | ±1.5% | none |
+      | CPU / request | ±1.5% | none |
+      | p99 latency | flat | ≤ +7% |
+      | Working set | flat | ≤ +14% |
+      | Error rate | flat | ≤ +0.04 pp |
+      | Timeout rate | flat | ≤ +0.06 pp |
+      | Zero-result rate | flat | ≤ +0.3 pp |
+      | Cache hit rate | flat | ≥ −0.7 pp |
+
+      Registered in PR #2290 before `canary pin`. Alerts fire on any guardrail breached for 10 min; a human makes the call.
+
+      Demote: `canary demote ENG-1205`
+  - kind: table
+    label: Pods
+    columns:
+    - {key: pod, label: Pod}
+    - {key: image, label: Image}
+    - {key: node, label: Node}
+    - {key: restarts, label: Restarts, align: right}
+    rows:
+    - {pod: search-api-canary-rqlcgz8z2d-94dd8, image: 'search-api:pr-2290-2596588', node: ip-10-12-98-241, restarts: 0}
+    - {pod: search-api-canary-rqlcgz8z2d-8n8kh, image: 'search-api:pr-2290-2596588', node: ip-10-12-80-66, restarts: 0}
+    - {pod: search-api-98wqqptjp6-ghpxb, image: 'search-api:main-ff27750', node: ip-10-12-127-22, restarts: 0}
+    - {pod: search-api-98wqqptjp6-ddw5f, image: 'search-api:main-ff27750', node: ip-10-12-109-167, restarts: 0}
+    - {pod: search-api-98wqqptjp6-gdjlp, image: 'search-api:main-ff27750', node: ip-10-12-95-245, restarts: 2}
+  - kind: list
+    label: Links
+    rows:
+    - id: pr
+      title: 'PR #2290 Typed params for filters, sorts and facets'
+      links:
+      - {label: Pull request, url: 'https://git.example.com/acme/search-api/pull/2290'}
+    - id: ticket
+      title: ENG-1205
+      links:
+      - {label: Tracker, url: 'https://tracker.example.com/acme/issue/ENG-1205'}
+- id: eng-1201
+  group: decided
+  title: ENG-1201 · Parse each query once
+  short: Parse once
+  subtitle: allocs −31% · CPU −16%
+  badges:
+  - {label: Canary, tone: accent}
+  meta: 2 canary pods vs 40 fleet · prod-us-east · 22 h · Nov 1
+  proposed:
+    decision:
+      value: promote
+      why: 'canary judge: allocs −31%, CPU −16%, p99 −7%; working set +7% is inside its +14% budget'
+  show:
+  - kind: metrics
+    label: Canary vs fleet
+    metrics:
+    - {label: Allocations / request, value: 3700, baseline: 5360, better: lower}
+    - {label: CPU / request, value: 1.73, baseline: 2.06, unit: ms, better: lower, decimals: 2}
+    - {label: p99 latency, value: 86.6, baseline: 93.4, unit: ms, better: lower, decimals: 1}
+    - {label: Working set, value: 2.8, baseline: 2.62, unit: GiB, better: lower, decimals: 2}
+  - kind: chart
+    label: CPU per request
+    width: half
+    type: line
+    unit: ms
+    y_min: 0
+    x: ['2026-11-01T00:00:00Z', '2026-11-01T01:00:00Z', '2026-11-01T02:00:00Z', '2026-11-01T03:00:00Z', '2026-11-01T04:00:00Z', '2026-11-01T05:00:00Z', '2026-11-01T06:00:00Z', '2026-11-01T07:00:00Z', '2026-11-01T08:00:00Z', '2026-11-01T09:00:00Z', '2026-11-01T10:00:00Z', '2026-11-01T11:00:00Z', '2026-11-01T12:00:00Z', '2026-11-01T13:00:00Z', '2026-11-01T14:00:00Z', '2026-11-01T15:00:00Z', '2026-11-01T16:00:00Z', '2026-11-01T17:00:00Z', '2026-11-01T18:00:00Z', '2026-11-01T19:00:00Z', '2026-11-01T20:00:00Z', '2026-11-01T21:00:00Z', '2026-11-01T22:00:00Z', '2026-11-01T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [2.005, 1.997, 1.988, 2.014, 2.023, 1.999, 2.009, 1.994, 2.034, 2.04, 2.084, 2.119, 2.082, 2.08, 2.101, 2.096, 2.096, 2.12, 2.102, 2.102, 2.058, 2.069, 2.046, 2.065]
+    - label: Canary
+      tone: accent
+      values: [2.027, 2.048, 1.692, 1.703, 1.675, 1.662, 1.673, 1.71, 1.719, 1.67, 1.677, 1.763, 1.757, 1.792, 1.792, 1.768, 1.781, 1.781, 1.742, 1.711, 1.788, 1.755, 1.71, 1.738]
+    marks:
+    - {x: '2026-11-01T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Allocations per request
+    width: half
+    type: line
+    y_min: 0
+    x: ['2026-11-01T00:00:00Z', '2026-11-01T01:00:00Z', '2026-11-01T02:00:00Z', '2026-11-01T03:00:00Z', '2026-11-01T04:00:00Z', '2026-11-01T05:00:00Z', '2026-11-01T06:00:00Z', '2026-11-01T07:00:00Z', '2026-11-01T08:00:00Z', '2026-11-01T09:00:00Z', '2026-11-01T10:00:00Z', '2026-11-01T11:00:00Z', '2026-11-01T12:00:00Z', '2026-11-01T13:00:00Z', '2026-11-01T14:00:00Z', '2026-11-01T15:00:00Z', '2026-11-01T16:00:00Z', '2026-11-01T17:00:00Z', '2026-11-01T18:00:00Z', '2026-11-01T19:00:00Z', '2026-11-01T20:00:00Z', '2026-11-01T21:00:00Z', '2026-11-01T22:00:00Z', '2026-11-01T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [5357, 5377, 5311, 5308, 5330, 5366, 5318, 5330, 5363, 5396, 5347, 5385, 5409, 5404, 5385, 5415, 5384, 5361, 5373, 5391, 5367, 5349, 5316, 5312]
+    - label: Canary
+      tone: accent
+      values: [5313, 5315, 3671, 3673, 3712, 3617, 3680, 3700, 3660, 3693, 3739, 3666, 3679, 3739, 3676, 3733, 3697, 3689, 3737, 3781, 3742, 3720, 3699, 3697]
+    marks:
+    - {x: '2026-11-01T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: p99 latency
+    width: half
+    type: line
+    unit: ms
+    x: ['2026-11-01T00:00:00Z', '2026-11-01T01:00:00Z', '2026-11-01T02:00:00Z', '2026-11-01T03:00:00Z', '2026-11-01T04:00:00Z', '2026-11-01T05:00:00Z', '2026-11-01T06:00:00Z', '2026-11-01T07:00:00Z', '2026-11-01T08:00:00Z', '2026-11-01T09:00:00Z', '2026-11-01T10:00:00Z', '2026-11-01T11:00:00Z', '2026-11-01T12:00:00Z', '2026-11-01T13:00:00Z', '2026-11-01T14:00:00Z', '2026-11-01T15:00:00Z', '2026-11-01T16:00:00Z', '2026-11-01T17:00:00Z', '2026-11-01T18:00:00Z', '2026-11-01T19:00:00Z', '2026-11-01T20:00:00Z', '2026-11-01T21:00:00Z', '2026-11-01T22:00:00Z', '2026-11-01T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [92.0, 90.5, 89.3, 88.8, 89.2, 90.1, 90.8, 91.5, 91.3, 93.2, 93.0, 94.0, 95.1, 96.2, 96.0, 95.9, 97.0, 97.5, 96.1, 95.4, 95.8, 93.2, 92.7, 92.7]
+    - label: Canary
+      tone: accent
+      values: [88.9, 89.2, 81.4, 83.7, 81.3, 85.4, 82.8, 84.4, 83.9, 84.6, 85.4, 89.8, 89.8, 87.7, 87.4, 91.7, 92.3, 87.2, 90.4, 89.1, 86.7, 87.3, 85.6, 87.1]
+    marks:
+    - {x: '2026-11-01T01:30:00Z', label: canary pinned}
+  - kind: chart
+    label: Working set
+    width: half
+    type: line
+    unit: GiB
+    x: ['2026-11-01T00:00:00Z', '2026-11-01T01:00:00Z', '2026-11-01T02:00:00Z', '2026-11-01T03:00:00Z', '2026-11-01T04:00:00Z', '2026-11-01T05:00:00Z', '2026-11-01T06:00:00Z', '2026-11-01T07:00:00Z', '2026-11-01T08:00:00Z', '2026-11-01T09:00:00Z', '2026-11-01T10:00:00Z', '2026-11-01T11:00:00Z', '2026-11-01T12:00:00Z', '2026-11-01T13:00:00Z', '2026-11-01T14:00:00Z', '2026-11-01T15:00:00Z', '2026-11-01T16:00:00Z', '2026-11-01T17:00:00Z', '2026-11-01T18:00:00Z', '2026-11-01T19:00:00Z', '2026-11-01T20:00:00Z', '2026-11-01T21:00:00Z', '2026-11-01T22:00:00Z', '2026-11-01T23:00:00Z']
+    series:
+    - label: Fleet
+      tone: neutral
+      values: [2.548, 2.567, 2.536, 2.555, 2.513, 2.543, 2.537, 2.575, 2.588, 2.605, 2.63, 2.637, 2.646, 2.66, 2.658, 2.688, 2.674, 2.714, 2.69, 2.672, 2.686, 2.629, 2.607, 2.596]
+    - label: Canary
+      tone: accent
+      values: [2.576, 2.575, 2.706, 2.735, 2.68, 2.754, 2.769, 2.747, 2.702, 2.819, 2.835, 2.778, 2.78, 2.837, 2.873, 2.884, 2.874, 2.872, 2.88, 2.834, 2.839, 2.863, 2.803, 2.738]
+    marks:
+    - {x: '2026-11-01T01:30:00Z', label: canary pinned}
+  - kind: metrics
+    layout: table
+    label: Guardrails
+    columns: {baseline: Fleet, value: Canary}
+    metrics:
+    - {label: p50 latency, value: 22.9, baseline: 24.4, unit: ms, better: lower, decimals: 1}
+    - {label: Error rate, value: 0.069, baseline: 0.068, unit: '%', better: lower, decimals: 3, tolerance: 5}
+    - {label: Timeout rate, value: 0.18, baseline: 0.19, unit: '%', better: lower, decimals: 2, tolerance: 5}
+    - {label: Zero-result rate, value: 2.5, baseline: 2.6, unit: '%', better: lower, decimals: 1}
+    - {label: Cache hit rate, value: 78.3, baseline: 78.2, unit: '%', better: higher, decimals: 1}
+  context:
+  - kind: markdown
+    label: Canary plan
+    text: |-
+      **Hypothesis.** The query is parsed once at the edge and every shard fan-out reads the same immutable plan, instead of each shard parsing its own copy. Pooled plan structs raise working set a little.
+
+      | Metric | Expected | Guardrail vs fleet |
+      |---|---:|---:|
+      | Allocations / request | −27 to −34% | none |
+      | CPU / request | −13 to −19% | none |
+      | p99 latency | −7 to −11% | ≤ +7% |
+      | Working set | +7 to +13% | ≤ +14% |
+      | Error rate | flat | ≤ +0.04 pp |
+      | Timeout rate | flat | ≤ +0.06 pp |
+      | Zero-result rate | flat | ≤ +0.3 pp |
+      | Cache hit rate | flat | ≥ −0.7 pp |
+
+      Registered in PR #2238 before `canary pin`. Alerts fire on any guardrail breached for 10 min; a human makes the call.
+
+      Demote: `canary demote ENG-1201`
+  - kind: table
+    label: Pods
+    columns:
+    - {key: pod, label: Pod}
+    - {key: image, label: Image}
+    - {key: node, label: Node}
+    - {key: restarts, label: Restarts, align: right}
+    rows:
+    - {pod: search-api-canary-4hmwgc4r2r-8mt4q, image: 'search-api:pr-2238-cee71bc', node: ip-10-12-103-182, restarts: 0}
+    - {pod: search-api-canary-4hmwgc4r2r-rnqxd, image: 'search-api:pr-2238-cee71bc', node: ip-10-12-124-85, restarts: 0}
+    - {pod: search-api-9cktf9gwf9-jz8n4, image: 'search-api:main-3b455fb', node: ip-10-12-68-113, restarts: 3}
+    - {pod: search-api-9cktf9gwf9-9qrl2, image: 'search-api:main-3b455fb', node: ip-10-12-80-250, restarts: 0}
+    - {pod: search-api-9cktf9gwf9-m6xhf, image: 'search-api:main-3b455fb', node: ip-10-12-127-61, restarts: 0}
+  - kind: list
+    label: Links
+    rows:
+    - id: pr
+      title: 'PR #2238 Parse each query once at the edge'
+      links:
+      - {label: Pull request, url: 'https://git.example.com/acme/search-api/pull/2238'}
+    - id: ticket
+      title: ENG-1201
+      links:
+      - {label: Tracker, url: 'https://tracker.example.com/acme/issue/ENG-1201'}
+  done:
+    apply: {at: '2026-11-02T01:20:00Z', url: 'https://git.example.com/acme/search-api/pull/2238'}

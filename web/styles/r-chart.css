@@ -1,0 +1,17 @@
+/* chart: uPlot in a bordered panel. Selectors carry .chart to outrank uPlot's own CSS
+   and the kit's global table rules, which would otherwise style the legend. */
+.chart { border: 1px solid var(--separator); border-radius: var(--radius); padding: 12px 16px 12px 10px; }
+.chart .uplot { font-family: var(--font); line-height: 1.4; }
+.chart .u-hz .u-cursor-x { border-right: 1px solid var(--separator); }
+
+.chart .u-legend { width: auto; margin: 8px 0 0 6px; font-size: 13px; text-align: left; }
+.chart .u-inline tr { margin-right: 16px; }
+.chart .u-series > * { padding: 0; }
+.chart .u-legend th, .chart .u-legend td { padding: 0; border: 0; font-size: 13px; vertical-align: middle; }
+.chart .u-legend th { font-weight: 400; color: var(--secondary); }
+.chart .u-inline.u-live th::after { content: none; }
+.chart .u-legend td.u-value { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; padding-left: 6px; }
+.chart .u-legend .u-marker { width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
+.chart-line .u-legend .u-marker { width: 14px; height: 3px; border-radius: 2px; }
+/* the x row would shift the legend on hover; the crosshair and axis already give x */
+.chart .u-legend .u-series:first-child { display: none; }

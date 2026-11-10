@@ -1,0 +1,8 @@
+title: Action
+questions:
+  - id: post
+    kind: action
+    label: Post
+items:
+  - id: a
+    title: First

@@ -1,0 +1,127 @@
+{
+ "slug": "bt-mobile-checkout-2026-10-02",
+ "mode": "blind",
+ "project": "Mobile checkout",
+ "project_id": "P-ACME-112",
+ "window_start": "2026-09-18T15:00:00Z",
+ "window_end": "2026-10-02T15:00:00Z",
+ "previous_update": "* One-page checkout at 50% on iOS\n* Android build in progress",
+ "days_since_last": 14,
+ "draft": "* Android one-page checkout slipped 2 weeks: payment sheet crashes on Android 12\n* iOS one-page checkout at 100%; completion +2.6 pts\n* Apple Pay in internal testing",
+ "chars": 165,
+ "health": "atRisk",
+ "health_reason": "The Android slip pushes Apple Pay and saved cards back; the Dec 15 cutover is tight.",
+ "actual": {
+  "body": "* iOS one-page checkout fully rolled out (+2.6 pts completion)\n* Android delayed by a crash on Android 12, fix in review\n* Apple Pay in internal testing",
+  "health": "atRisk"
+ },
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "iOS one-page checkout ramped to 100%; completion +2.6 pts",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1760",
+     "url": "https://tracker.example.com/acme/issue/ACME-1760"
+    },
+    {
+     "type": "github",
+     "label": "#781 remove one-page flag",
+     "url": "https://git.example.com/acme/mobile-app/pull/781"
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Android payment sheet crashes on Android 12; release slips 2 weeks",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1788",
+     "url": "https://tracker.example.com/acme/issue/ACME-1788"
+    },
+    {
+     "type": "slack",
+     "label": "#mobile-checkout 2026-09-29 Ravi: crash repro on Android 12",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Apple Pay in internal testing",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "slack",
+     "label": "#mobile-checkout 2026-10-01 Dana: Apple Pay in internal build",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Crash fix in review",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Covered by o2; the fix is not merged yet",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#790 guard payment sheet lifecycle",
+     "url": "https://git.example.com/acme/mobile-app/pull/790"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Checkout analytics events renamed",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Tooling",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1772",
+     "url": "https://tracker.example.com/acme/issue/ACME-1772"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 24,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 19,
+   "notes": ""
+  },
+  {
+   "source": "slack:#mobile-checkout",
+   "status": "ok",
+   "items": 41,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 4,
+   "notes": ""
+  }
+ ],
+ "questions": []
+}

@@ -1,0 +1,511 @@
+# Information extraction review: an extractor pulls fields from invoices and
+# receipts; mark each field correct, wrong or missing and type the fix.
+title: Invoice extraction
+description: Check each field the extractor pulled from vendor invoices and receipts; precision and recall update as you go.
+send: Send to Claude
+groups:
+  - { id: invoices, label: Invoices }
+  - { id: receipts, label: Receipts }
+reviewed: [verdict]
+questions:
+  - id: check
+    kind: choice
+    label: Check
+    each: fields
+    key: c
+    options:
+      - { value: correct, label: Correct, tone: positive, icon: check }
+      - { value: wrong, label: Wrong, tone: negative, icon: cross }
+      - { value: missing, label: Missing, tone: warning, icon: question }
+  - id: fix
+    kind: text
+    label: Correct value
+    each: fields
+    when: { check: [wrong, missing] }
+    placeholder: What it should be
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: usable, label: Usable, tone: positive, icon: check }
+      - { value: fixable, label: Needs fixes, tone: warning, icon: approx }
+      - { value: unusable, label: Unusable, tone: negative, icon: cross }
+  - id: notes
+    kind: text
+    label: Notes for Claude
+    key: n
+    placeholder: Patterns the extractor keeps getting wrong
+
+items:
+  - id: inv-northwind-0418
+    group: invoices
+    title: Northwind Freight · INV-2026-0418
+    short: Northwind Freight
+    subtitle: 12 fields · 3 low confidence
+    meta: extractor v3.2 · scanned PDF, 2 pages
+    proposed:
+      check:
+        why: Extractor self-check (confidence ≥ 0.9)
+        value:
+          vendor: correct
+          invoice_number: correct
+          issue_date: correct
+          due_date: correct
+          bill_to: correct
+          subtotal: correct
+          currency: correct
+          line_items: correct
+    show:
+      - id: doc
+        kind: markdown
+        label: Source document
+        width: half
+        text: |-
+          # Northwind Freight LLC
+          2150 Harbor Blvd, Oakland, CA 94607\
+          (510) 555-0187
+
+          **INVOICE** INV-2026-0418
+
+          | Invoice date | Due date | Terms |
+          |---|---|---|
+          | Oct 31, 2026 | Nov 30, 2026 | Net 30 |
+
+          | Customer PO | Quote | Ship date |
+          |---|---|---|
+          | AC-PO-3318 | Q-2026-0311 | Oct 28, 2026 |
+
+          **Bill to**\
+          Acme Inc. · Accounts Payable\
+          400 Harbor Way, Oakland, CA 94607
+
+          | Description | Qty | Unit price | Amount |
+          |---|---:|---:|---:|
+          | Pallet freight, Oakland to Reno | 3 | $410.00 | $1,230.00 |
+          | Liftgate delivery | 1 | $85.00 | $85.00 |
+          | Inside delivery | 1 | $120.00 | $120.00 |
+          | Fuel surcharge (14%) | 1 | $200.90 | $200.90 |
+
+          Subtotal: $1,635.90\
+          Sales tax (8.625%): $141.10\
+          **Total due: $1,777.00**
+
+          > Pay by ACH to account ending 4417 within 30 days. Late fee 1.5% per month.
+      - id: fields
+        kind: table
+        label: Extracted fields
+        width: half
+        columns:
+          - { key: field, label: Field }
+          - { key: value, label: Extracted }
+        rows:
+          - { id: vendor, field: Vendor, value: "Northwind Freight LLC" }
+          - { id: invoice_number, field: Invoice no., value: "INV-2026-0418" }
+          - { id: issue_date, field: Issue date, value: "2026-10-31" }
+          - { id: due_date, field: Due date, value: "2026-11-30" }
+          - { id: po_number, field: PO no., value: "Q-2026-0311" }
+          - { id: bill_to, field: Bill to, value: "Acme Inc." }
+          - { id: subtotal, field: Subtotal, value: "$1,635.90" }
+          - { id: tax, field: Tax, value: "$1,777.00" }
+          - { id: total, field: Total, value: "$141.10" }
+          - { id: currency, field: Currency, value: "USD" }
+          - { id: payment_terms, field: Terms, value: "Net 30" }
+          - { id: line_items, field: Line items, value: "4" }
+      - kind: tally
+        label: Quality
+        question: check
+        stats:
+          - { label: Precision, count: [correct], of: [correct, wrong] }
+          - { label: Recall, count: [correct], of: [correct, missing] }
+          - { label: Checked, count: [correct, wrong, missing], of: rows }
+    context:
+      - kind: json
+        label: Extractor output
+        open: 1
+        data:
+          fields:
+            vendor: { value: "Northwind Freight LLC", confidence: 0.98 }
+            invoice_number: { value: "INV-2026-0418", confidence: 0.99 }
+            issue_date: { value: "2026-10-31", confidence: 0.97 }
+            due_date: { value: "2026-11-30", confidence: 0.95 }
+            po_number: { value: "Q-2026-0311", confidence: 0.71 }
+            bill_to: { value: "Acme Inc.", confidence: 0.96 }
+            subtotal: { value: "$1,635.90", confidence: 0.93 }
+            tax: { value: "$1,777.00", confidence: 0.88 }
+            total: { value: "$141.10", confidence: 0.91 }
+            currency: { value: "USD", confidence: 0.99 }
+            payment_terms: { value: "Net 30", confidence: 0.84 }
+            line_items: { value: 4, confidence: 0.92 }
+          model: extractor v3.2
+          pages: 2
+
+  - id: inv-bayside-20931
+    group: invoices
+    title: Bayside Print & Sign · BPS-20931
+    short: Bayside Print & Sign
+    subtitle: 12 fields · 3 low confidence
+    meta: extractor v3.2 · scanned PDF, 1 page
+    proposed:
+      check:
+        why: Extractor self-check (confidence ≥ 0.9)
+        value:
+          invoice_number: correct
+          issue_date: correct
+          due_date: correct
+          po_number: correct
+          bill_to: correct
+          subtotal: correct
+          total: correct
+          currency: correct
+          payment_terms: correct
+    show:
+      - id: doc
+        kind: markdown
+        label: Source document
+        width: half
+        text: |-
+          # BAYSIDE PRINT & SIGN CO.
+          1450 Evans Ave, San Francisco, CA 94124\
+          (415) 555-0119
+
+          **INVOICE** BPS-20931
+
+          | Date | Due | Terms | PO |
+          |---|---|---|---|
+          | Nov 3, 2026 | Dec 3, 2026 | Net 30 | AC-PO-3342 |
+
+          **Bill to**\
+          Acme Inc. · Marketing\
+          400 Harbor Way, Oakland, CA 94607
+
+          | Description | Qty | Unit | Amount |
+          |---|---:|---:|---:|
+          | Vinyl banner 3×8 ft, grommets | 2 | $145.00 | $290.00 |
+          | ↳ Retail Tech Summit booth, Nov 18 | | | |
+          | Retractable banner stand | 2 | $189.00 | $378.00 |
+          | Business cards, 16 pt, 500 ct | 6 | $42.00 | $252.00 |
+          | Foam board signs 24×36 in | 4 | $38.50 | $154.00 |
+          | Design proof revisions (hours) | 1.5 | $90.00 | $135.00 |
+
+          Subtotal: $1,209.00\
+          Sales tax 8.625% on $1,074.00: $92.63\
+          **Total: $1,301.63**
+
+          > Design services are not taxable. Make checks payable to Bayside Print & Sign Co.
+      - id: fields
+        kind: table
+        label: Extracted fields
+        width: half
+        columns:
+          - { key: field, label: Field }
+          - { key: value, label: Extracted }
+        rows:
+          - { id: vendor, field: Vendor, value: "—" }
+          - { id: invoice_number, field: Invoice no., value: "BPS-20931" }
+          - { id: issue_date, field: Issue date, value: "2026-11-03" }
+          - { id: due_date, field: Due date, value: "2026-12-03" }
+          - { id: po_number, field: PO no., value: "AC-PO-3342" }
+          - { id: bill_to, field: Bill to, value: "Acme Inc." }
+          - { id: subtotal, field: Subtotal, value: "$1,209.00" }
+          - { id: tax, field: Tax, value: "$92.63" }
+          - { id: total, field: Total, value: "$1,301.63" }
+          - { id: currency, field: Currency, value: "USD" }
+          - { id: payment_terms, field: Terms, value: "Net 30" }
+          - { id: line_items, field: Line items, value: "6" }
+      - kind: tally
+        label: Quality
+        question: check
+        stats:
+          - { label: Precision, count: [correct], of: [correct, wrong] }
+          - { label: Recall, count: [correct], of: [correct, missing] }
+          - { label: Checked, count: [correct, wrong, missing], of: rows }
+    context:
+      - kind: json
+        label: Extractor output
+        open: 1
+        data:
+          fields:
+            vendor: { value: null, confidence: 0.0 }
+            invoice_number: { value: "BPS-20931", confidence: 0.97 }
+            issue_date: { value: "2026-11-03", confidence: 0.94 }
+            due_date: { value: "2026-12-03", confidence: 0.93 }
+            po_number: { value: "AC-PO-3342", confidence: 0.90 }
+            bill_to: { value: "Acme Inc.", confidence: 0.95 }
+            subtotal: { value: "$1,209.00", confidence: 0.92 }
+            tax: { value: "$92.63", confidence: 0.86 }
+            total: { value: "$1,301.63", confidence: 0.96 }
+            currency: { value: "USD", confidence: 0.97 }
+            payment_terms: { value: "Net 30", confidence: 0.91 }
+            line_items: { value: 6, confidence: 0.78 }
+          model: extractor v3.2
+          pages: 1
+
+  - id: inv-maple-ridge-1187
+    group: invoices
+    title: Maple Ridge Data · MRD-1187
+    short: Maple Ridge Data
+    subtitle: 12 fields · 3 low confidence
+    meta: extractor v3.2 · digital PDF, 1 page
+    proposed:
+      check:
+        why: Extractor self-check (confidence ≥ 0.9)
+        value:
+          vendor: correct
+          invoice_number: correct
+          due_date: correct
+          bill_to: correct
+          subtotal: correct
+          total: correct
+          payment_terms: correct
+          line_items: correct
+    show:
+      - id: doc
+        kind: markdown
+        label: Source document
+        width: half
+        text: |-
+          # Maple Ridge Data Ltd.
+          1055 W Georgia St, Suite 2100\
+          Vancouver, BC V6E 3P3, Canada\
+          GST Reg. No. 812345678 RT0001
+
+          **INVOICE** MRD-1187
+
+          | Date | Payment due | Terms | Your PO |
+          |---|---|---|---|
+          | 04/11/2026 | 4 December 2026 | Net 30 | AC-PO-3290 |
+
+          **Bill to**\
+          Acme Inc.\
+          400 Harbor Way, Oakland, CA 94607, USA
+
+          | Description | Qty | Rate | Amount |
+          |---|---:|---:|---:|
+          | Bounding-box labeling, per 1,000 | 42 | $68.00 | $2,856.00 |
+          | QA review pass, 10% sample | 1 | $420.00 | $420.00 |
+          | Project management, October | 1 | $750.00 | $750.00 |
+
+          Subtotal: $4,026.00\
+          GST 5% (zero-rated, non-resident client): $0.00\
+          **Total due: $4,026.00**
+
+          > All amounts in Canadian dollars (CAD). Wire to RBC Royal Bank, account ending 2291.
+      - id: fields
+        kind: table
+        label: Extracted fields
+        width: half
+        columns:
+          - { key: field, label: Field }
+          - { key: value, label: Extracted }
+        rows:
+          - { id: vendor, field: Vendor, value: "Maple Ridge Data Ltd." }
+          - { id: invoice_number, field: Invoice no., value: "MRD-1187" }
+          - { id: issue_date, field: Issue date, value: "2026-04-11" }
+          - { id: due_date, field: Due date, value: "2026-12-04" }
+          - { id: po_number, field: PO no., value: "AC-PO-3290" }
+          - { id: bill_to, field: Bill to, value: "Acme Inc." }
+          - { id: subtotal, field: Subtotal, value: "$4,026.00" }
+          - { id: tax, field: Tax, value: "$0.00" }
+          - { id: total, field: Total, value: "$4,026.00" }
+          - { id: currency, field: Currency, value: "USD" }
+          - { id: payment_terms, field: Terms, value: "Net 30" }
+          - { id: line_items, field: Line items, value: "3" }
+      - kind: tally
+        label: Quality
+        question: check
+        stats:
+          - { label: Precision, count: [correct], of: [correct, wrong] }
+          - { label: Recall, count: [correct], of: [correct, missing] }
+          - { label: Checked, count: [correct, wrong, missing], of: rows }
+    context:
+      - kind: json
+        label: Extractor output
+        open: 1
+        data:
+          fields:
+            vendor: { value: "Maple Ridge Data Ltd.", confidence: 0.97 }
+            invoice_number: { value: "MRD-1187", confidence: 0.98 }
+            issue_date: { value: "2026-04-11", confidence: 0.89 }
+            due_date: { value: "2026-12-04", confidence: 0.92 }
+            po_number: { value: "AC-PO-3290", confidence: 0.87 }
+            bill_to: { value: "Acme Inc.", confidence: 0.94 }
+            subtotal: { value: "$4,026.00", confidence: 0.96 }
+            tax: { value: "$0.00", confidence: 0.82 }
+            total: { value: "$4,026.00", confidence: 0.97 }
+            currency: { value: "USD", confidence: 0.93 }
+            payment_terms: { value: "Net 30", confidence: 0.95 }
+            line_items: { value: 3, confidence: 0.95 }
+          model: extractor v3.2
+          pages: 1
+
+  - id: rcpt-rincon-2214
+    group: receipts
+    title: Rincon Hill Kitchen · Check 2214
+    short: Rincon Hill Kitchen
+    subtitle: 9 fields · 3 low confidence
+    meta: extractor v3.2 · phone photo, 1 page
+    proposed:
+      check:
+        why: Extractor self-check (confidence ≥ 0.9)
+        value:
+          merchant: correct
+          date: correct
+          time: correct
+          subtotal: correct
+          tax: correct
+          card_last4: correct
+    show:
+      - id: doc
+        kind: markdown
+        label: Source document
+        width: half
+        text: |-
+          # Rincon Hill Kitchen
+          301 Folsom St, San Francisco, CA 94105\
+          (415) 555-0142
+
+          Server: Dana · Table 12 · Guests: 6\
+          Check #2214 · 11/05/2026 · 12:48 PM
+
+          | Item | Qty | Amount |
+          |---|---:|---:|
+          | Grain bowl | 3 | $51.00 |
+          | Chicken sandwich | 2 | $36.00 |
+          | Market salad | 1 | $15.00 |
+          | Sparkling water | 4 | $16.00 |
+          | Fries to share | 2 | $18.00 |
+
+          Subtotal: $136.00\
+          Tax 8.625%: $11.73\
+          **Amount: $147.73**
+
+          VISA •••• 8812 · Auth 093561
+
+          Tip: *$27.00* (handwritten)\
+          Total: *$174.73* (handwritten)\
+          Signature: *(signed)*
+      - id: fields
+        kind: table
+        label: Extracted fields
+        width: half
+        columns:
+          - { key: field, label: Field }
+          - { key: value, label: Extracted }
+        rows:
+          - { id: merchant, field: Merchant, value: "Rincon Hill Kitchen" }
+          - { id: date, field: Date, value: "2026-11-05" }
+          - { id: time, field: Time, value: "12:48" }
+          - { id: subtotal, field: Subtotal, value: "$136.00" }
+          - { id: tax, field: Tax, value: "$11.73" }
+          - { id: tip, field: Tip, value: "—" }
+          - { id: total, field: Total, value: "$147.73" }
+          - { id: card_last4, field: Last 4, value: "8812" }
+          - { id: items, field: Items, value: "5" }
+      - kind: tally
+        label: Quality
+        question: check
+        stats:
+          - { label: Precision, count: [correct], of: [correct, wrong] }
+          - { label: Recall, count: [correct], of: [correct, missing] }
+          - { label: Checked, count: [correct, wrong, missing], of: rows }
+    context:
+      - kind: json
+        label: Extractor output
+        open: 1
+        data:
+          fields:
+            merchant: { value: "Rincon Hill Kitchen", confidence: 0.97 }
+            date: { value: "2026-11-05", confidence: 0.95 }
+            time: { value: "12:48", confidence: 0.92 }
+            subtotal: { value: "$136.00", confidence: 0.94 }
+            tax: { value: "$11.73", confidence: 0.93 }
+            tip: { value: null, confidence: 0.0 }
+            total: { value: "$147.73", confidence: 0.88 }
+            card_last4: { value: "8812", confidence: 0.96 }
+            items: { value: 5, confidence: 0.86 }
+          model: extractor v3.2
+          pages: 1
+
+  - id: rcpt-potrero-0098
+    group: receipts
+    title: Potrero Hardware · Receipt 0098-4471
+    short: Potrero Hardware
+    subtitle: 8 fields · 3 low confidence
+    meta: extractor v3.2 · thermal receipt scan, 1 page
+    proposed:
+      check:
+        why: Extractor self-check (confidence ≥ 0.9)
+        value:
+          merchant: correct
+          date: correct
+          subtotal: correct
+          tax: correct
+          total: correct
+    show:
+      - id: doc
+        kind: markdown
+        label: Source document
+        width: half
+        text: |-
+          # POTRERO HARDWARE
+          1830 17th St, San Francisco, CA 94103\
+          (415) 555-0163
+
+          Store 02 · Reg 3 · Cashier: Luis\
+          SALE 11/07/2026
+
+          | Item | Qty | Price | Amount |
+          |---|---:|---:|---:|
+          | HDMI cable 6 ft | 4 | $14.99 | $59.96 |
+          | Power strip, 6 outlet | 3 | $22.49 | $67.47 |
+          | Command hooks, 24 pk | 1 | $12.99 | $12.99 |
+          | Whiteboard markers, 12 pk | 2 | $16.49 | $32.98 |
+
+          Subtotal: $173.40\
+          Tax 8.625%: $14.96\
+          **Total: $188.36**
+
+          MASTERCARD XXXXXXXXXXXX5530\
+          AUTH CODE 027719 · REF # 0098-4471
+
+          THANK YOU · 09:14 AM · TRN 118
+      - id: fields
+        kind: table
+        label: Extracted fields
+        width: half
+        columns:
+          - { key: field, label: Field }
+          - { key: value, label: Extracted }
+        rows:
+          - { id: merchant, field: Merchant, value: "Potrero Hardware" }
+          - { id: date, field: Date, value: "2026-11-07" }
+          - { id: time, field: Time, value: "—" }
+          - { id: subtotal, field: Subtotal, value: "$173.40" }
+          - { id: tax, field: Tax, value: "$14.96" }
+          - { id: total, field: Total, value: "$188.36" }
+          - { id: card_last4, field: Last 4, value: "4471" }
+          - { id: items, field: Items, value: "4" }
+      - kind: tally
+        label: Quality
+        question: check
+        stats:
+          - { label: Precision, count: [correct], of: [correct, wrong] }
+          - { label: Recall, count: [correct], of: [correct, missing] }
+          - { label: Checked, count: [correct, wrong, missing], of: rows }
+    context:
+      - kind: json
+        label: Extractor output
+        open: 1
+        data:
+          fields:
+            merchant: { value: "Potrero Hardware", confidence: 0.95 }
+            date: { value: "2026-11-07", confidence: 0.96 }
+            time: { value: null, confidence: 0.0 }
+            subtotal: { value: "$173.40", confidence: 0.97 }
+            tax: { value: "$14.96", confidence: 0.95 }
+            total: { value: "$188.36", confidence: 0.98 }
+            card_last4: { value: "4471", confidence: 0.74 }
+            items: { value: 4, confidence: 0.88 }
+          model: extractor v3.2
+          pages: 1

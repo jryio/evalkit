@@ -1,0 +1,9 @@
+title: Labels
+items:
+  - id: a
+    title: First
+    ask:
+      - { id: why, kind: text, label: "Why did it fail?" }
+      - { id: why2, kind: text, label: "  why DID it   fail? " }
+  - id: b
+    title: Second

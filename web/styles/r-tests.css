@@ -1,0 +1,23 @@
+/* tests: a bordered tree; the tree's -1px margin hides the first row's top rule. */
+.tests { border: 1px solid var(--separator); border-radius: var(--radius); overflow: hidden; }
+.tests-tree { margin-top: -1px; }
+.tests details, .tests details:last-child { border: 0; }
+
+.t-row { display: grid; grid-template-columns: 14px 16px minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-height: 34px; padding: 5px 14px 5px calc(12px + var(--depth) * 20px); border-top: 1px solid var(--fill); font-size: 14px; font-weight: 400; }
+.tests summary.t-row::before { font-size: 18px; text-align: center; }
+.tests summary.t-row:hover { background: var(--hover); }
+
+.t-glyph { font-weight: 700; text-align: center; }
+.t-pass { color: var(--positive-text); }
+.t-fail { color: var(--negative-text); }
+.t-skip { color: var(--tertiary); }
+
+.t-name { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.t-group-name { font-weight: 500; overflow-wrap: anywhere; }
+.t-leaf-name { font: 13px/1.4 var(--mono); overflow-wrap: anywhere; }
+.t-counts { font-size: 13px; color: var(--secondary); white-space: nowrap; }
+.t-duration { font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+.t-output { margin: 0 14px 10px calc(12px + var(--depth) * 20px + 46px); padding: 10px 12px; font: 13px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--negative-tint); border-radius: 8px; }
+
+.tests-failed { color: var(--negative-text); font-weight: 600; }

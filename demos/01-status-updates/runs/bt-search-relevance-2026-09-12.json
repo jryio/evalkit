@@ -1,0 +1,124 @@
+{
+ "slug": "bt-search-relevance-2026-09-12",
+ "mode": "blind",
+ "project": "Search relevance",
+ "project_id": "P-ACME-087",
+ "window_start": "2026-08-29T16:00:00Z",
+ "window_end": "2026-09-12T16:00:00Z",
+ "previous_update": null,
+ "days_since_last": 14,
+ "draft": "* Built an offline eval set: 5,000 queries labeled by the merchandising team\n* Current ranker scores NDCG@10 0.61; target for v2 is 0.66\n* Training v2 next, with click and add-to-cart signals",
+ "chars": 191,
+ "health": "onTrack",
+ "health_reason": "First milestone (the eval set) landed on time.",
+ "actual": {
+  "body": "Eval set done (5k labeled queries). Baseline NDCG 0.61. Starting v2 training.",
+  "health": "onTrack"
+ },
+ "outcomes": [
+  {
+   "id": "o1",
+   "title": "Offline eval set: 5,000 queries labeled",
+   "rank": 1,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1590",
+     "url": "https://tracker.example.com/acme/issue/ACME-1590"
+    },
+    {
+     "type": "slack",
+     "label": "#search-quality 2026-09-10 Mei: labeling done",
+     "url": ""
+    }
+   ]
+  },
+  {
+   "id": "o2",
+   "title": "Baseline NDCG@10 0.61; v2 target 0.66",
+   "rank": 2,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#402 offline eval harness",
+     "url": "https://git.example.com/acme/search/pull/402"
+    }
+   ]
+  },
+  {
+   "id": "o3",
+   "title": "Next: train v2 on click and add-to-cart signals",
+   "rank": 3,
+   "included": true,
+   "cut_reason": "",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1602",
+     "url": "https://tracker.example.com/acme/issue/ACME-1602"
+    }
+   ]
+  },
+  {
+   "id": "o4",
+   "title": "Kickoff meeting and project doc",
+   "rank": 4,
+   "included": false,
+   "cut_reason": "Planning is evidence, not an outcome",
+   "sources": [
+    {
+     "type": "linear",
+     "label": "ACME-1585",
+     "url": "https://tracker.example.com/acme/issue/ACME-1585"
+    }
+   ]
+  },
+  {
+   "id": "o5",
+   "title": "Search log retention raised to 90 days",
+   "rank": 5,
+   "included": false,
+   "cut_reason": "Prerequisite; not news for readers",
+   "sources": [
+    {
+     "type": "github",
+     "label": "#61 search log retention",
+     "url": "https://git.example.com/acme/infra/pull/61"
+    }
+   ]
+  }
+ ],
+ "sources_checked": [
+  {
+   "source": "linear",
+   "status": "ok",
+   "items": 14,
+   "notes": ""
+  },
+  {
+   "source": "github",
+   "status": "ok",
+   "items": 7,
+   "notes": ""
+  },
+  {
+   "source": "slack:#search-quality",
+   "status": "ok",
+   "items": 22,
+   "notes": ""
+  },
+  {
+   "source": "slack:from-me",
+   "status": "ok",
+   "items": 1,
+   "notes": ""
+  }
+ ],
+ "questions": [
+  "Who labeled the queries: the merchandising team or an outside vendor?"
+ ]
+}
