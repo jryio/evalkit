@@ -15,8 +15,7 @@ export const Icon = ({ name }) => html`<span class="glyph" aria-hidden="true">${
 
 export const StatusTag = ({ tag }) => html`<span class="status-tag"><${Dot} tone=${tag.tone} />${tag.label}</span>`;
 
-// withUnit appends a unit: "42%" for percent, "42 ms" otherwise.
-export const withUnit = (text, unit) => (!unit ? text : unit === "%" ? `${text}%` : `${text} ${unit}`);
+export { withUnit } from "../core/format.js";
 
 export const fmtDate = iso => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 export const fmtTime = date => date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });

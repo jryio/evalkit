@@ -1,6 +1,6 @@
 # evalkit
 
-A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
+A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. Every suite also opens as a table: one row per item, a column per judged or measured value, with histograms and Δ-from-baseline in the headers, so a judge loop's hundreds of rows can be explored and spot-checked. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
 
 <table>
   <tr>
@@ -21,6 +21,12 @@ A keyboard-first review page for agent output, driven by a YAML schema. An agent
     <td width="50%" valign="top">
       <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: wrong fields corrected, live precision and recall"></a>
       <br><sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+      <a href="docs/screenshots/judge-round.png"><img src="docs/screenshots/judge-round.png" alt="Table view of an LLM judge's round: verdicts, criteria and scores per row, histograms and baseline deltas in the headers, flagged rows"></a>
+      <br><sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view. Every row a judge graded, with histograms and the change from the baseline in each header; click a bar to filter, open a flagged row to override the judge.</sub>
     </td>
   </tr>
 </table>
@@ -51,6 +57,7 @@ evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit
 | 5 | [Invoice extraction](demos/05-extraction) | Document beside a table of fields, per-row correct/wrong/missing, a correction box that appears only when needed, live precision and recall |
 | 6 | [Agent trajectories](demos/06-trajectories) | Transcript of tool calls, pick the first wrong step, failure taxonomy, a misleading auto-grader proposal |
 | 7 | [Price recommendations](demos/07-price-changes) | Per-row approve and number inputs with model proposals, metrics and a bar chart, a staging action (synthetic numbers) |
+| 8 | [LLM judge round](demos/08-judge-round) | The table view: a hill-climbing round's rows appended as JSONL, judge verdicts and 0–10 scores as proposals, measured values with baselines, flagged rows, Δ columns (`python3 build.py --trickle` streams rows in live) |
 
 Run one: `bin/evalkit serve demos/0N-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
 
@@ -75,7 +82,7 @@ internal/feedback/  state, numbered snapshots, action results
 internal/server/    HTTP API and static files
 internal/summary/   diff of two snapshots, for agents
 web/kit/core/       framework-free state, derivations and keyboard model (node --test)
-web/kit/ui/         layout: App, Sidebar, ItemView, sheets
+web/kit/ui/         layout: App, Sidebar, ItemView, ItemsTable, micro charts, sheets
 web/kit/controls/   one module per question kind
 web/kit/renderers/  one module per artifact kind
 web/styles/         tokens (light and dark) and component CSS

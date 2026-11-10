@@ -2,12 +2,23 @@
 import { html } from "../html.js";
 import { cx, tone } from "./bits.js";
 import { helpRows } from "../core/keys.js";
+import { progressLabel } from "../core/derive.js";
 
-export function Toolbar({ index, count, go, saveLabel, sendLabel, openSend }) {
+const VIEWS = [
+  { value: "review", label: "Review", tip: "One item at a time (Esc from review opens the table)" },
+  { value: "table", label: "Table", tip: "Every item as a row (Enter opens the selected row)" },
+];
+
+export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend }) {
   return html`<div class="toolbar">
-    <button class="icon-btn" title="Previous (K or ←)" aria-label="Previous item" disabled=${index <= 0} onClick=${() => go(index - 1)}>‹</button>
-    <button class="icon-btn" title="Next (J or →)" aria-label="Next item" disabled=${index >= count - 1} onClick=${() => go(index + 1)}>›</button>
-    <span class="position">${count ? `${index + 1} of ${count}` : ""}</span>
+    <div class="segmented small view-switch" role="radiogroup" aria-label="View">
+      ${VIEWS.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
+          title=${v.tip} onClick=${() => setView(v.value)}>${v.label}</button>`)}
+    </div>
+    ${view === "review" ? html`
+      <button class="icon-btn" title="Previous (K or ←)" aria-label="Previous item" disabled=${index <= 0} onClick=${() => go(index - 1)}>‹</button>
+      <button class="icon-btn" title="Next (J or →)" aria-label="Next item" disabled=${index >= count - 1} onClick=${() => go(index + 1)}>›</button>
+      <span class="position">${count ? `${index + 1} of ${count}` : ""}</span>` : null}
     <div class="spacer"></div>
     <span class="save-state" aria-live="polite">${saveLabel}</span>
     <button class="btn-primary" onClick=${openSend}>${sendLabel} <kbd>⌘↵</kbd></button>
@@ -29,7 +40,7 @@ export function SendSheet({ sendLabel, progress, actions, pending, close, confir
   return html`<${Sheet} title=${`${sendLabel}?`} close=${close} actions=${html`
       <button class="btn-secondary" data-role="cancel" onClick=${close}>Cancel</button>
       <button class="btn-primary" onClick=${confirm} ref=${el => el?.focus()}>Send <kbd>↵</kbd></button>`}>
-    <p>${progress.reviewed} of ${progress.total} reviewed.</p>
+    <p>${progressLabel(progress)}.</p>
     ${actions.map(q => {
       const approved = pending.filter(p => p.question.id === q.id).map(p => p.item.short ?? p.item.title);
       return html`<p key=${q.id}>${approved.length
@@ -40,11 +51,11 @@ export function SendSheet({ sendLabel, progress, actions, pending, close, confir
   </${Sheet}>`;
 }
 
-export function HelpSheet({ binds, sendLabel, description, close }) {
+export function HelpSheet({ binds, sendLabel, description, view, close }) {
   return html`<${Sheet} title="Keyboard shortcuts" close=${close} actions=${html`<button class="btn-primary" onClick=${close}>Done</button>`}>
     ${description ? html`<p>${description}</p>` : null}
     <div class="keys">
-      ${helpRows(binds, sendLabel).map(r => html`
+      ${helpRows(binds, sendLabel, view).map(r => html`
         <span class="caps">${r.keys.map(k => html`<kbd>${k}</kbd>`)}</span>
         <span>${r.label}${r.also.length ? html` (also ${r.also.map(k => html`<kbd>${k}</kbd> `)})` : null}</span>`)}
     </div>

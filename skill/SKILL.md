@@ -32,6 +32,16 @@ If `evalkit` is not on PATH: `go install github.com/jryio/evalkit/cmd/evalkit@la
 - Keys `j k ? ↑ ↓ 1–9 e` belong to the kit; give other questions single-letter `key`s. The validator reports conflicts.
 - Write `description` as one line telling the reviewer what to do.
 
+## Automated judges
+
+When a script or an LLM judge already scored the outputs (an eval run, a hill-climbing round), the human only spot-checks:
+
+- Set `view: table`. Put judge verdicts and scores in `proposed` (pass/fail as `choice`, 0–10 or 0–1 as `number` with `min`/`max`), with the judge's reason in `why`. Overrides come back as `changed`: that is where the judge is wrong.
+- Put measurements nobody should edit (cost, latency, length, deterministic checks) in item `values`, declared under suite `columns`. Add `baseline` to a value or proposal to show the change from the baseline run.
+- `flag: <reason>` the rows that need a human (failures, low confidence, judge errors). Progress counts only flagged rows.
+- Let the loop append one item per line to a JSONL file and point `items_from` at it. A later line with the same id replaces the earlier one. Serve before the first row lands; the table fills in live.
+- Add a `text` question (e.g. "Note to Claude") so the reviewer can say what the judge missed.
+
 ## Good to know
 
 - Feedback lives in `feedback/` beside the suite (`state.json`, `sent-NN.json`, `done/` with one file per action result). Do not edit it; keep it out of git.

@@ -8,9 +8,12 @@ S="agent-browser --session smoke-$PORT"
 IDS=$(curl -fsS "$BASE/api/suite" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("\n".join(i["id"] for i in (d.get("suite") or {}).get("items", [])))')
 [ -n "$IDS" ] || { echo "no items (fatal suite?)"; exit 1; }
 fail=0
-$S open "$BASE/" >/dev/null
+$S open "$BASE/?view=table" >/dev/null
+$S wait 600 >/dev/null
+rows=$($S eval 'document.querySelectorAll(".items-table tbody tr[data-id]").length' | tr -d '"')
+if [ "$rows" = "$(echo "$IDS" | wc -l | tr -d ' ')" ]; then echo "ok   table: $rows rows"; else echo "FAIL table: $rows rows"; fail=1; fi
 for id in $IDS; do
-  $S open "$BASE/#$id" >/dev/null
+  $S open "$BASE/?view=review#$id" >/dev/null
   $S wait 400 >/dev/null
   bad=$($S eval 'document.querySelectorAll(".artifact-error").length + (document.querySelector("h1") ? 0 : 100)' | tr -d '"')
   if [ "$bad" != "0" ]; then

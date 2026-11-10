@@ -20,6 +20,12 @@ questions:
     label: Notes for Claude
     key: n
     placeholder: Anything the renderer got wrong?
+# Read-only values for the table view (press Esc). A value with a baseline gets a Δ column.
+columns:
+  - { id: score, label: Score, min: 0, max: 1, better: higher, noise: 0.05 }
+  - { id: cost, label: Cost, unit: $, decimals: 3, better: lower }
+  - { id: passed, label: Checks pass, better: higher }
+  - { id: runner, label: Runner }
 
 items:
   - id: text
@@ -296,6 +302,7 @@ items:
     subtitle: choice · multi · toggle · action · scale · number · pick · text
     badges: [{ label: controls, tone: accent }]
     meta: Proposed values show the agent's reason until you change them
+    values: { score: { value: 0.82, baseline: 0.64 }, cost: 0.012, passed: true, runner: ci-linux }
     proposed:
       risk: { value: medium, why: One carrier adapter changed; the rest are untouched. }
     show:
@@ -349,6 +356,7 @@ items:
     subtitle: table rows · when · tally
     badges: [{ label: tally, tone: accent }]
     meta: Mark a field Wrong to reveal its correction box; the tally updates live
+    values: { score: { value: 0.41, baseline: 0.55 }, cost: 0.031, passed: false, runner: ci-mac }
     proposed:
       check: { value: { vendor: correct, total: correct }, why: Extractor confidence ≥ 0.9 }
     show:

@@ -2,7 +2,8 @@
 // then collapsed context. The layout is fixed; the suite only supplies content.
 import { html } from "../html.js";
 import { controlFor, rendererFor } from "../registry.js";
-import { cx, tone, Key, StatusTag, Boundary } from "./bits.js";
+import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
+import { cell, columns } from "../core/table.js";
 import { questionsFor, answersOf, editsOf, valueOf, asked } from "../core/derive.js";
 
 const isSection = q => controlFor(q.kind)?.layout === "section";
@@ -54,7 +55,7 @@ export function ItemView({ suite, item, state, act, cursor }) {
   const itemTexts = own.filter(q => isSection(q) && q.scope === "item");
 
   return html`
-    <${ItemHeader} item=${item} />
+    <${ItemHeader} item=${item} suite=${suite} />
     ${item.show?.length ? html`<div class="show">${item.show.map((a, i) => artifact(a, i, false))}</div>` : null}
     ${rows.length ? html`<div class="card">${rows.map(q => html`<${CardRow} q=${q} control=${control}
         attached=${own.filter(o => o.with === q.id)} note=${controlFor(q.kind)?.note?.(props(q))} />`)}</div>` : null}
@@ -72,13 +73,32 @@ export function ItemView({ suite, item, state, act, cursor }) {
     </details>`)}</div>` : null}`;
 }
 
-function ItemHeader({ item }) {
+function ItemHeader({ item, suite }) {
   return html`
-    ${item.badges?.length || item.meta ? html`<div class="eyebrow">
+    ${item.badges?.length || item.meta || item.flag ? html`<div class="eyebrow">
+      ${item.flag ? html`<span class="badge tone-warning">⚑ Flagged</span>` : null}
       ${(item.badges || []).map(b => html`<span class=${cx("badge", tone(b.tone))}>${b.label}</span>`)}
       ${item.meta ? html`<span>${item.meta}</span>` : null}
     </div>` : null}
-    <h1>${item.title}</h1>`;
+    <h1 class=${item.flag || item.values ? "tight" : ""}>${item.title}</h1>
+    ${item.flag ? html`<p class="flag-reason">${item.flag}</p>` : null}
+    <${Values} item=${item} suite=${suite} />`;
+}
+
+// Values shows the item's read-only measurements, with the change from the baseline.
+function Values({ item, suite }) {
+  if (!item.values) return null;
+  const all = columns(suite);
+  const cols = all.filter(c => c.kind === "value" && item.values[c.def.id] !== undefined);
+  return html`<dl class="values">${cols.map(col => {
+    const c = cell(col, item, {}, suite);
+    const d = all.find(x => x.kind === "delta" && x.of === col);
+    const delta = d && cell(d, item, {}, suite);
+    return html`<div class="value" key=${col.id}>
+      <dt>${col.label}</dt>
+      <dd>${c.icon ? html`<${Icon} name=${c.icon} /> ` : null}${c.text || "—"}${delta?.text ? html` <span class=${cx("delta", tone(delta.tone))}>${delta.text}</span>` : null}</dd>
+    </div>`;
+  })}</dl>`;
 }
 
 function CardRow({ q, control, attached, note }) {

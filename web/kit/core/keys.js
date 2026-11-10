@@ -41,6 +41,23 @@ export function bindings(suite, item, questions, rows = 0) {
   return out;
 }
 
+// tableBindings are the table view's keys: move the selection, open it, answer its
+// primary question, filter.
+export function tableBindings(suite) {
+  const out = [];
+  const add = (keys, label, action, row) => out.push({ keys, label, action, row });
+  add(["ArrowDown", "j"], "Next row", { type: "select", by: 1 }, { id: "rows", label: "Next / previous row" });
+  add(["ArrowUp", "k"], "Previous row", { type: "select", by: -1 }, { id: "rows" });
+  add(["Enter"], "Open the row for review", { type: "open" });
+  const primary = (suite.questions || []).find(q => q.primary);
+  const primaryRow = primary && { id: primary.id, label: `${primary.label} of the selected row: ${primary.options.map(o => lower(o.label)).join(", ")}` };
+  primary?.options.forEach((o, i) =>
+    add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, primaryRow));
+  add(["/"], "Filter items", { type: "focus", target: "table-search" });
+  add(["?"], "Keyboard shortcuts", { type: "help" });
+  return out;
+}
+
 export function match(list, event) {
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
   return list.find(b => b.keys.includes(key));
@@ -63,7 +80,7 @@ export const keyName = k => NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
 
 // helpRows merges bindings that share a row (number keys of one question, J/K) and
 // adds the fixed keys the app handles itself.
-export function helpRows(list, sendLabel) {
+export function helpRows(list, sendLabel, view = "review") {
   const rows = [];
   const byId = new Map();
   for (const b of list) {
@@ -78,7 +95,7 @@ export function helpRows(list, sendLabel) {
     if (b.row) byId.set(b.row.id, row);
     rows.push(row);
   }
-  rows.push({ keys: ["Esc"], also: [], label: "Stop typing or close a sheet" });
+  rows.push({ keys: ["Esc"], also: [], label: view === "review" ? "Stop typing or close a sheet; then back to the table" : "Stop typing or close a sheet" });
   rows.push({ keys: ["⌘", "↵"], also: [], label: sendLabel });
   return rows;
 }
