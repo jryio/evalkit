@@ -5,8 +5,7 @@
   "description": "A suite lists items for a human to review. Each item shows artifacts and asks questions.",
   "type": "object",
   "required": [
-    "title",
-    "items"
+    "title"
   ],
   "additionalProperties": false,
   "properties": {
@@ -21,6 +20,13 @@
     "send": {
       "type": "string",
       "description": "Label of the submit button. Default: Send."
+    },
+    "view": {
+      "enum": [
+        "review",
+        "table"
+      ],
+      "description": "The view the page opens in. Default: review."
     },
     "reviewed": {
       "description": "An item counts as reviewed when any of these questions has an answer. Default: the primary question.",
@@ -49,11 +55,36 @@
         "type": "string"
       }
     },
+    "columns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/column"
+      },
+      "description": "Read-only value columns for the table view, in order. Items set them under values."
+    },
     "items": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/item"
       }
+    },
+    "items_from": {
+      "type": [
+        "string",
+        "array"
+      ],
+      "minLength": 1,
+      "if": {
+        "type": "array"
+      },
+      "then": {
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "JSONL files (paths or globs relative to the suite) with one item per line, appended after items. A later line replaces an earlier one with the same id."
     }
   },
   "$defs": {
@@ -463,6 +494,9 @@
         "why": {
           "type": "string",
           "description": "The agent's reason, shown beside the control."
+        },
+        "baseline": {
+          "description": "The same judge's value for the baseline run; the table shows the difference."
         }
       }
     },
@@ -550,6 +584,18 @@
             "$ref": "#/$defs/done"
           },
           "description": "action question id -> result the agent recorded."
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          },
+          "description": "column id -> value, or {value, baseline}."
+        },
+        "flag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why the agent wants a human on this item. When any item is flagged, progress counts flagged items only."
         }
       }
     },
@@ -1301,6 +1347,80 @@
           }
         }
       }
+    },
+    "column": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        },
+        "better": {
+          "enum": [
+            "higher",
+            "lower"
+          ]
+        },
+        "noise": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Differences from the baseline smaller than this stay neutral."
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        }
+      }
+    },
+    "value": {
+      "type": [
+        "number",
+        "string",
+        "boolean",
+        "null",
+        "object"
+      ],
+      "if": {
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "$ref": "#/$defs/scalar"
+          },
+          "baseline": {
+            "$ref": "#/$defs/scalar"
+          }
+        }
+      }
+    },
+    "scalar": {
+      "type": [
+        "number",
+        "string",
+        "boolean",
+        "null"
+      ]
     }
   }
 }

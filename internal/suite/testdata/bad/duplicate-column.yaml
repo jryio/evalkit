@@ -1,0 +1,7 @@
+title: Duplicate columns
+columns:
+  - { id: score }
+  - { id: score }
+items:
+  - id: a
+    title: First

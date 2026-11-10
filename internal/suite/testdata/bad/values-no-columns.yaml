@@ -1,0 +1,7 @@
+title: Values without columns
+items:
+  - id: a
+    title: First
+    values: { score: 1 }
+  - id: b
+    title: Second

@@ -8,11 +8,19 @@ type Suite struct {
 	Groups    []Group           `json:"groups"`
 	Questions []Question        `json:"questions"`
 	Renderers map[string]string `json:"renderers"`
+	Columns   []Column          `json:"columns"`
 	Items     []Item            `json:"items"`
+	ItemsFrom any               `json:"items_from"`
 }
 
 type Group struct {
 	ID string `json:"id"`
+}
+
+type Column struct {
+	ID  string   `json:"id"`
+	Min *float64 `json:"min"`
+	Max *float64 `json:"max"`
 }
 
 type Question struct {
@@ -45,6 +53,7 @@ type Item struct {
 	Context  []Artifact          `json:"context"`
 	Ask      []Question          `json:"ask"`
 	Proposed map[string]Proposal `json:"proposed"`
+	Values   map[string]any      `json:"values"`
 }
 
 type Artifact struct {
@@ -56,7 +65,8 @@ type Artifact struct {
 }
 
 type Proposal struct {
-	Value any `json:"value"`
+	Value    any `json:"value"`
+	Baseline any `json:"baseline"`
 }
 
 // BuiltinKinds are the artifact kinds the web UI renders without a plugin.

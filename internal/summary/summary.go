@@ -16,7 +16,11 @@ import (
 func Write(w io.Writer, cur, prev map[string]any, path string) {
 	p := func(format string, a ...any) { fmt.Fprintf(w, format, a...) }
 	progress, _ := cur["progress"].(map[string]any)
-	p("%v · sent #%v at %v · %v of %v reviewed\n", cur["suite"], cur["sequence"], cur["sent_at"], progress["reviewed"], progress["total"])
+	reviewed := "reviewed"
+	if progress["flagged"] == true {
+		reviewed = "flagged reviewed"
+	}
+	p("%v · sent #%v at %v · %v of %v %s\n", cur["suite"], cur["sequence"], cur["sent_at"], progress["reviewed"], progress["total"], reviewed)
 	p("File: %s\n", path)
 
 	writeActions(w, cur, prev)

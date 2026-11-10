@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -92,9 +93,9 @@ func Load(path string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	sum := sha256.Sum256(src)
-	res := Result{Version: hex.EncodeToString(sum[:6]), Problems: []Problem{}}
+	res := Result{Version: version(src, nil), Problems: []Problem{}}
 	name := filepath.Base(path)
+	dir := filepath.Dir(path)
 
 	fatal := func(line, col int, msg string) (Result, error) {
 		res.Problems = append(res.Problems, Problem{File: name, Line: line, Col: col, Message: msg})
@@ -110,20 +111,26 @@ func Load(path string) (Result, error) {
 	if len(root.Content) == 0 {
 		return fatal(0, 0, "the file is empty")
 	}
+	top := root.Content[0]
+	if top.Kind != yaml.MappingNode {
+		return fatal(root.Line, root.Column, "the top level must be a mapping")
+	}
+	sources, issues := readSources(top, dir)
+	res.Version = version(src, sources)
+	hasItemsKey := child(top, "items") != nil
+	itemFiles, lineProblems := mergeItems(top, name, sources)
+	res.Problems = append(res.Problems, lineProblems...)
+
 	raw, err := fromNode(&root)
 	if err != nil {
 		return fatal(0, 0, "decode: "+err.Error())
 	}
-	doc, ok := raw.(*Map)
-	if !ok {
-		return fatal(root.Line, root.Column, "the top level must be a mapping")
-	}
+	doc := raw.(*Map)
 	js, err := json.Marshal(doc)
 	if err != nil {
 		return fatal(0, 0, "encode: "+err.Error())
 	}
 
-	var issues []issue
 	schema, err := compiledSchema()
 	if err != nil {
 		return Result{}, fmt.Errorf("compile embedded schema: %w", err)
@@ -142,7 +149,7 @@ func Load(path string) (Result, error) {
 
 	var typed Suite
 	_ = json.Unmarshal(js, &typed) // type mismatches are already schema issues
-	issues = append(issues, check(typed, filepath.Dir(path))...)
+	issues = append(issues, check(typed, dir, hasItemsKey)...)
 
 	itemsRaw, _ := doc.Get("items")
 	items, _ := itemsRaw.([]any)
@@ -154,6 +161,9 @@ func Load(path string) (Result, error) {
 		}
 		idx, inItem := itemIndex(is.ptr)
 		if inItem && idx < len(items) {
+			if idx < len(itemFiles) {
+				p.File = itemFiles[idx]
+			}
 			if m, ok := items[idx].(*Map); ok {
 				id, _ := m.Get("id")
 				p.Item, _ = id.(string)
@@ -184,6 +194,261 @@ func Load(path string) (Result, error) {
 	doc.Set("items", kept)
 	res.Doc = doc
 	return res, nil
+}
+
+// Version is Load's version without validating: a hash of the suite file and the
+// JSONL files its items_from names.
+func Version(path string) (string, error) {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var root yaml.Node
+	if yaml.Unmarshal(src, &root) != nil || len(root.Content) == 0 {
+		return version(src, nil), nil
+	}
+	sources, _ := readSources(root.Content[0], filepath.Dir(path))
+	return version(src, sources), nil
+}
+
+func version(src []byte, sources []source) string {
+	h := sha256.New()
+	h.Write(src)
+	for _, s := range sources {
+		h.Write([]byte(s.rel + "\x00"))
+		h.Write(s.data)
+	}
+	return hex.EncodeToString(h.Sum(nil)[:6])
+}
+
+// source is one JSONL file named by items_from.
+type source struct {
+	rel  string // relative to the suite's dir, slash-separated
+	data []byte
+}
+
+// readSources reads the JSONL files the suite's top-level mapping names under
+// items_from. Files that cannot be read are skipped.
+func readSources(top *yaml.Node, dir string) ([]source, []issue) {
+	n := child(top, "items_from")
+	if n == nil {
+		return nil, nil
+	}
+	var itemsFrom any
+	if n.Decode(&itemsFrom) != nil {
+		return nil, nil
+	}
+	files, issues := jsonlFiles(dir, itemsFrom)
+	var out []source
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(dir, f)
+		if err != nil {
+			rel = f
+		}
+		out = append(out, source{rel: filepath.ToSlash(rel), data: data})
+	}
+	return out, issues
+}
+
+// jsonlFiles expands items_from, a path or glob or a list of them relative to
+// dir, into files in entry order. Anything else returns nothing: the schema
+// reports it.
+func jsonlFiles(dir string, itemsFrom any) (files []string, issues []issue) {
+	var entries []string
+	var ptrs [][]string
+	switch v := itemsFrom.(type) {
+	case string:
+		entries, ptrs = []string{v}, [][]string{{"items_from"}}
+	case []any:
+		for i, e := range v {
+			s, ok := e.(string)
+			if !ok {
+				return nil, nil
+			}
+			entries = append(entries, s)
+			ptrs = append(ptrs, []string{"items_from", idx(i)})
+		}
+	default:
+		return nil, nil
+	}
+	seen := map[string]bool{}
+	for i, entry := range entries {
+		matches, _ := filepath.Glob(filepath.Join(dir, entry))
+		if len(matches) == 0 {
+			issues = append(issues, issue{ptr: ptrs[i], msg: fmt.Sprintf("%q matches no file yet", entry), warning: true})
+			continue
+		}
+		slices.Sort(matches)
+		for _, m := range matches {
+			if !seen[m] {
+				seen[m] = true
+				files = append(files, m)
+			}
+		}
+	}
+	return files, issues
+}
+
+// mergeItems appends the items of each JSONL source to the items sequence of the
+// suite's top-level mapping. A later line replaces an earlier items_from line with
+// the same id in place. It returns the file each item in the sequence came from.
+func mergeItems(top *yaml.Node, name string, sources []source) ([]string, []Problem) {
+	seq := child(top, "items")
+	if seq == nil {
+		seq = &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
+		top.Content = append(top.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "items"}, seq)
+	}
+	if seq.Kind != yaml.SequenceNode {
+		return nil, nil // the schema reports it
+	}
+	files := slices.Repeat([]string{name}, len(seq.Content))
+	merged := map[string]int{} // id -> index in seq, for items_from lines only
+	var problems []Problem
+	for _, src := range sources {
+		nodes, ps := parseLines(src)
+		problems = append(problems, ps...)
+		for _, n := range nodes {
+			id, hasID := stringID(n)
+			if i, ok := merged[id]; hasID && ok {
+				seq.Content[i], files[i] = n, src.rel
+				continue
+			}
+			if hasID {
+				merged[id] = len(seq.Content)
+			}
+			seq.Content = append(seq.Content, n)
+			files = append(files, src.rel)
+		}
+	}
+	return files, problems
+}
+
+func stringID(item *yaml.Node) (string, bool) {
+	id := child(item, "id")
+	if id == nil || id.Kind != yaml.ScalarNode || id.ShortTag() != "!!str" {
+		return "", false
+	}
+	return id.Value, true
+}
+
+// parseLines parses each complete, non-blank line of a JSONL source into a mapping
+// node whose positions point at that line. A bad line is reported and skipped.
+func parseLines(src source) ([]*yaml.Node, []Problem) {
+	lines := strings.Split(string(src.data), "\n")
+	// The last segment is empty, or a line still being written.
+	lines = lines[:len(lines)-1]
+	var nodes []*yaml.Node
+	var problems []Problem
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		bad := func(msg string) {
+			problems = append(problems, Problem{File: src.rel, Line: i + 1, Col: 1, Message: msg})
+		}
+		doc, err := parseLine(line)
+		if err != nil {
+			bad("JSON syntax: " + err.Error())
+			continue
+		}
+		if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+			bad("each line must be a JSON object")
+			continue
+		}
+		setLine(doc.Content[0], i+1)
+		nodes = append(nodes, doc.Content[0])
+	}
+	return nodes, problems
+}
+
+// parseLine parses one JSONL line. yaml.v3 reads most JSON as is; a line it
+// rejects, such as one with escaped UTF-16 surrogate pairs, is re-encoded first.
+func parseLine(line string) (*yaml.Node, error) {
+	var doc yaml.Node
+	if yaml.Unmarshal([]byte(line), &doc) == nil {
+		return &doc, nil
+	}
+	canon, err := canonicalJSON(line)
+	if err != nil {
+		return nil, err
+	}
+	var again yaml.Node
+	if err := yaml.Unmarshal([]byte(canon), &again); err != nil {
+		_, msg := yamlLine(err.Error())
+		return nil, errors.New(msg)
+	}
+	return &again, nil
+}
+
+// canonicalJSON re-encodes one JSON value with encoding/json, keeping key and
+// element order. Go writes non-ASCII as UTF-8, so surrogate pairs become runes.
+func canonicalJSON(line string) (string, error) {
+	dec := json.NewDecoder(strings.NewReader(line))
+	dec.UseNumber()
+	var b strings.Builder
+	if err := copyJSON(dec, &b); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF // the line ends inside a value
+		}
+		return "", err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return "", errors.New("unexpected data after the JSON value")
+	}
+	return b.String(), nil
+}
+
+// copyJSON writes the next value of dec's token stream to b.
+func copyJSON(dec *json.Decoder, b *strings.Builder) error {
+	tok, err := dec.Token()
+	if err != nil {
+		return err
+	}
+	switch t := tok.(type) {
+	case json.Delim:
+		b.WriteString(t.String())
+		for i := 0; dec.More(); i++ {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			if t == '{' {
+				// Token returns an object key as a string value.
+				if err := copyJSON(dec, b); err != nil {
+					return err
+				}
+				b.WriteByte(':')
+			}
+			if err := copyJSON(dec, b); err != nil {
+				return err
+			}
+		}
+		end, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		b.WriteString(end.(json.Delim).String())
+	case string:
+		s, _ := json.Marshal(t)
+		b.Write(s)
+	case json.Number:
+		b.WriteString(t.String())
+	case bool:
+		b.WriteString(strconv.FormatBool(t))
+	case nil:
+		b.WriteString("null")
+	}
+	return nil
+}
+
+func setLine(n *yaml.Node, line int) {
+	n.Line = line
+	for _, c := range n.Content {
+		setLine(c, line)
+	}
 }
 
 // revision hashes what is under review, so context or metadata edits keep answers.

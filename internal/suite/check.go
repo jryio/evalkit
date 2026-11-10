@@ -13,9 +13,13 @@ import (
 )
 
 // check runs the semantic rules JSON Schema cannot express: references,
-// uniqueness and keyboard conflicts.
-func check(s Suite, dir string) []issue {
+// uniqueness and keyboard conflicts. hasItemsKey tells whether the suite file
+// itself has an items key, before items_from lines are merged in.
+func check(s Suite, dir string, hasItemsKey bool) []issue {
 	c := checker{suite: s, dir: dir, keys: map[string]string{}}
+	if !hasItemsKey && s.ItemsFrom == nil {
+		c.add("a suite needs items or items_from")
+	}
 	c.suiteLevel()
 	for i, it := range s.Items {
 		c.item(i, it)
@@ -101,6 +105,7 @@ func (c *checker) suiteLevel() {
 			c.add(fmt.Sprintf("unknown question %q", id), "reviewed", idx(i))
 		}
 	}
+	c.columns(ids)
 	for kind, file := range s.Renderers {
 		at := []string{"renderers", kind}
 		if slices.Contains(BuiltinKinds, kind) {
@@ -110,6 +115,42 @@ func (c *checker) suiteLevel() {
 			c.add(fmt.Sprintf("renderer module %q must be a .js file", file), at...)
 		} else if _, err := os.Stat(filepath.Join(c.dir, file)); err != nil {
 			c.add(fmt.Sprintf("renderer module %q not found next to the suite", file), at...)
+		}
+	}
+}
+
+// columns checks the table view's value columns against each other and the
+// suite's question ids.
+func (c *checker) columns(questions map[string]bool) {
+	seen := map[string]bool{}
+	for i, col := range c.suite.Columns {
+		at := []string{"columns", idx(i)}
+		if seen[col.ID] {
+			c.add(fmt.Sprintf("duplicate column id %q", col.ID), append(at, "id")...)
+		}
+		seen[col.ID] = true
+		if questions[col.ID] {
+			c.add(fmt.Sprintf("column %q has the same id as a question", col.ID), append(at, "id")...)
+		}
+		if col.Min != nil && col.Max != nil && *col.Min >= *col.Max {
+			c.add("min must be below max", append(at, "min")...)
+		}
+	}
+}
+
+// values checks that an item sets only the suite's columns.
+func (c *checker) values(values map[string]any, at []string) {
+	if values == nil {
+		return
+	}
+	cols := c.suite.Columns
+	if len(cols) == 0 {
+		c.add("values set but the suite defines no columns", at...)
+		return
+	}
+	for _, k := range slices.Sorted(maps.Keys(values)) {
+		if !slices.ContainsFunc(cols, func(col Column) bool { return col.ID == k }) {
+			c.add(fmt.Sprintf("unknown column %q (want one of %s)", k, list(columnIDs(cols))), append(slices.Clone(at), k)...)
 		}
 	}
 }
@@ -185,6 +226,7 @@ func (c *checker) item(i int, it Item) {
 	case len(s.Groups) == 0 && it.Group != "":
 		c.add("group set but the suite defines no groups", append(at, "group")...)
 	}
+	c.values(it.Values, append(slices.Clone(at), "values"))
 
 	artifacts := map[string]located{}
 	editable := 0
@@ -278,6 +320,13 @@ func (c *checker) item(i int, it Item) {
 		if q.Kind == "action" {
 			c.add("an action cannot be proposed; the human approves it", pp...)
 			continue
+		}
+		if b := it.Proposed[qid].Baseline; b != nil {
+			if q.Each != "" {
+				c.add("baseline is not supported for per-row questions", append(pp, "baseline")...)
+			} else {
+				c.proposal(q, b, append(pp, "baseline"))
+			}
 		}
 		v := it.Proposed[qid].Value
 		if q.Each == "" {
@@ -427,6 +476,14 @@ func groupIDs(gs []Group) []string {
 	out := make([]string, len(gs))
 	for i, g := range gs {
 		out[i] = g.ID
+	}
+	return out
+}
+
+func columnIDs(cs []Column) []string {
+	out := make([]string, len(cs))
+	for i, c := range cs {
+		out[i] = c.ID
 	}
 	return out
 }

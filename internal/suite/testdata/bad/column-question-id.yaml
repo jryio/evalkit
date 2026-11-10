@@ -1,0 +1,8 @@
+title: Column named like a question
+questions:
+  - { id: verdict, kind: toggle, label: Good }
+columns:
+  - { id: verdict }
+items:
+  - id: a
+    title: First

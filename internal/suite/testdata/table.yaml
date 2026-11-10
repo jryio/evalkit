@@ -1,0 +1,47 @@
+title: Judge scores
+view: table
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: good, label: Good }
+      - { value: bad, label: Bad }
+  - id: score
+    kind: number
+    label: Score
+    min: 0
+    max: 10
+columns:
+  - id: accuracy
+    label: Accuracy
+    unit: "%"
+    decimals: 1
+    better: higher
+    noise: 0.5
+    min: 0
+    max: 100
+  - id: latency
+    label: Latency
+    better: lower
+  - { id: model }
+  - { id: cached }
+items:
+  - id: a
+    title: First
+    flag: The judges disagree.
+    values:
+      accuracy: { value: 91.5, baseline: 88 }
+      latency: 120
+      model: small
+      cached: true
+    proposed:
+      verdict: { value: good, baseline: bad }
+      score: { value: 8, baseline: 6 }
+  - id: b
+    title: Second
+    values:
+      accuracy: { value: null }
+      latency: null
+      cached: false
