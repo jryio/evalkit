@@ -124,6 +124,7 @@ A column definition:
 | `label`, `unit`, `decimals` | Header and number format. Currency units (`$`, `€`, `£`, `¥`) come first |
 | `better` | `higher` or `lower`: which way a Δ is an improvement (booleans: whether true is good) |
 | `noise` | A Δ no larger than this stays neutral |
+| `primary` | With runs: the score the Runs view ranks runs by, instead of the primary question. At most one column |
 | `min`, `max` | The range for the cell bar and the histogram |
 
 A value is a number, string, boolean or `null`, or `{value, baseline}` to show the change from the baseline run.

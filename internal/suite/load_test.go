@@ -882,6 +882,12 @@ func TestLoad_Runs(t *testing.T) {
 			fatal:    true,
 		},
 		{
+			name:     "two primary columns",
+			file:     "two-primary.yaml",
+			problems: []string{`two-primary.yaml:4:26: error: columns[1].primary: only one column can be primary; "audit" already is`},
+			fatal:    true,
+		},
+		{
 			name: "duplicate run and dimension ids and order values",
 			file: "bad-runs.yaml",
 			problems: []string{

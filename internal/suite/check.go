@@ -128,8 +128,15 @@ func (c *checker) suiteLevel() {
 // suite's question ids.
 func (c *checker) columns(questions map[string]bool) {
 	seen := map[string]bool{}
+	primary := ""
 	for i, col := range c.suite.Columns {
 		at := []string{"columns", idx(i)}
+		if col.Primary && primary != "" {
+			c.add(fmt.Sprintf("only one column can be primary; %q already is", primary), append(at, "primary")...)
+		}
+		if col.Primary && primary == "" {
+			primary = col.ID
+		}
 		if seen[col.ID] {
 			c.add(fmt.Sprintf("duplicate column id %q", col.ID), append(at, "id")...)
 		}

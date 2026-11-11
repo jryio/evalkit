@@ -1472,6 +1472,10 @@
           "minimum": 0,
           "description": "Differences from the baseline smaller than this stay neutral."
         },
+        "primary": {
+          "type": "boolean",
+          "description": "In a suite with runs, the score the Runs view ranks runs by, instead of the primary question."
+        },
         "min": {
           "type": "number"
         },

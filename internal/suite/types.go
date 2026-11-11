@@ -36,9 +36,10 @@ type Run struct {
 }
 
 type Column struct {
-	ID  string   `json:"id"`
-	Min *float64 `json:"min"`
-	Max *float64 `json:"max"`
+	ID      string   `json:"id"`
+	Min     *float64 `json:"min"`
+	Max     *float64 `json:"max"`
+	Primary bool     `json:"primary"`
 }
 
 type Question struct {
