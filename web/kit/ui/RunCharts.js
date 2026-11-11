@@ -231,7 +231,8 @@ function trendAxis(suite, runs) {
   }
   if (runs.every(r => isNum(r.dims.round))) {
     const x = r => r.dims.round;
-    return { x, rank: x, scale: { type: "linear", inset: 12, label: labelOf("round", "Round"), tickFormat: v => fmtNumber(v) } };
+    const ticks = [...new Set(runs.map(x))].sort((a, b) => a - b); // rounds are whole: no 0.5 ticks
+    return { x, rank: x, ticks, scale: { type: "linear", inset: 12, label: labelOf("round", "Round"), tickFormat: v => fmtNumber(v) } };
   }
   if (runs.every(r => ISO_DATE.test(r.dims.date ?? ""))) {
     const x = r => new Date(r.dims.date.slice(0, 10));
