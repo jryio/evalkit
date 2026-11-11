@@ -1,0 +1,37 @@
+# A judge change: one round's support-reply drafts, graded by the old rubric and the
+# new one. Both runs hold the same drafts; only the judge's answers differ. One JSONL
+# per rubric in runs/. Regenerate the rows with: python3 build.py
+title: support-reply · judge rubric v1 → v2
+description: rubric-v2 checks every claim against the help-center article. The flagged rows are the drafts whose verdict flipped. Say which rubric got each one right before the loop switches judges.
+send: Send to Claude
+groups:
+  - { id: test, label: Held-out }
+  - { id: train, label: Train }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - { id: answers, kind: choice, label: Answers the ask, key: a, options: &yesno [
+      { value: "yes", label: "Yes", tone: positive, icon: check },
+      { value: "no", label: "No", tone: negative, icon: cross } ] }
+  - { id: grounded, kind: choice, label: Grounded, key: g, options: *yesno }
+  - { id: tone, kind: choice, label: On tone, key: t, options: *yesno }
+  - { id: quality, kind: number, label: Quality, min: 0, max: 10, step: 1, key: q }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: Which rubric is right here, and why?
+columns:
+  - { id: words, label: Words, better: lower, noise: 15 }
+  - { id: judge_cost_usd, label: Judge cost, unit: $, decimals: 4, better: lower, noise: 0.001 }
+dimensions:
+  - { id: rubric, label: Judge rubric }
+runs:
+  - { id: rubric-v1, items_from: runs/rubric-v1.jsonl, dims: { rubric: v1 }, baseline: true, note: "Grounded means no invented commitments" }
+  - { id: rubric-v2, items_from: runs/rubric-v2.jsonl, dims: { rubric: v2 }, note: "Grounded means every claim is in the help-center article" }
