@@ -4,5 +4,5 @@ package web
 
 import "embed"
 
-//go:embed index.html kit styles vendor
+//go:embed index.html icon.svg favicon.ico apple-touch-icon.png kit styles vendor
 var FS embed.FS
