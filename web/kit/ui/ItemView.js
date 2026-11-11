@@ -76,7 +76,7 @@ export function ItemView({ suite, cols, item, state, act, cursor }) {
 function ItemHeader({ item, suite, cols }) {
   return html`
     ${item.badges?.length || item.meta || item.flag ? html`<div class="eyebrow">
-      ${item.flag ? html`<span class="badge tone-warning">⚑ Flagged</span>` : null}
+      ${item.flag ? html`<span class="badge tone-warning">⚑ Flagged by the agent</span>` : null}
       ${(item.badges || []).map(b => html`<span class=${cx("badge", tone(b.tone))}>${b.label}</span>`)}
       ${item.meta ? html`<span>${item.meta}</span>` : null}
     </div>` : null}

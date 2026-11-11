@@ -90,11 +90,19 @@ Rows of `list`, `table` and `transcript` share one vocabulary: a stable `id` mak
 
 ### Keyboard
 
-`J`/`K` (or `→`/`←`) move between items. `Esc` goes back to the table; in the table `↑`/`↓` (or `J`/`K`) select a row, `↵` opens it, `1`–`9` answer its primary question and `/` filters. `1`–`9` answer the primary question. `↑`/`↓` move the row cursor when the item has per-row questions. Letter keys come from the suite; pressing a selected option's key again clears it. `E` edits, `?` shows help (generated from the suite), `Esc` leaves a field or closes a sheet, `⌘↵` sends from anywhere. Letter keys are off while typing. The validator rejects conflicting keys.
+`J`/`K` (or `→`/`←`) move between items. `Esc` goes back to the table; in the table `↑`/`↓` (or `J`/`K`) select a row, `↵` opens it in the sidebar, floating panel or full screen, `1`–`9` answer its primary question and `/` filters. `1`–`9` answer the primary question. `↑`/`↓` move the row cursor when the item has per-row questions. Letter keys come from the suite; pressing a selected option's key again clears it. `E` edits, `?` shows help (generated from the suite), `Esc` leaves a field or closes a sheet, `⌘↵` sends from anywhere. Letter keys are off while typing. The validator rejects conflicting keys.
 
 ## Table view
 
-Every suite has two views. **Review** shows one item at a time. **Table** shows every item as a row. Switch with the toolbar, with Enter (open the selected row) and Esc (back to the table), or open the page at `?view=table`. `view: table` makes the table the default.
+Every suite has two views. **Review** shows one item at a time. **Table** shows every item as a row. Switch with the toolbar or open the page at `?view=table`; `view: table` makes the table the default.
+
+Enter (or a double-click) opens the selected row where the toolbar's **Open rows in** control says, and the choice is remembered:
+
+- **Sidebar**: the review docks beside the table, which narrows.
+- **Floating**: the review floats over the table body, below the column headers.
+- **Full screen**: the Review view. Esc goes back to the table.
+
+While a panel is open it follows the selection: J and K (and ↑/↓, unless the item has rows to answer) move through the rows, and the item's own keys answer it. Esc closes the panel.
 
 The table's columns come from the suite. Nothing is configured per view:
 

@@ -76,7 +76,7 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
 function FilterBar({ suite, cols, view, setView, counts, shown, filtered }) {
   const scopes = [
     { id: "all", label: "All" },
-    counts.flagged ? { id: "flagged", label: "Flagged" } : null,
+    counts.flagged ? { id: "flagged", label: "Flagged", tip: "Rows the agent flagged for you" } : null,
     { id: "input", label: "Your input" },
     suite.items.some(i => i.proposed) ? { id: "overrides", label: "Overrides" } : null,
   ].filter(Boolean);
@@ -86,7 +86,7 @@ function FilterBar({ suite, cols, view, setView, counts, shown, filtered }) {
   }).filter(Boolean);
   return html`<div class="tv-bar">
     <${Segments} label="Show" value=${view.scope} set=${scope => setView({ ...view, scope })}
-      options=${scopes.map(s => ({ value: s.id, label: s.label, count: counts[s.id] }))} />
+      options=${scopes.map(s => ({ value: s.id, label: s.label, count: counts[s.id], tip: s.tip }))} />
     ${suite.groups?.length ? html`<${Segments} label="Group" value=${view.group ?? null} set=${group => setView({ ...view, group })}
       options=${[{ value: null, label: "All groups" }, ...suite.groups.map(g => ({ value: g.id, label: g.label ?? g.id }))]} />` : null}
     ${chips.map(({ f, text }) => html`<button class="chip small on" key=${f.column} title="Remove this filter"
@@ -104,7 +104,7 @@ function FilterBar({ suite, cols, view, setView, counts, shown, filtered }) {
 function Segments({ label, value, set, options }) {
   return html`<div class="segmented small" role="radiogroup" aria-label=${label}>
     ${options.map(o => html`<button class=${cx("seg", value === o.value && "on")} role="radio" aria-checked=${value === o.value}
-        onClick=${() => set(o.value)}>${o.label}${o.count !== undefined ? html`<span class="seg-count">${o.count}</span>` : null}</button>`)}
+        title=${o.tip} onClick=${() => set(o.value)}>${o.label}${o.count !== undefined ? html`<span class="seg-count">${o.count}</span>` : null}</button>`)}
   </div>`;
 }
 
@@ -155,8 +155,8 @@ function Row({ item, cols, suite, state, on, select, open }) {
   return html`<tr class=${cx(on && "on")} data-id=${item.id} aria-selected=${on}
       onClick=${() => select(item.id)} onDblClick=${() => open(item.id)}>
     <td class="c-state">
-      ${reviewed ? html`<span class="trail-check" data-tip=${item.flag ? `Reviewed · flagged: ${item.flag}` : "Reviewed"}>✓</span>`
-        : item.flag ? html`<span class="flag" data-tip=${item.flag} aria-label=${`Flagged: ${item.flag}`}>⚑</span>` : null}
+      ${reviewed ? html`<span class="trail-check" data-tip=${item.flag ? `Reviewed · the agent flagged it: ${item.flag}` : "Reviewed"}>✓</span>`
+        : item.flag ? html`<span class="flag" data-tip=${`The agent flagged this: ${item.flag}`} aria-label=${`The agent flagged this: ${item.flag}`}>⚑</span>` : null}
     </td>
     <td class="c-item">
       <span class="ti-title">${item.short ?? item.title}</span>

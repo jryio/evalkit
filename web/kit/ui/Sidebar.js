@@ -47,7 +47,7 @@ function NavRow({ item, on, tone, trail, onClick }) {
 }
 
 function Trail({ trail, flag }) {
-  if (!trail) return flag ? html`<span class="flag" title=${`Flagged: ${flag}`} aria-label=${`Flagged: ${flag}`}>⚑</span>` : html`<span></span>`;
+  if (!trail) return flag ? html`<span class="flag" title=${`The agent flagged this: ${flag}`} aria-label=${`The agent flagged this: ${flag}`}>⚑</span>` : html`<span></span>`;
   if (trail.kind === "reviewed") return html`<span class="trail-check" aria-label="Reviewed">✓</span>`;
   return html`<span class=${cx("trail-pill", trail.kind === "done" && "done")}>${trail.label}</span>`;
 }

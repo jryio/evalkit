@@ -59,6 +59,25 @@ export function tableBindings(questions) {
   return out;
 }
 
+// panelBindings are the table's keys while a panel shows the selected row: the item's own
+// keys, with J/K moving the selection (and ↑/↓ too, unless the item has rows to answer)
+// and / filtering.
+export function panelBindings(suite, item, questions, rows = 0) {
+  const out = bindings(suite, item, questions, rows).map(b => b.action.type !== "move" ? b : {
+    ...b,
+    keys: b.keys.filter(k => k === "j" || k === "k"),
+    label: b.action.by > 0 ? "Next row" : "Previous row",
+    action: { type: "select", by: b.action.by },
+    row: { id: "nav", label: "Next / previous row" },
+  });
+  if (!rows) {
+    out.push({ keys: ["ArrowDown"], label: "Next row", action: { type: "select", by: 1 }, row: { id: "nav" } });
+    out.push({ keys: ["ArrowUp"], label: "Previous row", action: { type: "select", by: -1 }, row: { id: "nav" } });
+  }
+  out.push({ keys: ["/"], label: "Filter items", action: { type: "focus", target: "table-search" } });
+  return out;
+}
+
 export function match(list, event) {
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
   return list.find(b => b.keys.includes(key));

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bindings, conflicts, helpRows, match, tableBindings } from "./keys.js";
+import { bindings, conflicts, helpRows, match, panelBindings, tableBindings } from "./keys.js";
 
 const verdict = {
   id: "verdict", kind: "choice", label: "Verdict", primary: true,
@@ -91,4 +91,21 @@ test("tableBindings move the selection, open it, answer the primary question and
   assert.deepEqual(key("/"), { type: "focus", target: "table-search" });
   assert.deepEqual(conflicts(list), []);
   assert.equal(helpRows(list, "Send", "table").find(r => r.keys[0] === "Esc").label, "Stop typing or close a sheet");
+});
+
+test("panelBindings keep the item's keys and move the table selection with J/K and arrows", () => {
+  const verdict = { id: "v", kind: "choice", label: "Verdict", primary: true, options: [{ value: "pass", label: "Pass" }, { value: "fail", label: "Fail" }] };
+  const notes = { id: "n", kind: "text", label: "Notes", key: "n" };
+  const item = { id: "i" };
+  const list = panelBindings({}, item, [verdict, notes]);
+  const key = k => match(list, { key: k })?.action;
+  assert.deepEqual(key("j"), { type: "select", by: 1 });
+  assert.deepEqual(key("ArrowUp"), { type: "select", by: -1 });
+  assert.equal(key("ArrowRight"), undefined);
+  assert.deepEqual(key("1"), { type: "set", qid: "v", value: "pass" });
+  assert.deepEqual(key("n"), { type: "focus", target: "q:n" });
+  assert.deepEqual(key("/"), { type: "focus", target: "table-search" });
+  assert.deepEqual(conflicts(list), []);
+  const withRows = panelBindings({}, item, [verdict], 3);
+  assert.deepEqual(match(withRows, { key: "ArrowDown" }).action, { type: "row", by: 1 });
 });

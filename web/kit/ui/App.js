@@ -6,18 +6,21 @@ import { emptyState, reconcile, setAnswer, setEdit } from "../core/state.js";
 import { orderedItems, questionsFor, valueOf, answersOf, asked, progress, pendingActions, snapshot, rowTargets } from "../core/derive.js";
 import { columns, visible, scopeCounts } from "../core/table.js";
 import { scaleRange } from "../controls/scale.js";
-import { bindings, tableBindings, match } from "../core/keys.js";
+import { bindings, tableBindings, panelBindings, match } from "../core/keys.js";
 import { loadSuiteRenderers } from "../registry.js";
 import { fmtTime } from "./bits.js";
 import { Sidebar } from "./Sidebar.js";
 import { ItemView } from "./ItemView.js";
 import { ItemsTable } from "./ItemsTable.js";
+import { ReviewPanel } from "./ReviewPanel.js";
 import { Toolbar, SendSheet, HelpSheet, Toast, Banner } from "./chrome.js";
 
 const isTyping = el => !!el?.matches?.("textarea, input, select, [contenteditable]");
 const hashId = () => decodeURIComponent(location.hash.slice(1)) || null;
 const NO_FILTERS = { scope: "all", group: null, search: "", where: [], sort: null };
 const VIEWS = ["review", "table"];
+const OPEN_IN = ["sidebar", "floating", "full"];
+const savedOpenIn = () => OPEN_IN.find(m => m === localStorage.getItem("evalkit.openIn")) ?? "sidebar";
 
 export function App() {
   const [loaded, setLoaded] = useState(null); // { suite, problems, version, fatal, done }
@@ -32,6 +35,8 @@ export function App() {
   const [mode, setModeState] = useState(() => VIEWS.find(v => v === new URLSearchParams(location.search).get("view")) ?? null); // null: the suite's default
   const [filters, setFilters] = useState(NO_FILTERS); // the table's scope, group, search, column filters and sort
   const [walk, setWalk] = useState(null); // ids review walks, pinned from the filtered table; null: every item
+  const [openIn, setOpenInState] = useState(savedOpenIn); // where Enter opens a table row: sidebar, floating or full
+  const [panel, setPanel] = useState(false); // the table's review panel is open
   const selIndex = useRef(0); // the selected row's position, so the selection survives the row leaving the filter
   const armed = useRef(null); // { qid, row, until }: a question key waiting for a number
   const dirty = useRef(false);
@@ -57,8 +62,9 @@ export function App() {
   }, [walk, items]);
   const found = list.findIndex(i => i.id === currentId);
   const index = found >= 0 ? found : 0;
-  // In the table, keys act on the selected row only while it is visible.
-  const item = view === "table" ? rows.find(r => r.id === currentId) : list[index];
+  // In the table, keys act on the panel's item, else on the selected row while it is visible.
+  const panelOpen = view === "table" && panel && openIn !== "full";
+  const item = !(view === "table") ? list[index] : panelOpen ? items.find(i => i.id === currentId) : rows.find(r => r.id === currentId);
 
   const showToast = message => {
     setToast({ message, show: true });
@@ -168,6 +174,17 @@ export function App() {
     show(id);
     setView("review");
   };
+  // openRow opens a table row where the reviewer chose: the panel, or full screen.
+  const openRow = id => {
+    if (openIn === "full") return open(id);
+    show(id);
+    setPanel(true);
+  };
+  const setOpenIn = mode => {
+    localStorage.setItem("evalkit.openIn", mode);
+    setOpenInState(mode);
+    if (mode === "full" && panel && currentId) open(currentId);
+  };
   const setTableFilters = f => setFilters(f.scope === "all" && !f.group && !f.search && !f.where.length && !f.sort ? NO_FILTERS : f);
   // selectRow moves the table selection through the visible rows. When the selected row
   // has left the filter, the row now in its place is next and the one before it previous.
@@ -209,7 +226,8 @@ export function App() {
   // Keys only reach questions that are on screen: `when` can hide one.
   const onScreen = item ? questions.filter(q => q.each || asked(state, item, questions, q)) : [];
   const targets = item ? rowTargets(item, questions) : [];
-  const binds = !suite ? [] : view === "table" ? tableBindings(onScreen) : item ? bindings(suite, item, onScreen, targets.length) : [];
+  const binds = !suite ? [] : view === "table" ? (panelOpen && item ? panelBindings(suite, item, onScreen, targets.length) : tableBindings(onScreen))
+    : item ? bindings(suite, item, onScreen, targets.length) : [];
 
   // The row a per-row key applies to: the cursor row, else the first row of q's artifact.
   function rowFor(q) {
@@ -233,7 +251,7 @@ export function App() {
     switch (action.type) {
       case "move": return go(index + action.by);
       case "select": return selectRow(action.by);
-      case "open": return item && open(item.id);
+      case "open": return item && openRow(item.id);
       case "help": return setSheet("help");
       case "row": {
         const i = targets.findIndex(t => t.artifact === cursor?.artifact && t.row === cursor?.row);
@@ -291,8 +309,15 @@ export function App() {
       if (e.repeat) return; // holding ⌘↵ must not open the sheet and then confirm it
       return sheet === "send" ? confirmSend() : setSheet("send");
     }
-    // Esc unwinds one layer at a time: sheet, field, row cursor, then review back to the table.
-    if (e.key === "Escape") return sheet ? setSheet(null) : typing ? e.target.blur() : cursor ? setCursor(null) : view === "review" && setView("table");
+    // Esc unwinds one layer at a time: sheet, field, row cursor, the review panel, then review back to the table.
+    if (e.key === "Escape") {
+      if (sheet) return setSheet(null);
+      if (typing) return e.target.blur();
+      if (cursor) return setCursor(null);
+      if (panelOpen) return setPanel(false);
+      if (view === "review") setView("table");
+      return;
+    }
     if (sheet) {
       // Enter confirms, except on a focused Cancel button, which cancels.
       if (e.key === "Enter" && !e.repeat) {
@@ -350,10 +375,15 @@ export function App() {
     ${view === "table" ? null : html`<${Sidebar} suite=${suite} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
       filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />`}
     <main class="main">
-      <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
+      <${Toolbar} view=${view} setView=${setView} openIn=${openIn} setOpenIn=${setOpenIn} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
       ${view === "table"
-        ? html`<${ItemsTable} suite=${ordered} state=${state} cols=${cols} rows=${rows} view=${filters} setView=${setTableFilters}
-            selected=${currentId} select=${show} open=${open} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />`
+        ? html`<div class=${panelOpen && openIn === "sidebar" ? "tv-layout with-sidebar" : "tv-layout"}>
+            <${ItemsTable} suite=${ordered} state=${state} cols=${cols} rows=${rows} view=${filters} setView=${setTableFilters}
+              selected=${currentId} select=${show} open=${openRow} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />
+            ${panelOpen ? html`<${ReviewPanel} mode=${openIn} setMode=${setOpenIn} item=${item} close=${() => setPanel(false)}
+                position=${{ index: rows.findIndex(r => r.id === currentId), count: rows.length }} go=${selectRow}
+                suite=${suite} cols=${cols} state=${state} act=${act} cursor=${cursor} />` : null}
+          </div>`
         : html`<div class="scroll" ref=${scroller}><div class="content">
             ${banners}
             ${item ? html`<${ItemView} key=${item.id} suite=${suite} cols=${cols} item=${item} state=${state} act=${act} cursor=${cursor} />` : html`<p class="muted">This suite has no items.</p>`}

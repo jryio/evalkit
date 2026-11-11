@@ -5,16 +5,34 @@ import { helpRows } from "../core/keys.js";
 import { progressLabel } from "../core/derive.js";
 
 const VIEWS = [
-  { value: "review", label: "Review", tip: "One item at a time (Esc from review opens the table)" },
-  { value: "table", label: "Table", tip: "Every item as a row (Enter opens the selected row)" },
+  { value: "review", label: "Review", tip: "One item at a time, full screen" },
+  { value: "table", label: "Table", tip: "Every item as a row (Esc from review)" },
 ];
 
-export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend }) {
+// Where Enter opens a table row. Icons follow the shape each mode takes on screen.
+const OPEN_MODES = [
+  { value: "sidebar", label: "Sidebar", tip: "Open rows in a sidebar beside the table",
+    icon: html`<svg viewBox="0 0 16 12" aria-hidden="true"><rect x=".75" y=".75" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9.5" y="2.5" width="4" height="7" rx="1" fill="currentColor"/></svg>` },
+  { value: "floating", label: "Floating", tip: "Open rows in a panel floating over the table",
+    icon: html`<svg viewBox="0 0 16 12" aria-hidden="true"><rect x=".75" y=".75" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="6.5" y="4" width="7" height="5.5" rx="1" fill="currentColor"/></svg>` },
+  { value: "full", label: "Full screen", tip: "Open rows full screen in Review",
+    icon: html`<svg viewBox="0 0 16 12" aria-hidden="true"><rect x=".75" y=".75" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="2.5" y="2.5" width="11" height="7" rx="1" fill="currentColor"/></svg>` },
+];
+
+export function OpenIn({ value, set }) {
+  return html`<div class="segmented small icons open-in" role="radiogroup" aria-label="Open rows in">
+    ${OPEN_MODES.map(m => html`<button class=${cx("seg", value === m.value && "on")} role="radio" aria-checked=${value === m.value}
+        aria-label=${m.label} data-tip=${m.tip} onClick=${() => set(m.value)}>${m.icon}</button>`)}
+  </div>`;
+}
+
+export function Toolbar({ view, setView, openIn, setOpenIn, index, count, go, saveLabel, sendLabel, openSend }) {
   return html`<div class="toolbar">
     <div class="segmented small view-switch" role="radiogroup" aria-label="View">
       ${VIEWS.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
-          title=${v.tip} onClick=${() => setView(v.value)}>${v.label}</button>`)}
+          title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === "table" && view === "review" ? html`<kbd>esc</kbd>` : null}</button>`)}
     </div>
+    ${view === "table" ? html`<span class="toolbar-label">Open rows in</span><${OpenIn} value=${openIn} set=${setOpenIn} />` : null}
     ${view === "review" ? html`
       <button class="icon-btn" title="Previous (K or ←)" aria-label="Previous item" disabled=${index <= 0} onClick=${() => go(index - 1)}>‹</button>
       <button class="icon-btn" title="Next (J or →)" aria-label="Next item" disabled=${index >= count - 1} onClick=${() => go(index + 1)}>›</button>

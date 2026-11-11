@@ -119,3 +119,35 @@ h1.tight { margin-bottom: 8px; }
 .number-slider { width: 180px; margin-left: 6px; accent-color: var(--accent); }
 .number-slider.tentative { accent-color: var(--tertiary); }
 .number-slider.empty { opacity: .4; }
+
+/* Toolbar: where rows open, and the Esc hint back to the table */
+.toolbar-label { font-size: 12px; color: var(--secondary); margin-left: 6px; }
+.segmented.icons .seg { padding: 0 9px; }
+.segmented.icons svg { width: 16px; height: 12px; display: block; }
+.view-switch .seg kbd { margin-left: 6px; padding: 1px 4px; min-width: 0; font-size: 10px; }
+
+/* Review panel: docked beside the table, or floating over its body */
+:root { --panel-w: clamp(460px, 42vw, 780px); }
+.tv-layout { flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.tv-layout.with-sidebar { grid-template-columns: minmax(0, 1fr) var(--panel-w); }
+.tv-layout > .tv { min-width: 0; min-height: 0; }
+.rp { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
+.rp.sidebar { border-left: 1px solid var(--separator); }
+.rp.floating { position: absolute; right: 20px; bottom: 20px; z-index: 6; width: min(64%, 1040px); min-width: 520px;
+  border: 1px solid var(--separator); border-radius: 14px; box-shadow: var(--shadow-sheet); overflow: hidden; }
+.rp-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px 0 14px; border-bottom: 1px solid var(--separator); background: var(--surface); }
+.icon-btn.small { width: 28px; height: 28px; font-size: 16px; border-radius: 7px; }
+.rp-close { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: none; color: var(--secondary); cursor: pointer; font-size: 13px; }
+.rp-close:hover { background: var(--fill); color: var(--text); }
+.rp-close kbd { padding: 1px 4px; min-width: 0; font-size: 10px; }
+.rp-body { flex: 1; min-height: 0; overflow-y: auto; container: review / inline-size; }
+.rp-body .content { max-width: none; margin: 0; padding: 22px 28px 48px; }
+.rp-body h1 { font-size: 24px; }
+.rp-empty { padding: 40px 28px; color: var(--secondary); font-size: 14px; }
+
+/* Review laid out by the panel's width, not the window's */
+@container review (max-width: 1000px) {
+  .show > .half { grid-column: 1 / -1; }
+  .card-row { grid-template-columns: 96px 1fr; }
+  .card-row > :nth-child(n+3) { grid-column: 2; }
+}
