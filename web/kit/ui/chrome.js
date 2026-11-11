@@ -1,6 +1,6 @@
 // App chrome: toolbar, sheets, toast and banners.
 import { html } from "../html.js";
-import { cx, tone } from "./bits.js";
+import { cx, tone, runWhen } from "./bits.js";
 import { helpRows } from "../core/keys.js";
 import { progressLabel } from "../core/derive.js";
 
@@ -26,12 +26,13 @@ export function OpenIn({ value, set }) {
   </div>`;
 }
 
-export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend }) {
+export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend, run }) {
   return html`<div class="toolbar"><div class="toolbar-inner">
     <div class="segmented small view-switch" role="radiogroup" aria-label="View">
       ${VIEWS.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
           title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === "table" && view === "review" ? html`<kbd>esc</kbd>` : null}</button>`)}
     </div>
+    ${run ? html`<${RunStepper} ...${run} />` : null}
     ${view === "review" ? html`
       <button class="icon-btn" title="Previous (K or ←)" aria-label="Previous item" disabled=${index <= 0} onClick=${() => go(index - 1)}>‹</button>
       <button class="icon-btn" title="Next (J or →)" aria-label="Next item" disabled=${index >= count - 1} onClick=${() => go(index + 1)}>›</button>
@@ -40,6 +41,16 @@ export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel,
     <span class="save-state" aria-live="polite">${saveLabel}</span>
     <button class="btn-primary" onClick=${openSend}>${sendLabel} <kbd>⌘↵</kbd></button>
   </div></div>`;
+}
+
+// RunStepper names the run on screen and what it is compared with, between previous and next.
+function RunStepper({ run, vs, count, step }) {
+  const when = runWhen(run);
+  return html`<div class="run-stepper">
+    <button class="icon-btn small" title="Previous run ([)" aria-label="Previous run" disabled=${run.index <= 0} onClick=${() => step(-1)}>‹</button>
+    <span class="run-name">Run <strong>${run.label}</strong>${when ? ` · ${when}` : ""} · ${vs ? `vs ${vs.label}` : "no comparison"}</span>
+    <button class="icon-btn small" title="Next run (])" aria-label="Next run" disabled=${run.index >= count - 1} onClick=${() => step(1)}>›</button>
+  </div>`;
 }
 
 export function Sheet({ title, children, actions, close }) {

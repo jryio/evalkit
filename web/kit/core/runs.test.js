@@ -211,3 +211,20 @@ test("acrossRuns lists an item's case in run order with the step from the previo
   assert.deepEqual(steps(byId("base/c"), state, { judgeOnly: true }).map(r => r[3]), [null, -1]);
   assert.deepEqual(steps(byId("v3/f")).map(r => [r[0], r[2], r[3]]), [["v3", undefined, null]]);
 });
+
+test("withBaselines gives an answered question without a proposal the other run's answer as its baseline", () => {
+  const keep = { id: "keep", kind: "choice", label: "Keep", options: [{ value: "yes", label: "Yes", tone: "positive" }, { value: "no", label: "No", tone: "negative" }] };
+  const s = { ...suite, questions: [verdict, keep] };
+  let state = setAnswer(emptyState(), byId("base/a"), "keep", "yes");
+  assert.deepEqual(withBaselines(s, state, "v2", "base").items.map(i => i.proposed.keep), [undefined, undefined, undefined, undefined]);
+  assert.ok(!columns(withBaselines(s, state, "v2", "base")).some(c => c.id === "d:q:keep"));
+  state = setAnswer(state, byId("v2/a"), "keep", "no");
+  state = setAnswer(state, byId("v2/e"), "keep", "no");
+  const v2 = withBaselines(s, state, "v2", "base");
+  assert.deepEqual(v2.items.map(i => i.proposed.keep), [{ baseline: "yes" }, undefined, undefined, undefined]);
+  const delta = columns(v2).find(c => c.id === "d:q:keep");
+  const c = cell(delta, v2.items[0], state, v2);
+  assert.deepEqual([c.text, c.tone], ["was Yes", "negative"]);
+  assert.equal(cell(columns(v2).find(c => c.id === "q:keep"), v2.items[0], state, v2).from, undefined);
+  assert.equal(withBaselines(s, state, "v2", "none").items[0].proposed.keep, undefined);
+});

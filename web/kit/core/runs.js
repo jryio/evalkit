@@ -1,6 +1,6 @@
 // Multi-run suites as data: the runs, the metric that ranks them, a summary per run with
 // intervals and paired comparisons, and a one-run suite the items table can show. No DOM.
-import { optionOf, primaryOf, valueOf } from "./derive.js";
+import { answersOf, optionOf, primaryOf, valueOf } from "./derive.js";
 import { deltaTone } from "./format.js";
 import { bootstrapMean, mcnemar, wilson } from "./stats.js";
 
@@ -154,16 +154,20 @@ export function pairsOf(suite, runId, vsId) {
 
 // withBaselines is the suite as the items table shows one run: runId's items, with the
 // paired vsId item's values and effective answers as their baselines. Inline baselines are
-// dropped. Only questions the item has a proposal for get a baseline: a proposal entry
-// without a value would read as a human override in derive.changes.
+// dropped. An answered question the item has no proposal for gets an entry without a
+// value, which carries only the baseline.
 export function withBaselines(suite, state, runId, vsId) {
   const pairs = pairsOf(suite, runId, vsId);
   const items = suite.items.filter(i => i.run === runId).map(item => {
     const vs = pairs.get(pairOf(item))?.vs;
+    const baseline = qid => (vs ? valueOf(state, vs, { id: qid }) : undefined);
     const values = Object.fromEntries(Object.entries(item.values || {})
       .map(([id, v]) => [id, { value: unbox(v), baseline: unbox(vs?.values?.[id]) }]));
-    const proposed = Object.fromEntries(Object.entries(item.proposed || {})
-      .map(([qid, p]) => [qid, { ...p, baseline: vs ? valueOf(state, vs, { id: qid }) : undefined }]));
+    const answered = vs ? Object.keys(answersOf(state, item)).filter(qid => !item.proposed?.[qid]) : [];
+    const proposed = Object.fromEntries([
+      ...Object.entries(item.proposed || {}).map(([qid, p]) => [qid, { ...p, baseline: baseline(qid) }]),
+      ...answered.map(qid => [qid, { baseline: baseline(qid) }]),
+    ]);
     return { ...item, values, proposed };
   });
   return { ...suite, items };

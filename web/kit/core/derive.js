@@ -118,13 +118,14 @@ function liveAnswers(state, item, questions, answers) {
 }
 
 // changes lists the proposals the human overrode: { qid: { from, to } }, per row
-// for per-row questions. With a judge's proposals these are the disagreements.
+// for per-row questions. With a judge's proposals these are the disagreements. An entry
+// without a value only carries a baseline and is no proposal.
 export function changes(state, item) {
   const { answers } = entry(state, item);
   const out = {};
   for (const [qid, p] of Object.entries(item.proposed || {})) {
     const a = answers[qid];
-    if (a === undefined) continue;
+    if (a === undefined || p.value === undefined) continue;
     if (isRowMap(p.value)) {
       const rows = Object.fromEntries(Object.entries(a)
         .filter(([r, v]) => p.value[r] !== undefined && !same(p.value[r], v))

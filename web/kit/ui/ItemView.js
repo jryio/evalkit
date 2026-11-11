@@ -5,11 +5,15 @@ import { controlFor, rendererFor } from "../registry.js";
 import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
 import { cell } from "../core/table.js";
 import { questionsFor, answersOf, editsOf, valueOf, asked } from "../core/derive.js";
+import { deltaTone, fmtNumber, signed, withUnit } from "../core/format.js";
 
 const isSection = q => controlFor(q.kind)?.layout === "section";
+// An entry without a value only carries the compared run's baseline: it is no proposal.
+const proposal = p => (p?.value !== undefined ? p : undefined);
 const rowProposal = (p, row) => (p?.value?.[row] !== undefined ? { value: p.value[row], why: p.why } : undefined);
 
-export function ItemView({ suite, cols, item, state, act, cursor }) {
+// across, in a suite with runs, is this case in every run: { rows, metric, current, open }.
+export function ItemView({ suite, cols, item, state, act, cursor, across }) {
   const questions = questionsFor(suite, item);
   const answers = answersOf(state, item);
   const edits = editsOf(state, item);
@@ -21,7 +25,7 @@ export function ItemView({ suite, cols, item, state, act, cursor }) {
       q, item, row,
       value: valueOf(state, item, q, perRow ? row : undefined),
       answer: perRow ? answers[q.id]?.[row] : answers[q.id],
-      proposed: perRow ? rowProposal(item.proposed?.[q.id], row) : item.proposed?.[q.id],
+      proposed: perRow ? rowProposal(item.proposed?.[q.id], row) : proposal(item.proposed?.[q.id]),
       set: v => act.answer(item, q.id, v, perRow ? row : undefined),
     };
   };
@@ -56,6 +60,7 @@ export function ItemView({ suite, cols, item, state, act, cursor }) {
 
   return html`
     <${ItemHeader} item=${item} suite=${suite} cols=${cols} />
+    ${across ? html`<${AcrossRuns} ...${across} suite=${suite} cols=${cols} state=${state} />` : null}
     ${item.show?.length ? html`<div class="show">${item.show.map((a, i) => artifact(a, i, false))}</div>` : null}
     ${rows.length ? html`<div class="card">${rows.map(q => html`<${CardRow} q=${q} control=${control}
         attached=${own.filter(o => o.with === q.id)} note=${controlFor(q.kind)?.note?.(props(q))} />`)}</div>` : null}
@@ -98,6 +103,26 @@ function Values({ item, suite, cols: all }) {
       <dd>${c.icon ? html`<${Icon} name=${c.icon} /> ` : null}${c.text || "—"}${delta?.text ? html` <span class=${cx("delta", tone(delta.tone))}>${delta.text}</span>` : null}</dd>
     </div>`;
   })}</dl>`;
+}
+
+// AcrossRuns is this case's metric in every run that has it, with the step from the run
+// before; a row opens that run on this case. A rate shows the answer, a mean the number.
+function AcrossRuns({ rows, metric, current, open, suite, cols, state }) {
+  const col = metric && cols.find(c => c.id === `${metric.source === "question" ? "q" : "v"}:${metric.id}`);
+  const value = r => {
+    if (metric.kind === "rate") return col ? cell(col, r.item, state, suite).text : "";
+    return typeof r.value === "number" ? withUnit(fmtNumber(r.value, col?.decimals), metric.unit) : "";
+  };
+  return html`<div class="across">
+    <div class="section-title across-title">Across runs</div>
+    <div class="across-row across-head" aria-hidden="true"><span>Run</span>${metric ? html`<span class="r">${metric.label}</span><span class="r">Δ prev</span>` : null}</div>
+    ${rows.map(r => html`<button class=${cx("across-row", r.run.id === current && "on")} key=${r.run.id}
+        aria-current=${r.run.id === current ? "true" : undefined} onClick=${() => open(r.run.id, r.item.id)}>
+      <span>${r.run.label}</span>
+      ${metric ? html`<span class="r">${value(r) || "—"}</span>
+        <span class="r">${r.deltaPrev === null ? "—" : html`<span class=${cx("delta", tone(deltaTone(r.deltaPrev, metric)))}>${signed(r.deltaPrev, col?.decimals)}</span>`}</span>` : null}
+    </button>`)}
+  </div>`;
 }
 
 function CardRow({ q, control, attached, note }) {

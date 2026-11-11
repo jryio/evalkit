@@ -1,10 +1,11 @@
 // App owns the loaded suite, the review state, the view (review or table) with its
-// filters, navigation, autosave, sending, the keyboard and live reload of the suite.
+// filters, the run shown, navigation, autosave, sending, the keyboard and live reload of the suite.
 import { html, useState, useEffect, useRef, useMemo } from "../html.js";
 import { api } from "../core/api.js";
 import { emptyState, reconcile, setAnswer, setEdit } from "../core/state.js";
 import { orderedItems, questionsFor, valueOf, answersOf, asked, progress, pendingActions, snapshot, rowTargets } from "../core/derive.js";
 import { columns, visible, scopeCounts } from "../core/table.js";
+import { acrossRuns, metricOf, pairsOf, runList, withBaselines } from "../core/runs.js";
 import { scaleRange } from "../controls/scale.js";
 import { bindings, tableBindings, panelBindings, match } from "../core/keys.js";
 import { loadSuiteRenderers } from "../registry.js";
@@ -23,6 +24,18 @@ const VIEWS = ["review", "table"];
 const OPEN_IN = ["sidebar", "floating", "full"];
 const savedOpenIn = () => OPEN_IN.find(m => m === localStorage.getItem("evalkit.openIn")) ?? "sidebar";
 
+// vsOf is the run another run is compared with: the suite's marked baseline, else the run before.
+function vsOf(suite, runs, run) {
+  const id = suite.runs?.find(r => r.baseline)?.id ?? runs[run.index - 1]?.id;
+  return id === run.id ? null : runs.find(r => r.id === id) ?? null;
+}
+
+// runSuite is the suite as the table and review show it: one run's items, when it has runs, in sidebar order.
+function runSuite(suite, state, runs, run) {
+  const s = run ? withBaselines(suite, state, run.id, vsOf(suite, runs, run)?.id ?? null) : suite;
+  return { ...s, items: orderedItems(s) };
+}
+
 export function App() {
   const [loaded, setLoaded] = useState(null); // { suite, problems, version, fatal, done }
   const [state, setState] = useState(null);
@@ -38,6 +51,7 @@ export function App() {
   const [walk, setWalk] = useState(null); // ids review walks, pinned from the filtered table; null: every item
   const [openIn, setOpenInState] = useState(savedOpenIn); // where Enter opens a table row: sidebar, floating or full
   const [panel, setPanel] = useState(false); // the table's review panel is open
+  const [runParam, setRunParam] = useState(() => new URLSearchParams(location.search).get("run")); // null: the linked item's run, else the latest
   const selIndex = useRef(0); // the selected row's position, so the selection survives the row leaving the filter
   const armed = useRef(null); // { qid, row, until }: a question key waiting for a number
   const dirty = useRef(false);
@@ -47,9 +61,15 @@ export function App() {
   const scroller = useRef();
 
   const suite = loaded?.suite;
-  const view = mode ?? suite?.view ?? "review";
-  // ordered is the suite with items in sidebar order, the base for the table's rows.
-  const ordered = useMemo(() => suite && { ...suite, items: orderedItems(suite) }, [suite]);
+  const runs = useMemo(() => (suite ? runList(suite) : []), [suite]);
+  const linkedRun = suite?.items.find(i => i.id === currentId)?.run;
+  const shownRun = runs.find(r => r.id === runParam) ?? runs.find(r => r.id === linkedRun) ?? runs.at(-1);
+  const vs = shownRun ? vsOf(suite, runs, shownRun) : null;
+  // A suite with runs opens on the table unless it asks for review.
+  const view = mode ?? (suite?.view === "review" || (!suite?.view && !runs.length) ? "review" : "table");
+  // ordered is the suite as shown, with items in sidebar order, the base for the table's rows.
+  // Baselines are the compared run's answers, so it follows the state.
+  const ordered = useMemo(() => suite && state && runSuite(suite, state, runs, shownRun), [suite, state, runs, shownRun]);
   const items = ordered?.items ?? [];
   const cols = useMemo(() => (ordered ? columns(ordered) : []), [ordered]);
   const rows = useMemo(() => (ordered && state ? visible(ordered, state, cols, filters) : []), [ordered, state, cols, filters]);
@@ -66,6 +86,10 @@ export function App() {
   // In the table, keys act on the panel's item, else on the selected row while it is visible.
   const panelOpen = view === "table" && panel && openIn !== "full";
   const item = !(view === "table") ? list[index] : panelOpen ? items.find(i => i.id === currentId) : rows.find(r => r.id === currentId);
+  const metric = useMemo(() => suite && metricOf(suite), [suite]);
+  const reviewing = view !== "table" || panelOpen;
+  const across = useMemo(() => (reviewing && item?.pair !== undefined && runs.length > 1 ? acrossRuns(suite, state, item, metric) : null), [reviewing, suite, state, item, metric, runs]);
+  const paired = useMemo(() => (shownRun && vs ? pairsOf(suite, shownRun.id, vs.id).size : 0), [suite, shownRun, vs]);
 
   const showToast = message => {
     setToast({ message, show: true });
@@ -152,9 +176,10 @@ export function App() {
     return () => clearInterval(t);
   }, []);
 
+  const title = suite?.title && (shownRun ? `${suite.title} · ${shownRun.label}` : suite.title);
   useEffect(() => {
-    if (suite?.title) document.title = `${suite.title} · evalkit`;
-  }, [suite?.title]);
+    if (title) document.title = `${title} · evalkit`;
+  }, [title]);
 
   useEffect(() => {
     setCursor(null);
@@ -189,6 +214,26 @@ export function App() {
     localStorage.setItem("evalkit.openIn", mode);
     setOpenInState(mode);
     if (mode === "full" && panel && currentId) open(currentId);
+  };
+  // setRun shows another run on the same case (itemId, else the selected item's pair), else on
+  // its first row. Review walks the whole run: the pinned walk was the other run's rows.
+  const setRun = (id, itemId) => {
+    const to = runs.find(r => r.id === id);
+    if (!to) return;
+    const url = new URL(location.href);
+    url.searchParams.set("run", id);
+    history.replaceState(null, "", url);
+    setRunParam(id);
+    setWalk(null);
+    const next = runSuite(suite, state, runs, to);
+    const pair = items.find(i => i.id === currentId)?.pair;
+    const first = view === "table" ? visible(next, state, columns(next), filters)[0] : next.items[0];
+    const target = itemId ?? next.items.find(i => pair !== undefined && i.pair === pair)?.id ?? first?.id;
+    if (target) show(target);
+  };
+  const stepRun = by => {
+    const to = runs[shownRun.index + by];
+    if (to) setRun(to.id);
   };
   const setTableFilters = f => setFilters(f.scope === "all" && !f.group && !f.search && !f.where.length && !f.sort ? NO_FILTERS : f);
   // selectRow moves the table selection through the visible rows. When the selected row
@@ -231,8 +276,8 @@ export function App() {
   // Keys only reach questions that are on screen: `when` can hide one.
   const onScreen = item ? questions.filter(q => q.each || asked(state, item, questions, q)) : [];
   const targets = item ? rowTargets(item, questions) : [];
-  const binds = !suite ? [] : view === "table" ? (panelOpen && item ? panelBindings(suite, item, onScreen, targets.length) : tableBindings(onScreen))
-    : item ? bindings(suite, item, onScreen, targets.length) : [];
+  const binds = !suite ? [] : view === "table" ? (panelOpen && item ? panelBindings(suite, item, onScreen, targets.length, runs.length) : tableBindings(onScreen, runs.length))
+    : item ? bindings(suite, item, onScreen, targets.length, runs.length) : [];
 
   // The row a per-row key applies to: the cursor row, else the first row of q's artifact.
   function rowFor(q) {
@@ -256,6 +301,7 @@ export function App() {
     switch (action.type) {
       case "move": return go(index + action.by);
       case "select": return selectRow(action.by);
+      case "run": return stepRun(action.by);
       case "open": return item && openRow(item.id);
       case "help": return setSheet("help");
       case "row": {
@@ -360,7 +406,7 @@ export function App() {
     }
     armed.current = null;
     const b = match(binds, e);
-    if (b && (item || b.action.type === "select" || b.action.type === "focus" || b.action.type === "help")) {
+    if (b && (item || ["select", "focus", "help", "run"].includes(b.action.type))) {
       e.preventDefault();
       run(b.action);
     }
@@ -380,8 +426,9 @@ export function App() {
   if (!state) return null;
 
   const errors = loaded.problems.filter(p => !p.warning);
+  const acrossView = across && { rows: across, metric, current: shownRun.id, open: setRun };
   const sendLabel = suite.send ?? "Send";
-  const actionQs = [...new Map(items.flatMap(i => questionsFor(suite, i)).filter(q => q.kind === "action").map(q => [q.id, q])).values()];
+  const actionQs = [...new Map(orderedItems(suite).flatMap(i => questionsFor(suite, i)).filter(q => q.kind === "action").map(q => [q.id, q])).values()];
   const banners = html`
     ${stale ? html`<${Banner} tone="accent" title="The suite changed." action=${html`<button class="btn-secondary" onClick=${() => refresh()}>Refresh</button>`} />` : null}
     ${errors.length ? html`<${Banner} tone="negative" title=${`${errors.length} problem${errors.length > 1 ? "s" : ""} in the suite. Items with errors are hidden.`}
@@ -389,21 +436,23 @@ export function App() {
     ${loadErrors.length ? html`<${Banner} tone="negative" title="Custom renderers failed to load." lines=${loadErrors} />` : null}`;
 
   return html`<div class=${view === "table" ? "app table-mode" : "app"}>
-    ${view === "table" ? null : html`<${Sidebar} suite=${suite} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
+    ${view === "table" ? null : html`<${Sidebar} suite=${ordered} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
       filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />`}
     <main class="main">
-      <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
+      <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")}
+        run=${shownRun && { run: shownRun, vs, count: runs.length, step: stepRun }} />
       ${view === "table"
         ? html`<div class=${panelOpen && openIn === "sidebar" ? "tv-layout with-sidebar" : "tv-layout"}>
             <${ItemsTable} suite=${ordered} state=${state} cols=${cols} rows=${rows} view=${filters} setView=${setTableFilters}
-              selected=${currentId} select=${show} open=${openRow} openIn=${openIn} setOpenIn=${setOpenIn} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />
+              selected=${currentId} select=${show} open=${openRow} openIn=${openIn} setOpenIn=${setOpenIn} counts=${scopeCounts(items, state)} progress=${progress(ordered, state)} banners=${banners}
+              run=${shownRun && { run: shownRun, vs, paired }} />
             ${panelOpen ? html`<${ReviewPanel} mode=${openIn} setMode=${setOpenIn} item=${item} close=${() => setPanel(false)}
                 position=${{ index: rows.findIndex(r => r.id === currentId), count: rows.length }} go=${selectRow}
-                suite=${suite} cols=${cols} state=${state} act=${act} cursor=${cursor} />` : null}
+                suite=${ordered} cols=${cols} state=${state} act=${act} cursor=${cursor} across=${acrossView} />` : null}
           </div>`
         : html`<div class="scroll" ref=${scroller}><div class="content">
             ${banners}
-            ${item ? html`<${ItemView} key=${item.id} suite=${suite} cols=${cols} item=${item} state=${state} act=${act} cursor=${cursor} />` : html`<p class="muted">This suite has no items.</p>`}
+            ${item ? html`<${ItemView} key=${item.id} suite=${ordered} cols=${cols} item=${item} state=${state} act=${act} cursor=${cursor} across=${acrossView} />` : html`<p class="muted">This suite has no items.</p>`}
           </div></div>`}
     </main>
     ${sheet === "send" ? html`<${SendSheet} sendLabel=${sendLabel} progress=${progress(suite, state)} actions=${actionQs}

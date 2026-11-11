@@ -2,14 +2,14 @@
 // a profile in its header. Filters and sort live in App, so review mode follows the
 // same list. Click selects, double-click or Enter opens the item for review.
 import { html, useEffect, useMemo } from "../html.js";
-import { cx, tone, Icon, Dot } from "./bits.js";
+import { cx, tone, Icon, Dot, runWhen } from "./bits.js";
 import { OpenIn } from "./chrome.js";
 import { Histogram, ShareBar, Meter, sameBin } from "./minicharts.js";
 import { cell, profile, visible, firstDir } from "../core/table.js";
 import { isReviewed } from "../core/derive.js";
 import { fmtNumber, signed, withUnit } from "../core/format.js";
 
-export function ItemsTable({ suite, state, cols, rows, view, setView, selected, select, open, openIn, setOpenIn, counts, progress, banners }) {
+export function ItemsTable({ suite, state, cols, rows, view, setView, selected, select, open, openIn, setOpenIn, counts, progress, banners, run }) {
   // A column's profile ignores the column's own filter, so its other bins stay visible.
   const profiles = useMemo(() => Object.fromEntries(cols.map(col => {
     const where = view.where.filter(f => f.column !== col.id);
@@ -40,8 +40,9 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
   return html`<div class="tv">
     <div class="tv-head">
       ${banners}
-      <h1>${suite.title}</h1>
+      <h1>${run ? `${suite.title} · ${run.run.label}` : suite.title}</h1>
       ${suite.description ? html`<p class="tv-desc">${suite.description}</p>` : null}
+      ${run ? html`<p class="tv-run">${runFacts(run, suite.items.length)}</p>` : null}
       <div class="tv-progress">
         <div class="progress"><span style=${{ width: `${progress.total ? (100 * progress.reviewed) / progress.total : 0}%` }}></span></div>
         <span><strong>${progress.reviewed} of ${progress.total}</strong> ${progress.flagged ? "flagged " : ""}reviewed</span>
@@ -73,12 +74,21 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
   </div>`;
 }
 
+// An entry without a value only carries a baseline.
+const hasProposal = item => Object.values(item.proposed || {}).some(p => p.value !== undefined);
+
+// runFacts is the run's line under the title: when, its note, its items and how many pair with the compared run.
+function runFacts({ run, vs, paired }, n) {
+  const count = `${n} ${n === 1 ? "item" : "items"}${vs ? `, ${paired} paired with ${vs.label}` : ""}`;
+  return [runWhen(run), run.note, count].filter(Boolean).join(" · ");
+}
+
 function FilterBar({ suite, cols, view, setView, counts, shown, filtered, openIn, setOpenIn }) {
   const scopes = [
     { id: "all", label: "All" },
     counts.flagged ? { id: "flagged", label: "Flagged", tip: "Rows the agent flagged for you" } : null,
     { id: "input", label: "Your input" },
-    suite.items.some(i => i.proposed) ? { id: "overrides", label: "Overrides" } : null,
+    suite.items.some(hasProposal) ? { id: "overrides", label: "Overrides" } : null,
   ].filter(Boolean);
   const chips = view.where.map(f => {
     const col = cols.find(c => c.id === f.column);
