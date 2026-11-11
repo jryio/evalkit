@@ -36,13 +36,13 @@ export const latestRun = suite => runList(suite).at(-1)?.id ?? null;
 
 // metricOf is what ranks runs: the primary question when it scores, else a bounded or directed column.
 export function metricOf(suite) {
+  const cols = suite.columns || [];
   const q = primaryOf(suite);
-  if (q && ["choice", "toggle", "number", "scale"].includes(q.kind)) {
+  if (q && !cols.some(c => c.primary) && ["choice", "toggle", "number", "scale"].includes(q.kind)) {
     const kind = q.kind === "choice" || q.kind === "toggle" ? "rate" : "mean";
     return { id: q.id, label: q.label ?? q.id, source: "question", kind, better: q.better ?? "higher", unit: q.unit, decimals: q.decimals, noise: q.noise, q };
   }
-  const cols = suite.columns || [];
-  const c = cols.find(c => isNum(c.min) && isNum(c.max)) ?? cols.find(c => c.better);
+  const c = cols.find(c => c.primary) ?? cols.find(c => isNum(c.min) && isNum(c.max)) ?? cols.find(c => c.better);
   if (!c) return null;
   return { id: c.id, label: c.label ?? c.id, source: "column", kind: "mean", better: c.better ?? "higher", unit: c.unit, decimals: c.decimals, noise: c.noise };
 }

@@ -80,6 +80,8 @@ test("metricOf: a number question is a mean; else a bounded column, then a direc
   const y = metricOf({ columns: cols.slice(0, 2) });
   assert.deepEqual([y.id, y.better, y.noise], ["y", "lower", 0.1]);
   assert.equal(metricOf({ columns: [{ id: "x" }] }), null);
+  const primary = metricOf({ questions: [{ id: "v", kind: "choice", primary: true, options: [] }], columns: [...cols, { id: "audit", label: "Audit", primary: true }] });
+  assert.equal(primary.id, "audit", "a primary column wins over the primary question");
 });
 
 test("spendOf: dollars, else tokens, else seconds", () => {
