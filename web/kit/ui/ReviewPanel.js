@@ -5,12 +5,16 @@ import { ItemView } from "./ItemView.js";
 import { OpenIn } from "./chrome.js";
 
 export function ReviewPanel({ mode, setMode, item, position, go, close, ...view }) {
+  const panel = useRef();
   const body = useRef();
   const top = useFloatTop(mode);
+  // The panel takes focus when it opens and when its row changes, so a toolbar button
+  // clicked before keeps nothing: every key goes to the review.
   useEffect(() => {
     if (body.current) body.current.scrollTop = 0;
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus({ preventScroll: true });
   }, [item?.id]);
-  return html`<aside class=${`rp ${mode}`} style=${mode === "floating" ? { top: `${top}px` } : null} aria-label="Review">
+  return html`<aside class=${`rp ${mode}`} ref=${panel} tabIndex="-1" style=${mode === "floating" ? { top: `${top}px` } : null} aria-label="Review">
     <div class="rp-bar">
       <button class="icon-btn small" title="Previous row (K)" aria-label="Previous row" disabled=${position.index <= 0} onClick=${() => go(-1)}>‹</button>
       <button class="icon-btn small" title="Next row (J)" aria-label="Next row" disabled=${position.index < 0 || position.index >= position.count - 1} onClick=${() => go(1)}>›</button>

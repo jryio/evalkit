@@ -15,7 +15,8 @@ import { ItemsTable } from "./ItemsTable.js";
 import { ReviewPanel } from "./ReviewPanel.js";
 import { Toolbar, SendSheet, HelpSheet, Toast, Banner } from "./chrome.js";
 
-const isTyping = el => !!el?.matches?.("textarea, input, select, [contenteditable]");
+// Only fields the reviewer types into keep the keys; sliders, checkboxes and buttons pass them on.
+const isTyping = el => !!el?.matches?.("textarea, select, [contenteditable], input:not([type=range], [type=checkbox], [type=radio], [type=button], [type=submit], [type=reset], [type=color], [type=file])");
 const hashId = () => decodeURIComponent(location.hash.slice(1)) || null;
 const NO_FILTERS = { scope: "all", group: null, search: "", where: [], sort: null };
 const VIEWS = ["review", "table"];
@@ -272,12 +273,8 @@ export function App() {
         const i = q.options.findIndex(o => o.value === value);
         return set(q.options[(i + 1) % q.options.length].value);
       }
-      case "option": {
-        if (q.kind !== "multi") return set(answer === action.value ? undefined : action.value);
-        const list = value || [];
-        const next = list.includes(action.value) ? list.filter(v => v !== action.value) : [...list, action.value];
-        return set(next.length ? next : proposed !== undefined ? null : undefined);
-      }
+      case "option":
+        return q.kind === "multi" ? toggleTag(q, row, action.value) : set(answer === action.value ? undefined : action.value);
       case "pick": {
         const picked = rowFor(q);
         if (picked !== undefined) act.answer(item, q.id, answer === picked ? undefined : picked);
@@ -291,11 +288,25 @@ export function App() {
     }
   }
 
-  // pickNumber completes a chord: a choice's key then n picks option n; a scale's key then n sets n.
+  // toggleTag adds or removes one value of a multi question's answer.
+  function toggleTag(q, row, tag) {
+    const list = valueOf(state, item, q, row) || [];
+    const proposed = row === undefined ? item.proposed?.[q.id]?.value : item.proposed?.[q.id]?.value?.[row];
+    const next = list.includes(tag) ? list.filter(v => v !== tag) : [...list, tag];
+    act.answer(item, q.id, next.length ? next : proposed !== undefined ? null : undefined, row);
+  }
+
+  // pickNumber completes a chord: a choice's key then n picks option n; a scale's key then n
+  // sets n; a multi's key then n toggles option n and stays armed for the next tag.
   function pickNumber(n) {
     const { qid, row } = armed.current;
     armed.current = null;
     const q = questions.find(x => x.id === qid);
+    if (q.kind === "multi") {
+      if (q.options[n - 1]) toggleTag(q, row, q.options[n - 1].value);
+      armed.current = { qid, row, until: Date.now() + 1500 };
+      return;
+    }
     const value = q.kind === "scale" ? scaleRange(q).find(v => v === n) : q.options[n - 1]?.value;
     if (value !== undefined) act.answer(item, q.id, value, row);
   }
@@ -339,8 +350,10 @@ export function App() {
       return;
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key.startsWith("Arrow") && e.target.matches?.("input[type=range]")) return; // the slider's own arrows
     if (!item && view !== "table") return;
-    if (e.key === "Enter" && e.target.closest?.("button, a, summary")) return; // a focused control handles its own Enter
+    // A control reached with Tab handles its own Enter; one last clicked with the mouse does not.
+    if (e.key === "Enter" && e.target.closest?.("button, a, summary")?.matches(":focus-visible")) return;
     if (/^[1-9]$/.test(e.key) && armed.current && Date.now() < armed.current.until) {
       e.preventDefault();
       return pickNumber(Number(e.key));

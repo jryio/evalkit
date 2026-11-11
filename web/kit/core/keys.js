@@ -23,6 +23,7 @@ export function bindings(suite, item, questions, rows = 0) {
     const k = q.key;
     if (k && q.kind === "choice") add([k], label(`Change ${q.label}, or ${keyName(k)} then 1–${q.options.length}`), { type: "cycle", qid: q.id, perRow });
     if (k && q.kind === "scale") add([k], label(`${q.label}: ${keyName(k)} then ${q.min ?? 1}–${q.max ?? 5}`), { type: "arm", qid: q.id, perRow });
+    if (k && q.kind === "multi") add([k], label(`${q.label}: ${keyName(k)} then 1–${Math.min(9, q.options.length)} to toggle`), { type: "arm", qid: q.id, perRow });
     if (k && q.kind === "toggle") add([k], label(q.label), { type: "toggle", qid: q.id, perRow });
     if (k && q.kind === "action" && !item.done?.[q.id]) add([k], q.states.off.button, { type: "toggle", qid: q.id });
     if (k && (q.kind === "text" || q.kind === "number")) add([k], q.label, { type: "focus", target: `q:${q.id}` });
@@ -60,12 +61,11 @@ export function tableBindings(questions) {
 }
 
 // panelBindings are the table's keys while a panel shows the selected row: the item's own
-// keys, with J/K moving the selection (and ↑/↓ too, unless the item has rows to answer)
-// and / filtering.
+// keys, with J/K and ←/→ moving the selection (and ↑/↓ too, unless the item has rows to
+// answer) and / filtering.
 export function panelBindings(suite, item, questions, rows = 0) {
   const out = bindings(suite, item, questions, rows).map(b => b.action.type !== "move" ? b : {
     ...b,
-    keys: b.keys.filter(k => k === "j" || k === "k"),
     label: b.action.by > 0 ? "Next row" : "Previous row",
     action: { type: "select", by: b.action.by },
     row: { id: "nav", label: "Next / previous row" },

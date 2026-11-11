@@ -139,6 +139,7 @@ h1.tight { margin-bottom: 8px; }
 .tv-layout.with-sidebar { grid-template-columns: minmax(0, 1fr) var(--panel-w); }
 .tv-layout > .tv { min-width: 0; min-height: 0; }
 .rp { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
+.rp:focus { outline: none; }
 .rp.sidebar { border-left: 1px solid var(--separator); }
 .rp.floating { position: absolute; right: 28px; bottom: 28px; z-index: 6; width: min(64%, 1040px); min-width: 520px;
   border: 1px solid var(--separator); border-radius: 14px; box-shadow: var(--shadow-sheet); overflow: hidden; }

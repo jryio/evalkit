@@ -47,7 +47,7 @@ Every question has `id` and `kind`, and optionally:
 | Key | Meaning |
 |---|---|
 | `label` | Row label, section title, or (item questions) the question text |
-| `key` | One letter. Choice: cycles; then a digit picks option N. Scale: then a digit sets the value. Toggle/action: flips. Text/number: focuses. Pick: picks the cursor row. |
+| `key` | One letter. Choice: cycles; then a digit picks option N. Scale: then a digit sets the value. Multi: then each digit toggles option N (options 1–9). Toggle/action: flips. Text/number: focuses. Pick: picks the cursor row. |
 | `groups` | Ask only items in these groups |
 | `with` | Render inside another question's row (e.g. flag chips beside the verdict) |
 | `each` | Ask once per row of the artifact with this id; the answer is `{rowId: value}` |

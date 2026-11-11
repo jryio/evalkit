@@ -36,6 +36,12 @@ test("bindings", async t => {
   await t.test("multi option keys", () => {
     assert.deepEqual(actionFor(list, "p"), { type: "option", qid: "tags", value: "perf", perRow: false });
   });
+  await t.test("a multi key arms it for digits", () => {
+    const off = { ...tags, key: "f" };
+    const armed = bindings({}, item, [verdict, off]).find(b => b.keys.includes("f"));
+    assert.deepEqual(armed.action, { type: "arm", qid: "tags", perRow: false });
+    assert.equal(armed.label, "Tags: F then 1–2 to toggle");
+  });
   await t.test("a text key focuses the question", () => {
     assert.deepEqual(actionFor(list, "n"), { type: "focus", target: "q:notes" });
   });
@@ -101,7 +107,8 @@ test("panelBindings keep the item's keys and move the table selection with J/K a
   const key = k => match(list, { key: k })?.action;
   assert.deepEqual(key("j"), { type: "select", by: 1 });
   assert.deepEqual(key("ArrowUp"), { type: "select", by: -1 });
-  assert.equal(key("ArrowRight"), undefined);
+  assert.deepEqual(key("ArrowRight"), { type: "select", by: 1 });
+  assert.deepEqual(key("ArrowLeft"), { type: "select", by: -1 });
   assert.deepEqual(key("1"), { type: "set", qid: "v", value: "pass" });
   assert.deepEqual(key("n"), { type: "focus", target: "q:n" });
   assert.deepEqual(key("/"), { type: "focus", target: "table-search" });
