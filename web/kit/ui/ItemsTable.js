@@ -3,12 +3,13 @@
 // same list. Click selects, double-click or Enter opens the item for review.
 import { html, useEffect, useMemo } from "../html.js";
 import { cx, tone, Icon, Dot } from "./bits.js";
+import { OpenIn } from "./chrome.js";
 import { Histogram, ShareBar, Meter, sameBin } from "./minicharts.js";
 import { cell, profile, visible, firstDir } from "../core/table.js";
-import { isReviewed, progressLabel } from "../core/derive.js";
+import { isReviewed } from "../core/derive.js";
 import { fmtNumber, signed, withUnit } from "../core/format.js";
 
-export function ItemsTable({ suite, state, cols, rows, view, setView, selected, select, open, counts, progress, banners }) {
+export function ItemsTable({ suite, state, cols, rows, view, setView, selected, select, open, openIn, setOpenIn, counts, progress, banners }) {
   // A column's profile ignores the column's own filter, so its other bins stay visible.
   const profiles = useMemo(() => Object.fromEntries(cols.map(col => {
     const where = view.where.filter(f => f.column !== col.id);
@@ -39,15 +40,14 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
   return html`<div class="tv">
     <div class="tv-head">
       ${banners}
-      <div class="tv-heading">
-        <h1>${suite.title}</h1>
-        <div class="tv-progress">
-          <span>${progressLabel(progress)}</span>
-          <div class="progress"><span style=${{ width: `${progress.total ? (100 * progress.reviewed) / progress.total : 0}%` }}></span></div>
-        </div>
-      </div>
+      <h1>${suite.title}</h1>
       ${suite.description ? html`<p class="tv-desc">${suite.description}</p>` : null}
-      <${FilterBar} suite=${suite} cols=${cols} view=${view} setView=${setView} counts=${counts} shown=${rows.length} filtered=${filtered} />
+      <div class="tv-progress">
+        <div class="progress"><span style=${{ width: `${progress.total ? (100 * progress.reviewed) / progress.total : 0}%` }}></span></div>
+        <span><strong>${progress.reviewed} of ${progress.total}</strong> ${progress.flagged ? "flagged " : ""}reviewed</span>
+      </div>
+      <${FilterBar} suite=${suite} cols=${cols} view=${view} setView=${setView} counts=${counts} shown=${rows.length} filtered=${filtered}
+        openIn=${openIn} setOpenIn=${setOpenIn} />
     </div>
     <div class="tv-scroll">
       <table class="items-table">
@@ -73,7 +73,7 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
   </div>`;
 }
 
-function FilterBar({ suite, cols, view, setView, counts, shown, filtered }) {
+function FilterBar({ suite, cols, view, setView, counts, shown, filtered, openIn, setOpenIn }) {
   const scopes = [
     { id: "all", label: "All" },
     counts.flagged ? { id: "flagged", label: "Flagged", tip: "Rows the agent flagged for you" } : null,
@@ -85,6 +85,12 @@ function FilterBar({ suite, cols, view, setView, counts, shown, filtered }) {
     return col && { f, text: `${col.kind === "delta" ? `${col.of.label} Δ` : col.label}: ${filterLabel(col, f)}` };
   }).filter(Boolean);
   return html`<div class="tv-bar">
+    <label class="tv-search">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input type="search" placeholder="Filter items" value=${view.search} data-focus="table-search" aria-label="Filter items"
+        onInput=${e => setView({ ...view, search: e.currentTarget.value })} />
+      <kbd>/</kbd>
+    </label>
     <${Segments} label="Show" value=${view.scope} set=${scope => setView({ ...view, scope })}
       options=${scopes.map(s => ({ value: s.id, label: s.label, count: counts[s.id], tip: s.tip }))} />
     ${suite.groups?.length ? html`<${Segments} label="Group" value=${view.group ?? null} set=${group => setView({ ...view, group })}
@@ -93,11 +99,8 @@ function FilterBar({ suite, cols, view, setView, counts, shown, filtered }) {
         onClick=${() => setView({ ...view, where: view.where.filter(w => w !== f) })}>${text} <span aria-hidden="true">✕</span></button>`)}
     <div class="spacer"></div>
     ${filtered ? html`<span class="tv-count">${shown} of ${suite.items.length}</span>` : null}
-    <label class="tv-search">
-      <input type="search" placeholder="Filter items" value=${view.search} data-focus="table-search" aria-label="Filter items"
-        onInput=${e => setView({ ...view, search: e.currentTarget.value })} />
-      <kbd>/</kbd>
-    </label>
+    <span class="toolbar-label">Open rows in</span>
+    <${OpenIn} value=${openIn} set=${setOpenIn} />
   </div>`;
 }
 

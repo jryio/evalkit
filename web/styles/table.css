@@ -13,22 +13,26 @@
 .link:hover { text-decoration: underline; }
 
 /* Header, filters and the scrolling table */
-.tv { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tv { flex: 1; min-height: 0; display: flex; flex-direction: column; container: tv / inline-size; }
+/* One grid: every band starts at the 28px gutter and ends 28px from the right edge. */
 .tv-head { flex: none; padding: 22px 28px 0; }
-.tv-heading { display: flex; align-items: center; gap: 24px; }
-.tv-heading h1 { margin: 0; font-size: 24px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tv-progress { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.tv-progress .progress { width: 120px; margin: 0; }
+.tv-head h1 { margin: 0; font-size: 24px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tv-desc { margin: 4px 0 0; max-width: 860px; font-size: 14px; color: var(--secondary); }
-.tv-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 16px 0 12px; }
+.tv-progress { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: var(--secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tv-progress .progress { width: 140px; margin: 0; }
+.tv-progress strong { color: var(--text); font-weight: 600; }
+.tv-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 18px 0 14px; }
+.tv-bar .chip.small { height: 32px; }
 .tv-count { font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; }
-.tv-search { position: relative; display: inline-flex; align-items: center; }
-.tv-search input { width: 220px; height: 30px; padding: 0 34px 0 10px; font: 13px var(--font); color: var(--text); background: var(--surface); border: 1px solid var(--separator); border-radius: 8px; }
-.tv-search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
-.tv-search input::placeholder { color: var(--tertiary); }
+.tv-search { position: relative; display: inline-flex; align-items: center; width: 240px; height: 32px; padding: 0 6px 0 30px; border-radius: 9px; background: var(--fill); color: var(--secondary); }
+.tv-search:focus-within { background: var(--surface); box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-ring); }
+.tv-search svg { position: absolute; left: 9px; width: 14px; height: 14px; }
+.tv-search input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; font: 13px var(--font); color: var(--text); }
+.tv-search input:focus { outline: none; }
+.tv-search input::placeholder { color: var(--secondary); }
 .tv-search input::-webkit-search-cancel-button { display: none; }
-.tv-search kbd { position: absolute; right: 6px; padding: 2px 5px; min-width: 18px; font-size: 11px; pointer-events: none; }
-.tv-search input:focus + kbd { display: none; }
+.tv-search kbd { padding: 1px 5px; min-width: 18px; font-size: 11px; pointer-events: none; }
+.tv-search:focus-within kbd { display: none; }
 .tv-scroll { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--separator); }
 
 .items-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
@@ -38,11 +42,14 @@
 .items-table tbody tr.on td { background: var(--row-on); }
 .items-table tbody tr.on td.c-state { box-shadow: inset 3px 0 0 var(--accent); }
 .items-table thead th { position: sticky; top: 0; z-index: 2; height: auto; padding: 10px 12px 8px; vertical-align: top; border-bottom: 1px solid var(--separator); }
-.items-table .c-state { position: sticky; left: 0; z-index: 1; width: 40px; min-width: 40px; padding: 0 0 0 16px; text-align: center; }
-.items-table .c-item { position: sticky; left: 40px; z-index: 1; min-width: 220px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; box-shadow: inset -1px 0 0 var(--fill); }
+.items-table thead th.c-item { padding-left: 0; }
+.items-table thead th.c-state { padding: 0; }
+/* The review-state glyph hangs in the gutter so item titles start on the page's left edge. */
+.items-table .c-state { position: sticky; left: 0; z-index: 1; width: 28px; min-width: 28px; padding: 0; text-align: center; }
+.items-table .c-item { position: sticky; left: 28px; z-index: 1; min-width: 220px; max-width: 340px; padding-left: 0; overflow: hidden; text-overflow: ellipsis; box-shadow: inset -1px 0 0 var(--fill); }
 .items-table thead .c-state, .items-table thead .c-item { z-index: 3; }
 .items-table thead th:hover, .items-table thead th:focus-within { z-index: 4; }
-.items-table .c-open { width: 40px; padding: 0 10px 0 4px; }
+.items-table .c-open { width: 58px; padding: 0 28px 0 4px; }
 .ti-title { font-size: 14px; font-weight: 500; }
 .ti-sub { margin-left: 8px; font-size: 12px; color: var(--secondary); }
 .tv-empty td { height: 120px; text-align: center; color: var(--secondary); font-size: 14px; }
@@ -72,7 +79,7 @@ th.right .th-profile { align-items: flex-end; }
 .overridden { display: inline-flex; margin: -3px -7px; padding: 3px 7px; border-radius: 6px; background: var(--accent-tint); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
 .flag { color: var(--warning-text); font-size: 13px; }
 .nav-row.on .flag { color: #fff; }
-.c-state .trail-check { display: inline-grid; width: 18px; height: 18px; font-size: 11px; }
+.c-state .trail-check { display: inline-grid; width: 16px; height: 16px; font-size: 10px; vertical-align: middle; }
 .open-btn { width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; font-size: 18px; line-height: 1; color: var(--secondary); cursor: pointer; opacity: 0; }
 .open-btn:hover { background: var(--fill); color: var(--text); }
 .open-btn:focus-visible, tr:hover .open-btn, tr.on .open-btn { opacity: 1; }
@@ -133,12 +140,12 @@ h1.tight { margin-bottom: 8px; }
 .tv-layout > .tv { min-width: 0; min-height: 0; }
 .rp { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); }
 .rp.sidebar { border-left: 1px solid var(--separator); }
-.rp.floating { position: absolute; right: 20px; bottom: 20px; z-index: 6; width: min(64%, 1040px); min-width: 520px;
+.rp.floating { position: absolute; right: 28px; bottom: 28px; z-index: 6; width: min(64%, 1040px); min-width: 520px;
   border: 1px solid var(--separator); border-radius: 14px; box-shadow: var(--shadow-sheet); overflow: hidden; }
-.rp-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px 0 14px; border-bottom: 1px solid var(--separator); background: var(--surface); }
+.rp-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 28px; border-bottom: 1px solid var(--separator); background: var(--surface); }
 .icon-btn.small { width: 28px; height: 28px; font-size: 16px; border-radius: 7px; }
-.rp-close { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: none; color: var(--secondary); cursor: pointer; font-size: 13px; }
-.rp-close:hover { background: var(--fill); color: var(--text); }
+.rp-close { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 9px; border: 1px solid var(--separator); border-radius: 7px; background: var(--surface); color: var(--secondary); cursor: pointer; font-size: 13px; }
+.rp-close:hover { background: var(--bg); color: var(--text); }
 .rp-close kbd { padding: 1px 4px; min-width: 0; font-size: 10px; }
 .rp-body { flex: 1; min-height: 0; overflow-y: auto; container: review / inline-size; }
 .rp-body .content { max-width: none; margin: 0; padding: 22px 28px 48px; }
@@ -151,3 +158,15 @@ h1.tight { margin-bottom: 8px; }
   .card-row { grid-template-columns: 96px 1fr; }
   .card-row > :nth-child(n+3) { grid-column: 2; }
 }
+
+/* A narrow table area (a docked sidebar beside it) compacts the control bar. */
+@container tv (max-width: 1100px) {
+  .tv-bar .toolbar-label { display: none; }
+  .tv-search { width: 180px; }
+}
+
+/* The toolbar follows the page below it: the reading column in review, the 28px grid in the table. */
+.toolbar { padding: 0; }
+.toolbar-inner { display: flex; align-items: center; gap: 12px; width: 100%; height: 100%; padding: 0 28px; }
+.app:not(.table-mode) .toolbar-inner { max-width: 980px; margin: 0 auto; padding: 0 40px; }
+@media (max-width: 1240px) { .app:not(.table-mode) .toolbar-inner { padding: 0 28px; } }

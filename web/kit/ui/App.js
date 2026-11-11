@@ -152,6 +152,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (suite?.title) document.title = `${suite.title} · evalkit`;
+  }, [suite?.title]);
+
+  useEffect(() => {
     setCursor(null);
     if (scroller.current) scroller.current.scrollTop = 0;
   }, [item?.id]);
@@ -375,11 +379,11 @@ export function App() {
     ${view === "table" ? null : html`<${Sidebar} suite=${suite} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
       filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />`}
     <main class="main">
-      <${Toolbar} view=${view} setView=${setView} openIn=${openIn} setOpenIn=${setOpenIn} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
+      <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
       ${view === "table"
         ? html`<div class=${panelOpen && openIn === "sidebar" ? "tv-layout with-sidebar" : "tv-layout"}>
             <${ItemsTable} suite=${ordered} state=${state} cols=${cols} rows=${rows} view=${filters} setView=${setTableFilters}
-              selected=${currentId} select=${show} open=${openRow} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />
+              selected=${currentId} select=${show} open=${openRow} openIn=${openIn} setOpenIn=${setOpenIn} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />
             ${panelOpen ? html`<${ReviewPanel} mode=${openIn} setMode=${setOpenIn} item=${item} close=${() => setPanel(false)}
                 position=${{ index: rows.findIndex(r => r.id === currentId), count: rows.length }} go=${selectRow}
                 suite=${suite} cols=${cols} state=${state} act=${act} cursor=${cursor} />` : null}

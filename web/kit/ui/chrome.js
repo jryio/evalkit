@@ -26,13 +26,12 @@ export function OpenIn({ value, set }) {
   </div>`;
 }
 
-export function Toolbar({ view, setView, openIn, setOpenIn, index, count, go, saveLabel, sendLabel, openSend }) {
-  return html`<div class="toolbar">
+export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend }) {
+  return html`<div class="toolbar"><div class="toolbar-inner">
     <div class="segmented small view-switch" role="radiogroup" aria-label="View">
       ${VIEWS.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
           title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === "table" && view === "review" ? html`<kbd>esc</kbd>` : null}</button>`)}
     </div>
-    ${view === "table" ? html`<span class="toolbar-label">Open rows in</span><${OpenIn} value=${openIn} set=${setOpenIn} />` : null}
     ${view === "review" ? html`
       <button class="icon-btn" title="Previous (K or ←)" aria-label="Previous item" disabled=${index <= 0} onClick=${() => go(index - 1)}>‹</button>
       <button class="icon-btn" title="Next (J or →)" aria-label="Next item" disabled=${index >= count - 1} onClick=${() => go(index + 1)}>›</button>
@@ -40,7 +39,7 @@ export function Toolbar({ view, setView, openIn, setOpenIn, index, count, go, sa
     <div class="spacer"></div>
     <span class="save-state" aria-live="polite">${saveLabel}</span>
     <button class="btn-primary" onClick=${openSend}>${sendLabel} <kbd>⌘↵</kbd></button>
-  </div>`;
+  </div></div>`;
 }
 
 export function Sheet({ title, children, actions, close }) {
