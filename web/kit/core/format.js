@@ -7,8 +7,13 @@ const PREFIX_UNITS = new Set(["$", "€", "£", "¥"]);
 export const fmtNumber = (v, d) =>
   v.toLocaleString("en-US", d === undefined ? { maximumFractionDigits: 3 } : { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", MINUS);
 
-// signed prints a difference: "+0.12", "−3", "±0".
-export const signed = (v, d) => (v === 0 ? "±0" : `${v > 0 ? "+" : ""}${fmtNumber(v, d)}`);
+// signed prints a difference: "+0.12", "−3", "±0". A change too small for d decimals gets
+// more, up to d + 3, so it never reads as zero: "−0.004" at d = 2.
+export function signed(v, d) {
+  if (v === 0) return "±0";
+  for (const max = d + 3; d < max && Number(Math.abs(v).toFixed(d)) === 0; ) d++;
+  return `${v > 0 ? "+" : ""}${fmtNumber(v, d)}`;
+}
 
 // withUnit appends a unit ("42%", "42 ms") or prefixes a currency after any sign ("$0.22", "+$0.10").
 export function withUnit(text, unit) {
