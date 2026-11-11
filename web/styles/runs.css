@@ -21,10 +21,11 @@
 /* The runs table sits right under the tiles, in a card like the charts': the list you pick a
    run from, beside what the tiles say about it. Its text starts on the card's 16px inner edge,
    and the selected row's accent bar is the card's left edge. */
-.rv-card { margin: 0 28px; border: 1px solid var(--separator); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.rv-card { flex: none; margin: 0 28px; border: 1px solid var(--separator); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
 .rv-card-title { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 14px 16px 6px; font-size: 13px; font-weight: 600; }
 .rv-card-count { font-size: 12px; font-weight: 400; color: var(--secondary); font-variant-numeric: tabular-nums; }
 .rv-card .items-table .c-state { width: 4px; min-width: 4px; }
+.rv-card .items-table .c-item { left: 4px; padding-left: 12px; }
 .rv-card .items-table .c-open { width: 34px; padding-right: 16px; }
 .rv-card .items-table tbody tr:last-child td { border-bottom: 0; }
 
