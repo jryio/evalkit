@@ -1,0 +1,6 @@
+title: Weekly samples
+runs:
+  - id: 2026-10-05
+    items_from: v8.jsonl
+  - id: 2026-10-12
+    items_from: v9.jsonl

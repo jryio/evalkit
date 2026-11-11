@@ -452,9 +452,11 @@ func identity(item *yaml.Node) (key string, ok bool) {
 	return run + "\x00" + id + "\x00" + strconv.Itoa(rep), true
 }
 
+// stringID returns item's id as the loaded document holds it: a string, or the text
+// of an unquoted date, which YAML reads as a timestamp and fromNode keeps as text.
 func stringID(item *yaml.Node) (string, bool) {
 	id := child(item, "id")
-	if id == nil || id.Kind != yaml.ScalarNode || id.ShortTag() != "!!str" {
+	if id == nil || id.Kind != yaml.ScalarNode || (id.ShortTag() != "!!str" && id.ShortTag() != "!!timestamp") {
 		return "", false
 	}
 	return id.Value, true

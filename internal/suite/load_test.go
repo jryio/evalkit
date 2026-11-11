@@ -799,6 +799,18 @@ func TestLoad_Runs(t *testing.T) {
 			runs: []string{"v8", "v9"},
 		},
 		{
+			name: "run ids written as unquoted dates",
+			file: "date-ids.yaml",
+			items: []string{
+				"2026-10-05 2026-10-05/auth auth Auth v8",
+				"2026-10-05 2026-10-05/billing billing Billing v8",
+				"2026-10-12 2026-10-12/auth auth Auth v9",
+				"2026-10-12 2026-10-12/auth.r1 auth.r1 Auth v9 rep 1",
+				"2026-10-12 2026-10-12/search search Search v9",
+			},
+			runs: []string{"2026-10-05", "2026-10-12"},
+		},
+		{
 			name: "a line names another run",
 			file: "conflict.yaml",
 			items: []string{
