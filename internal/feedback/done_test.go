@@ -46,6 +46,20 @@ func TestRecordDone(t *testing.T) {
 	}
 }
 
+func TestRecordDone_RunItem(t *testing.T) {
+	t.Parallel()
+	d := openDir(t)
+	recordDone(t, d, "v9/auth", "post", feedback.Done{At: "2026-11-09T00:00:00Z"})
+	all, err := d.DoneAll()
+	if err != nil {
+		t.Fatalf("DoneAll: %v", err)
+	}
+	want := map[string]map[string]feedback.Done{"v9/auth": {"post": {At: "2026-11-09T00:00:00Z"}}}
+	if !reflect.DeepEqual(all, want) {
+		t.Errorf("DoneAll() = %v, want %v", all, want)
+	}
+}
+
 func TestRecordDone_OneFilePerAction(t *testing.T) {
 	t.Parallel()
 	d := openDir(t)
@@ -86,7 +100,10 @@ func TestRecordDone_RejectsBadIDs(t *testing.T) {
 		{"empty action", "a", ""},
 		{"parent item", "..", "post"},
 		{"double dot inside action", "a", "x..y"},
-		{"slash in item", "a/b", "post"},
+		{"two slashes in item", "a/b/c", "post"},
+		{"empty run", "/b", "post"},
+		{"empty run item", "a/", "post"},
+		{"traversal in run item", "a/..", "post"},
 		{"traversal in action", "a", "../../escape"},
 		{"leading dot", ".hidden", "post"},
 		{"leading dash", "a", "-post"},

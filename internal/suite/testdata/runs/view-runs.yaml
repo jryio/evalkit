@@ -1,0 +1,4 @@
+title: The runs view without runs
+view: runs
+items:
+  - { id: auth, title: Auth }

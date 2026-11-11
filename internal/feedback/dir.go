@@ -210,17 +210,22 @@ type Done struct {
 }
 
 // RecordDone stores an action result in done/<item>/<action>.json. Recording it
-// again overwrites it.
+// again overwrites it. A run item's id, run/id, is stored as run~id.
 func (d *Dir) RecordDone(item, action string, rec Done) error {
-	for _, name := range []string{item, action} {
+	runID, id, inRun := strings.Cut(item, "/")
+	names := []string{runID, action}
+	if inRun {
+		names = append(names, id)
+	}
+	for _, name := range names {
 		if !doneName.MatchString(name) || strings.Contains(name, "..") {
-			return fmt.Errorf("invalid id %q: want letters, digits, '_', '.' and '-', starting with a letter or digit", name)
+			return fmt.Errorf("invalid id %q: want letters, digits, '_', '.' and '-', starting with a letter or digit, and at most one '/' after a run id", item+" "+action)
 		}
 	}
 	if rec.At == "" {
 		rec.At = time.Now().UTC().Format(time.RFC3339)
 	}
-	dir := filepath.Join(d.path, doneDir, item)
+	dir := filepath.Join(d.path, doneDir, strings.Replace(item, "/", "~", 1))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -301,7 +306,7 @@ func (d *Dir) doneFiles() ([]doneFile, error) {
 				return nil, err
 			}
 			out = append(out, doneFile{
-				item:   it.Name(),
+				item:   strings.Replace(it.Name(), "~", "/", 1),
 				action: action,
 				path:   filepath.Join(root, it.Name(), e.Name()),
 				mod:    info.ModTime(),

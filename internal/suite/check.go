@@ -16,14 +16,17 @@ import (
 // uniqueness and keyboard conflicts. hasItemsKey tells whether the suite file
 // itself has an items key, before items_from lines are merged in.
 func check(s Suite, dir string, hasItemsKey bool) []issue {
-	c := checker{suite: s, dir: dir, keys: map[string]string{}}
-	if !hasItemsKey && s.ItemsFrom == nil {
-		c.add("a suite needs items or items_from")
+	c := checker{suite: s, dir: dir, keys: map[string]string{}, items: map[string]int{}}
+	runsFrom := slices.ContainsFunc(s.Runs, func(r Run) bool { return r.ItemsFrom != nil })
+	if !hasItemsKey && s.ItemsFrom == nil && !runsFrom {
+		c.add("a suite needs items or items_from (at the top level or in runs)")
 	}
 	c.suiteLevel()
+	c.runs()
 	for i, it := range s.Items {
 		c.item(i, it)
 	}
+	c.runItems()
 	return c.issues
 }
 
@@ -31,6 +34,7 @@ type checker struct {
 	suite  Suite
 	dir    string
 	keys   map[string]string // suite-level key -> owner
+	items  map[string]int    // item id in the loaded suite -> index of its first item
 	issues []issue
 }
 
@@ -156,6 +160,111 @@ func (c *checker) values(values map[string]any, at []string) {
 	}
 }
 
+// runs checks the runs and the dimensions they vary along.
+func (c *checker) runs() {
+	s := c.suite
+	dims := map[string]bool{}
+	for i, d := range s.Dimensions {
+		at := []string{"dimensions", idx(i)}
+		if dims[d.ID] {
+			c.add(fmt.Sprintf("duplicate dimension id %q", d.ID), append(at, "id")...)
+		}
+		dims[d.ID] = true
+		order := map[string]bool{}
+		for j, v := range d.Order {
+			k := fmt.Sprint(v)
+			if order[k] {
+				c.add(fmt.Sprintf("duplicate value %q in order", k), append(at, "order", idx(j))...)
+			}
+			order[k] = true
+		}
+	}
+	ids := map[string]bool{}
+	baseline := -1
+	for i, r := range s.Runs {
+		at := []string{"runs", idx(i)}
+		if ids[r.ID] {
+			c.add(fmt.Sprintf("duplicate run id %q", r.ID), append(at, "id")...)
+		}
+		ids[r.ID] = true
+		switch {
+		case r.Baseline && baseline >= 0:
+			c.add(fmt.Sprintf("only one run can be the baseline; runs[%d] %q already is", baseline, s.Runs[baseline].ID), append(at, "baseline")...)
+		case r.Baseline:
+			baseline = i
+		}
+		if s.Dimensions != nil {
+			for _, k := range slices.Sorted(maps.Keys(r.Dims)) {
+				if !dims[k] {
+					c.warn(fmt.Sprintf("unknown dimension %q (want one of %s)", k, list(dimensionIDs(s.Dimensions))), append(at, "dims", k)...)
+				}
+			}
+		}
+		c.values(r.Values, append(at, "values"))
+	}
+}
+
+// runItems checks items against the suite's runs.
+func (c *checker) runItems() {
+	s := c.suite
+	declared := map[string]bool{}
+	for _, r := range s.Runs {
+		declared[r.ID] = true
+	}
+	inRuns := false
+	for i, it := range s.Items {
+		if it.Run == "" {
+			continue
+		}
+		inRuns = true
+		if s.Runs != nil && !declared[it.Run] {
+			c.warn(fmt.Sprintf("run %q is not declared under runs", it.Run), "items", idx(i), "run")
+			declared[it.Run] = true
+		}
+	}
+	if s.Runs != nil || inRuns {
+		c.inlineBaseline()
+	}
+	if s.View == "runs" && len(s.Runs) == 0 && !inRuns {
+		c.warn("view: runs needs runs; the table shows instead", "view")
+	}
+}
+
+// inlineBaseline warns once, at the first baseline an item sets: in a suite with
+// runs, the baseline run supplies it.
+func (c *checker) inlineBaseline() {
+	const msg = "baseline is ignored when the suite has runs: the baseline run supplies it"
+	for i, it := range c.suite.Items {
+		at := []string{"items", idx(i)}
+		for _, k := range slices.Sorted(maps.Keys(it.Values)) {
+			if box, ok := it.Values[k].(map[string]any); ok {
+				if _, ok := box["baseline"]; ok {
+					c.warn(msg, append(at, "values", k, "baseline")...)
+					return
+				}
+			}
+		}
+		for _, q := range slices.Sorted(maps.Keys(it.Proposed)) {
+			if it.Proposed[q].Baseline != nil {
+				c.warn(msg, append(at, "proposed", q, "baseline")...)
+				return
+			}
+		}
+	}
+}
+
+// duplicateItem describes an item whose id in the loaded suite repeats an
+// earlier item's.
+func duplicateItem(it Item) string {
+	switch {
+	case it.Run == "":
+		return fmt.Sprintf("duplicate item id %q", it.ID)
+	case it.Rep > 0:
+		return fmt.Sprintf("duplicate item %q rep %d in run %q", it.ID, it.Rep, it.Run)
+	}
+	return fmt.Sprintf("duplicate item %q in run %q", it.ID, it.Run)
+}
+
 // options checks option values and keys within one question.
 func (c *checker) options(q Question, at []string) {
 	values := map[string]bool{}
@@ -216,8 +325,10 @@ func (c *checker) with(q Question, scope []Question, at []string) {
 func (c *checker) item(i int, it Item) {
 	s := c.suite
 	at := []string{"items", idx(i)}
-	if j := slices.IndexFunc(s.Items[:i], func(o Item) bool { return o.ID == it.ID }); j >= 0 {
-		c.add(fmt.Sprintf("duplicate item id %q (first at items[%d])", it.ID, j), append(at, "id")...)
+	if j, dup := c.items[it.fullID()]; dup {
+		c.add(fmt.Sprintf("%s (first at items[%d])", duplicateItem(it), j), append(at, "id")...)
+	} else {
+		c.items[it.fullID()] = i
 	}
 	switch {
 	case len(s.Groups) > 0 && it.Group == "":
@@ -495,6 +606,14 @@ func groupIDs(gs []Group) []string {
 	out := make([]string, len(gs))
 	for i, g := range gs {
 		out[i] = g.ID
+	}
+	return out
+}
+
+func dimensionIDs(ds []Dimension) []string {
+	out := make([]string, len(ds))
+	for i, d := range ds {
+		out[i] = d.ID
 	}
 	return out
 }

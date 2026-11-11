@@ -1,0 +1,4 @@
+title: A later line replaces an earlier one
+runs:
+  - { id: v8, items_from: v8.jsonl, dims: { model: small } }
+  - { id: v9, items_from: replace.jsonl }

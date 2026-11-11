@@ -754,6 +754,229 @@ func TestLoad_ItemsFrom(t *testing.T) {
 	}
 }
 
+// docRuns returns the ids of the Doc's runs, in order.
+func docRuns(tb testing.TB, res suite.Result) []string {
+	tb.Helper()
+	b, err := json.Marshal(res.Doc)
+	if err != nil {
+		tb.Fatalf("marshal Doc: %v", err)
+	}
+	var doc struct {
+		Runs []struct {
+			ID string `json:"id"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		tb.Fatalf("unmarshal Doc: %v", err)
+	}
+	var ids []string
+	for _, r := range doc.Runs {
+		ids = append(ids, r.ID)
+	}
+	return ids
+}
+
+func TestLoad_Runs(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		file     string   // under testdata/runs
+		items    []string // "run id pair title" of each Doc item, in order
+		runs     []string // ids of the Doc's runs, in order
+		problems []string // prefix of each Problem.String(), in order
+		fatal    bool
+	}{
+		{
+			name: "two runs with partial overlap and a rep",
+			file: "overlap.yaml",
+			items: []string{
+				"v8 v8/auth auth Auth v8",
+				"v8 v8/billing billing Billing v8",
+				"v9 v9/auth auth Auth v9",
+				"v9 v9/auth.r1 auth.r1 Auth v9 rep 1",
+				"v9 v9/search search Search v9",
+			},
+			runs: []string{"v8", "v9"},
+		},
+		{
+			name: "a line names another run",
+			file: "conflict.yaml",
+			items: []string{
+				"v8 v8/auth auth Auth v8",
+				"v8 v8/billing billing Billing v8",
+				"v9 v9/billing billing Billing v9",
+				"v9 v9/search search Search v9",
+			},
+			runs:     []string{"v8", "v9"},
+			problems: []string{`conflict.jsonl:1:1: error: line says run "v8" but runs[1] "v9" reads it`},
+		},
+		{
+			name: "a later line replaces the same run, id and rep in place",
+			file: "replace.yaml",
+			items: []string{
+				"v8 v8/auth auth Auth v8",
+				"v8 v8/billing billing Billing v8",
+				"v9 v9/auth auth Auth 3",
+				"v9 v9/billing billing Billing",
+				"v9 v9/auth.r1 auth.r1 Auth rep 1",
+			},
+			runs: []string{"v8", "v9"},
+		},
+		{
+			name: "duplicate run, id and rep",
+			file: "duplicate.yaml",
+			items: []string{
+				"v9 v9/auth auth Auth inline",
+				"v9 v9/billing.r1 billing.r1 Billing",
+				"v9 v9/auth.r1 auth.r1 Auth v9 rep 1",
+				"v9 v9/search search Search v9",
+			},
+			runs: []string{"v9"},
+			problems: []string{
+				`duplicate.yaml:7:11: error: items[2].id (item v9/billing.r1): duplicate item "billing" rep 1 in run "v9" (first at items[1])`,
+				`v9.jsonl:1:1: error: items[3].id (item v9/auth): duplicate item "auth" in run "v9" (first at items[0])`,
+			},
+		},
+		{
+			name: "runs not declared under runs",
+			file: "undeclared.yaml",
+			items: []string{
+				"v10 v10/auth auth Auth v10",
+				"v9 v9/auth auth Auth v9",
+				"v10 v10/billing billing Billing v10",
+				"v8 v8/auth auth Auth v8",
+				"v8 v8/billing billing Billing v8",
+			},
+			runs: []string{"v8", "v10", "v9"},
+			problems: []string{
+				`mixed.jsonl:1:1: warning: items[0].run (item v10/auth): run "v10" is not declared under runs`,
+				`mixed.jsonl:2:1: warning: items[1].run (item v9/auth): run "v9" is not declared under runs`,
+			},
+		},
+		{
+			name: "runs from the lines alone",
+			file: "implied.yaml",
+			items: []string{
+				"v10 v10/auth auth Auth v10",
+				"v9 v9/auth auth Auth v9",
+				"v10 v10/billing billing Billing v10",
+			},
+			runs: []string{"v10", "v9"},
+		},
+		{
+			name:     "two baselines",
+			file:     "two-baselines.yaml",
+			problems: []string{`two-baselines.yaml:4:25: error: runs[1].baseline: only one run can be the baseline; runs[0] "v8" already is`},
+			fatal:    true,
+		},
+		{
+			name: "duplicate run and dimension ids and order values",
+			file: "bad-runs.yaml",
+			problems: []string{
+				`bad-runs.yaml:4:11: error: dimensions[1].id: duplicate dimension id "model"`,
+				`bad-runs.yaml:5:38: error: dimensions[2].order[2]: duplicate value "low" in order`,
+				`bad-runs.yaml:8:11: error: runs[1].id: duplicate run id "v8"`,
+			},
+			fatal: true,
+		},
+		{
+			name: "run dims and values",
+			file: "dims-values.yaml",
+			problems: []string{
+				`dims-values.yaml:7:65: warning: runs[0].dims.temp: unknown dimension "temp" (want one of "model")`,
+				`dims-values.yaml:7:106: error: runs[0].values.latency: unknown column "latency" (want one of "cost_usd")`,
+			},
+			fatal: true,
+		},
+		{
+			name: "inline baselines are ignored",
+			file: "baseline-ignored.yaml",
+			items: []string{
+				"v9 v9/auth auth Auth",
+				"v9 v9/billing billing Billing",
+				"v9 v9/search search Search",
+			},
+			runs:     []string{"v9"},
+			problems: []string{`baseline-ignored.yaml:10:87: warning: items[1].values.cost_usd.baseline (item v9/billing): baseline is ignored when the suite has runs: the baseline run supplies it`},
+		},
+		{
+			name:     "view runs without runs",
+			file:     "view-runs.yaml",
+			items:    []string{"<nil> auth <nil> Auth"},
+			problems: []string{`view-runs.yaml:2:7: warning: view: view: runs needs runs; the table shows instead`},
+		},
+		{
+			name: "a run's file matches nothing yet",
+			file: "run-file-missing.yaml",
+			items: []string{
+				"v8 v8/auth auth Auth v8",
+				"v8 v8/billing billing Billing v8",
+				"v9 v9/auth auth Auth v9",
+				"v9 v9/auth.r1 auth.r1 Auth v9 rep 1",
+				"v9 v9/search search Search v9",
+			},
+			runs:     []string{"v8", "v9"},
+			problems: []string{`run-file-missing.yaml:4:38: warning: runs[1].items_from[1]: "later.jsonl" matches no file yet`},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			res := load(t, filepath.Join("testdata", "runs", tc.file))
+			if res.Fatal != tc.fatal {
+				t.Fatalf("Fatal = %v, want %v; problems = %v", res.Fatal, tc.fatal, res.Problems)
+			}
+			if len(res.Problems) != len(tc.problems) {
+				t.Fatalf("problems = %v, want %d", res.Problems, len(tc.problems))
+			}
+			for i, p := range res.Problems {
+				if !strings.HasPrefix(p.String(), tc.problems[i]) {
+					t.Errorf("problem %d = %q, want prefix %q", i, p, tc.problems[i])
+				}
+			}
+			var items []string
+			for _, it := range docItems(t, res) {
+				items = append(items, fmt.Sprintf("%v %v %v %v", it["run"], it["id"], it["pair"], it["title"]))
+			}
+			if !slices.Equal(items, tc.items) {
+				t.Errorf("Doc items = %q, want %q", items, tc.items)
+			}
+			if got := docRuns(t, res); !slices.Equal(got, tc.runs) {
+				t.Errorf("Doc runs = %v, want %v", got, tc.runs)
+			}
+		})
+	}
+}
+
+// A suite without runs loads byte for byte as it did before runs existed.
+func TestLoad_NoRunsUnchanged(t *testing.T) {
+	t.Parallel()
+	got, err := json.MarshalIndent(load(t, filepath.Join("testdata", "table.yaml")), "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile(filepath.Join("testdata", "table.golden.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got)+"\n" != string(want) {
+		t.Errorf("Load(table.yaml) = %s\nwant testdata/table.golden.json", got)
+	}
+}
+
+func TestVersion_ChangesWithRunJSONL(t *testing.T) {
+	t.Parallel()
+	path := writeDir(t, map[string]string{
+		"suite.yaml": "title: Runs\nruns:\n  - { id: v8, items_from: v8.jsonl }\n",
+		"v8.jsonl":   jsonl("a", "A"),
+	})
+	before := version(t, path)
+	writeFile(t, filepath.Join(filepath.Dir(path), "v8.jsonl"), jsonl("a", "A")+jsonl("b", "B"))
+	if after := version(t, path); after == before {
+		t.Errorf("version = %q after appending a line to a run's file, want a change", after)
+	}
+}
+
 func TestVersion_MatchesLoad(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -762,6 +985,7 @@ func TestVersion_MatchesLoad(t *testing.T) {
 	}{
 		{"no items_from", map[string]string{"suite.yaml": "title: Runs\nitems: []\n"}},
 		{"items_from", map[string]string{"suite.yaml": "title: Runs\nitems_from: runs/*.jsonl\n", "runs/1.jsonl": jsonl("a", "A")}},
+		{"run items_from", map[string]string{"suite.yaml": "title: Runs\nruns: [{ id: v8, items_from: v8.jsonl }]\n", "v8.jsonl": jsonl("a", "A")}},
 		{"yaml syntax error", map[string]string{"suite.yaml": "title: [\n"}},
 		{"top level not a mapping", map[string]string{"suite.yaml": "- a\n"}},
 	}

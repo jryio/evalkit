@@ -77,3 +77,14 @@ Evals graded by a judge loop have dozens to hundreds of rows, most of which need
 - **`flag`** marks the items the loop wants a human on. When any item is flagged, progress counts only those.
 - **`items_from`** reads items from JSONL files, the format harnesses already append to. A later line with the same id replaces the earlier one; a partial last line is skipped; a missing file is a warning. Problems point at the JSONL file and line.
 - `scale` gained a judge reason beside it (`why`), like `choice` and `number`; a bounded `number` shows a slider.
+
+## v8: runs
+
+An eval loop runs the same cases again and again: a new model, a new prompt, a new skill version. Comparing two rounds meant two suites or a `baseline` on every value.
+
+- **`runs`** lists the runs of one suite, in order. Each run has an `id` and optionally a `label`, a `note`, `baseline: true`, its own `items_from`, `dims` and run-level `values`. The baseline is the run with `baseline: true`, else the first run.
+- **`dimensions`** names what varies between runs (model, effort, date), in legend order. `order` makes a dimension ordinal.
+- **Items gain `run` and `rep`.** A run's `items_from` sets `run` on each line, so harness output needs no change. `rep` numbers repetitions of the same case within a run.
+- **Composite ids.** The loader rewrites the id of an item in a run to `<run>/<id>` (plus `.r<rep>`) and adds `pair`, the key that pairs items across runs. State, feedback and `evalkit wait` keep unique ids without a change.
+- Identity is (run, id, rep): a duplicate is an error, and a later JSONL line replaces the earlier one in place. Runs that items name but `runs` does not declare are added, with a warning. With runs, inline `baseline` keys are ignored, with one warning. `view: runs` opens the runs view.
+- A suite without runs loads exactly as before.

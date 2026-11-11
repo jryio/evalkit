@@ -1,0 +1,4 @@
+title: Two baselines
+runs:
+  - { id: v8, baseline: true, items_from: v8.jsonl }
+  - { id: v9, baseline: true, items_from: v9.jsonl }
