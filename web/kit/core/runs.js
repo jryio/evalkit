@@ -34,6 +34,22 @@ export function runList(suite) {
 
 export const latestRun = suite => runList(suite).at(-1)?.id ?? null;
 
+// markedBaseline is the run the suite marks baseline: true, or null.
+export const markedBaseline = (suite, runs) => runs.find(r => r.id === suite.runs?.find(d => d.baseline)?.id) ?? null;
+
+// vsOf is the run another run is compared with: the marked baseline, else the run before.
+export function vsOf(suite, runs, run) {
+  const vs = markedBaseline(suite, runs) ?? runs[run.index - 1] ?? null;
+  return vs?.id === run.id ? null : vs;
+}
+
+// findRuns is the rows whose run id, label or note has every search term, newest first.
+export function findRuns(rows, search = "") {
+  const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
+  const text = ({ run }) => [run.id, run.label, run.note].filter(Boolean).join(" ").toLowerCase();
+  return rows.filter(r => terms.every(t => text(r).includes(t))).reverse();
+}
+
 // metricOf is what ranks runs: the primary question when it scores, else a bounded or directed column.
 export function metricOf(suite) {
   const cols = suite.columns || [];
@@ -50,8 +66,11 @@ export function metricOf(suite) {
 export function spendOf(suite) {
   const cols = suite.columns || [];
   const c = cols.find(c => c.unit === "$") ?? cols.find(c => /token/i.test(`${c.id} ${c.label ?? ""}`)) ?? cols.find(c => c.unit === "s");
-  return c ? { id: c.id, label: c.label ?? c.id, unit: c.unit, better: "lower" } : null;
+  return c ? { id: c.id, label: c.label ?? c.id, unit: c.unit, better: "lower", decimals: c.decimals, noise: c.noise } : null;
 }
+
+// metricColumn is the items table's column for the metric; its Δ column is "d:" + that.
+export const metricColumn = metric => `${metric.source === "question" ? "q" : "v"}:${metric.id}`;
 
 // columnValue is the item's own value for a column, else its run's.
 function columnValue(item, id, runsById) {
@@ -74,7 +93,7 @@ export function itemValue(state, item, metric, runsById, { judgeOnly = false } =
 }
 
 // summarize is one row per run, in run order: its score with a 95% interval, its spend,
-// a paired comparison with the baseline run and the change from the previous run.
+// a paired comparison with the run it is compared with (vsOf) and the change from the previous run.
 export function summarize(suite, state, { judgeOnly = false, group = null, seed = 1 } = {}) {
   const runs = runList(suite);
   if (!runs.length) return [];
@@ -84,19 +103,20 @@ export function summarize(suite, state, { judgeOnly = false, group = null, seed 
   const pool = suite.items.filter(i => !group || i.group === group);
   const itemsOf = run => pool.filter(i => i.run === run.id);
   const value = i => (metric ? itemValue(state, i, metric, runsById, { judgeOnly }) : undefined);
-  const baseValues = new Map(itemsOf(runs.find(r => r.baseline)).map(i => [pairOf(i), value(i)]));
+  const valuesOf = run => new Map(itemsOf(run).map(i => [pairOf(i), value(i)]));
 
   const rows = [];
   for (const run of runs) {
     const items = itemsOf(run);
     const scored = items.map(item => ({ item, v: value(item) })).filter(s => isNum(s.v));
     const prev = rows.at(-1);
+    const vs = vsOf(suite, runs, run);
     const row = {
-      run, items: items.length, n: scored.length,
+      run, vs, items: items.length, n: scored.length,
       score: scoreOf(metric, scored, seed),
       spend: spend ? runSpend(run, items, spend.id, runsById) : null,
     };
-    row.vsBase = run.baseline ? null : versusBase(items, scored, baseValues, metric, seed);
+    row.vsBase = vs ? versusBase(items, scored, valuesOf(vs), metric, seed) : null;
     row.vsPrev = prev?.score && row.score ? { delta: row.score.value - prev.score.value } : null;
     row.spendPrev = prev?.spend && row.spend ? row.spend.value - prev.spend.value : null;
     rows.push(row);
@@ -116,8 +136,8 @@ function runSpend(run, items, id, runsById) {
   return isNum(v) ? { value: v } : null;
 }
 
-// versusBase pairs a run's items with the baseline run's. paired counts the items with a
-// baseline counterpart; n those where both sides have a value.
+// versusBase pairs a run's items with the compared run's. paired counts the items with a
+// counterpart there; n those where both sides have a value.
 function versusBase(items, scored, baseValues, metric, seed) {
   const both = scored.filter(s => isNum(baseValues.get(pairOf(s.item))));
   if (!both.length) return null;

@@ -95,12 +95,7 @@ function FilterBar({ suite, cols, view, setView, counts, shown, filtered, openIn
     return col && { f, text: `${col.kind === "delta" ? `${col.of.label} Δ` : col.label}: ${filterLabel(col, f)}` };
   }).filter(Boolean);
   return html`<div class="tv-bar">
-    <label class="tv-search">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      <input type="search" placeholder="Filter items" value=${view.search} data-focus="table-search" aria-label="Filter items"
-        onInput=${e => setView({ ...view, search: e.currentTarget.value })} />
-      <kbd>/</kbd>
-    </label>
+    <${SearchField} placeholder="Filter items" focus="table-search" value=${view.search} set=${search => setView({ ...view, search })} />
     <${Segments} label="Show" value=${view.scope} set=${scope => setView({ ...view, scope })}
       options=${scopes.map(s => ({ value: s.id, label: s.label, count: counts[s.id], tip: s.tip }))} />
     ${suite.groups?.length ? html`<${Segments} label="Group" value=${view.group ?? null} set=${group => setView({ ...view, group })}
@@ -114,7 +109,17 @@ function FilterBar({ suite, cols, view, setView, counts, shown, filtered, openIn
   </div>`;
 }
 
-function Segments({ label, value, set, options }) {
+// SearchField is a filter field that / focuses (focus is its data-focus id).
+export function SearchField({ placeholder, focus, value, set }) {
+  return html`<label class="tv-search">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <input type="search" placeholder=${placeholder} value=${value} data-focus=${focus} aria-label=${placeholder}
+      onInput=${e => set(e.currentTarget.value)} />
+    <kbd>/</kbd>
+  </label>`;
+}
+
+export function Segments({ label, value, set, options }) {
   return html`<div class="segmented small" role="radiogroup" aria-label=${label}>
     ${options.map(o => html`<button class=${cx("seg", value === o.value && "on")} role="radio" aria-checked=${value === o.value}
         title=${o.tip} onClick=${() => set(o.value)}>${o.label}${o.count !== undefined ? html`<span class="seg-count">${o.count}</span>` : null}</button>`)}
@@ -123,7 +128,7 @@ function Segments({ label, value, set, options }) {
 
 function filterLabel(col, f) {
   if (f.bin) return f.bin.label;
-  if (f.tone) return f.tone === "positive" ? "better" : "worse";
+  if (f.tone) return { positive: "better", negative: "worse", neutral: "same" }[f.tone];
   return col.options?.find(o => o.value === f.value)?.label ?? String(f.value);
 }
 

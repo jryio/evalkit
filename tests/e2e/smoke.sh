@@ -15,6 +15,14 @@ $S open "$BASE/?view=table" >/dev/null
 $S wait 600 >/dev/null
 rows=$($S eval 'document.querySelectorAll(".items-table tbody tr[data-id]").length' | tr -d '"')
 if [ "$rows" = "$WANT" ]; then echo "ok   table: $rows rows"; else echo "FAIL table: $rows rows"; fail=1; fi
+# With runs, the Runs view lists every run, declared or only named by items.
+RUNS=$(curl -fsS "$BASE/api/suite" | python3 -c 'import json,sys; s=json.load(sys.stdin).get("suite") or {}; print(len({r["id"] for r in s.get("runs") or []} | {i["run"] for i in s.get("items", []) if "run" in i}))')
+if [ "$RUNS" != "0" ]; then
+  $S open "$BASE/?view=runs" >/dev/null
+  $S wait 600 >/dev/null
+  got=$($S eval 'document.querySelectorAll(".rv-table tbody tr[data-run]").length' | tr -d '"')
+  if [ "$got" = "$RUNS" ]; then echo "ok   runs: $got rows"; else echo "FAIL runs: $got of $RUNS rows"; fail=1; fi
+fi
 for entry in $IDS; do
   id=${entry%|*} run=${entry##*|}
   $S open "$BASE/?view=review${run:+&run=$run}#$id" >/dev/null

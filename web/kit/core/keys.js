@@ -70,6 +70,20 @@ export function tableBindings(questions, runs = 0) {
   return out;
 }
 
+// runsBindings are the Runs view's keys: move the run selection through the runs table,
+// open the selected run in the table, filter.
+export function runsBindings(runs = 0) {
+  const out = [];
+  const add = (keys, label, action, row) => out.push({ keys, label, action, row });
+  add(["ArrowDown", "j"], "Select the run below", { type: "selectRun", by: 1 }, { id: "rows", label: "Select the run below / above" });
+  add(["ArrowUp", "k"], "Select the run above", { type: "selectRun", by: -1 }, { id: "rows" });
+  runKeys(add, runs);
+  add(["Enter"], "Open the selected run in the table", { type: "openRun" });
+  add(["/"], "Filter runs", { type: "focus", target: "runs-search" });
+  add(["?"], "Keyboard shortcuts", { type: "help" });
+  return out;
+}
+
 // panelBindings are the table's keys while a panel shows the selected row: the item's own
 // keys, with J/K and ←/→ moving the selection (and ↑/↓ too, unless the item has rows to
 // answer) and / filtering.
@@ -109,8 +123,9 @@ const NAMES = { ArrowRight: "→", ArrowLeft: "←", ArrowUp: "↑", ArrowDown: 
 export const keyName = k => NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
 
 // helpRows merges bindings that share a row (number keys of one question, J/K) and
-// adds the fixed keys the app handles itself.
-export function helpRows(list, sendLabel, view = "review") {
+// adds the fixed keys the app handles itself. Esc climbs from review to the table, and
+// from the table to runs when the suite has runs.
+export function helpRows(list, sendLabel, view = "review", runs = 0) {
   const rows = [];
   const byId = new Map();
   for (const b of list) {
@@ -125,7 +140,8 @@ export function helpRows(list, sendLabel, view = "review") {
     if (b.row) byId.set(b.row.id, row);
     rows.push(row);
   }
-  rows.push({ keys: ["Esc"], also: [], label: view === "review" ? "Stop typing or close a sheet; then back to the table" : "Stop typing or close a sheet" });
+  const up = view === "review" ? "the table" : view === "table" && runs ? "runs" : null;
+  rows.push({ keys: ["Esc"], also: [], label: `Stop typing or close a sheet${up ? `; then back to ${up}` : ""}` });
   rows.push({ keys: ["⌘", "↵"], also: [], label: sendLabel });
   return rows;
 }

@@ -114,6 +114,9 @@ test("visible: scope, group, search, column filters and sort compose", () => {
   assert.deepEqual(ids(visible(suite, s, cols, { group: "train" })), ["a", "c"]);
   assert.deepEqual(ids(visible(suite, s, cols, { search: "char" })), ["c"]);
   assert.deepEqual(ids(visible(suite, s, cols, { where: [{ column: "d:q:helpful", tone: "negative" }] })), ["b"]);
+  // neutral: the same answer as the baseline, or a change within the noise
+  assert.deepEqual(ids(visible(suite, s, cols, { where: [{ column: "d:q:verdict", tone: "neutral" }] })), ["b"]);
+  assert.deepEqual(ids(visible(suite, s, cols, { where: [{ column: "d:v:cost", tone: "neutral" }] })), ["a"]);
   const bin = profile(cols.find(c => c.id === "q:helpful"), items, s, suite).bins[10];
   assert.deepEqual(ids(visible(suite, s, cols, { where: [{ column: "q:helpful", bin }] })), ["c"]);
   assert.deepEqual(ids(visible(suite, s, cols, { sort: { column: "q:helpful", dir: -1 } })), ["c", "a", "b"]);

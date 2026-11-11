@@ -1,0 +1,25 @@
+/* Runs view: the table page's grid with tiles for the selected run, the charts and a table of runs. */
+.rv-body { display: flex; flex-direction: column; gap: 24px; padding: 20px 0 48px; }
+.rv-band { min-width: 0; padding: 0 28px; }
+.rv-band:empty { display: none; }
+
+/* Tiles: one row of equal cards, as many columns as there are cards. */
+.rv-tiles { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; padding: 0 28px; }
+@media (max-width: 1180px) { .rv-tiles { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rv-tile { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 16px; border: 1px solid var(--separator); border-radius: var(--radius); background: var(--surface); }
+.rv-label { font-size: 12px; color: var(--secondary); }
+.rv-big { font-size: 22px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-sub { font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; }
+.rv-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+/* The count buttons' text lines up with the card's text; their hover reaches past it. */
+.rv-moves { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 0 -8px; }
+.rv-move { height: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; font: 600 13px var(--font); font-variant-numeric: tabular-nums; color: var(--tone-text); cursor: pointer; }
+.rv-move:hover:not(:disabled) { background: var(--tone-tint); }
+.rv-move:disabled { color: var(--tertiary); cursor: default; }
+
+/* The runs table: the items table's rows and header labels, scrolling sideways on its own. */
+.rv-table-wrap { flex: none; overflow-x: auto; }
+.rv-table td { font-variant-numeric: tabular-nums; }
+.rv-table .th-label { min-height: 0; cursor: default; }
+.rv-table .c-item { min-width: 160px; }
+.rv-none { color: var(--tertiary); }

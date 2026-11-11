@@ -10,10 +10,11 @@ export const fmtNumber = (v, d) =>
 // signed prints a difference: "+0.12", "−3", "±0".
 export const signed = (v, d) => (v === 0 ? "±0" : `${v > 0 ? "+" : ""}${fmtNumber(v, d)}`);
 
-// withUnit appends a unit ("42%", "42 ms") or prefixes a currency ("$0.22").
+// withUnit appends a unit ("42%", "42 ms") or prefixes a currency after any sign ("$0.22", "+$0.10").
 export function withUnit(text, unit) {
   if (!unit) return text;
-  if (PREFIX_UNITS.has(unit)) return text.startsWith(MINUS) ? `${MINUS}${unit}${text.slice(1)}` : `${unit}${text}`;
+  const sign = /^[+±−]/.test(text) ? text[0] : "";
+  if (PREFIX_UNITS.has(unit)) return `${sign}${unit}${text.slice(sign.length)}`;
   return unit === "%" ? `${text}%` : `${text} ${unit}`;
 }
 
