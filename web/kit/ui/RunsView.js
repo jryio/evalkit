@@ -107,7 +107,7 @@ function RunTiles({ row, prev, count, metric, spend, f, open }) {
       <div class="rv-label">${run.index === count - 1 ? "Latest run" : `Run ${run.index + 1} of ${count}`}</div>
       <div class="rv-big">${run.label}</div>
       ${when ? html`<div class="rv-sub">${when}</div>` : null}
-      ${run.note ? html`<div class="rv-sub">${run.note}</div>` : null}
+      ${run.note ? html`<div class="rv-sub rv-note" title=${run.note}>${run.note}</div>` : null}
     </div>
     ${metric ? html`<div class="rv-tile">
       <div class="rv-label">${metric.label}</div>
