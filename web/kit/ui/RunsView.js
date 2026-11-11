@@ -2,14 +2,13 @@
 // run, charts show every run, and a table of numbers lists the runs newest first. Click a
 // run to select it; double-click or Enter opens it in the table.
 import { html, useEffect, useRef } from "../html.js";
-import { cx, tone, fmtDate, runWhen } from "./bits.js";
+import { cx, tone, fmtDate, isDate, runWhen } from "./bits.js";
 import { SearchField, Segments } from "./ItemsTable.js";
 import { RunTrends, RunPairs } from "./RunCharts.js";
-import { markedBaseline } from "../core/runs.js";
+import { bestRun, markedBaseline } from "../core/runs.js";
 import { autoDecimals, deltaTone, fmtNumber, signed, withUnit } from "../core/format.js";
 
 const NONE = html`<span class="rv-none">—</span>`;
-const isDate = v => /^\d{4}-\d\d-\d\d/.test(String(v));
 
 // moves are the paired counts: better first. A lower-is-better metric improves by going down.
 function moves(metric) {
@@ -50,11 +49,8 @@ function varying(suite, runs) {
   return dims.filter(d => new Set(runs.map(r => String(r.dims[d.id] ?? ""))).size > 1);
 }
 
-function best(rows, metric) {
-  const scored = rows.filter(r => r.score);
-  const sign = metric?.better === "lower" ? -1 : 1;
-  return scored.length > 1 ? scored.reduce((a, b) => (sign * (b.score.value - a.score.value) > 0 ? b : a)) : null;
-}
+// best is the best run, worth a tag only when there are runs to beat.
+const best = (rows, metric) => (rows.filter(r => r.score).length > 1 ? bestRun(rows, metric) : null);
 
 export function RunsView({ suite, state, runs, rows, shown, metric, spend, filters, setFilters, selected, vs, select, open, banners }) {
   const row = rows.find(r => r.run.id === selected);
@@ -86,7 +82,7 @@ export function RunsView({ suite, state, runs, rows, shown, metric, spend, filte
       </div>
     </div>
     <div class="tv-scroll rv-body">
-      ${row ? html`<${RunTiles} row=${row} prev=${rows[row.run.index - 1]} count=${runs.length} metric=${metric} spend=${spend} f=${f} open=${open} />` : null}
+      ${row ? html`<${RunTiles} row=${row} prev=${rows[row.run.index - 1]} count=${runs.length} metric=${metric} spend=${spend} f=${f} open=${open} judgeOnly=${filters.judgeOnly} />` : null}
       <section class="rv-card" aria-label="Runs">
         <h2 class="rv-card-title">Runs <span class="rv-card-count">${filters.search ? `${shown.length} of ${rows.length}` : rows.length}</span></h2>
         <${RunsTable} suite=${suite} runs=${runs} rows=${rows} shown=${shown} metric=${metric} spend=${spend} f=${f} marked=${marked}
@@ -99,7 +95,7 @@ export function RunsView({ suite, state, runs, rows, shown, metric, spend, filte
 }
 
 // RunTiles are the selected run's cards: the run, its score, its paired moves and its spend.
-function RunTiles({ row, prev, count, metric, spend, f, open }) {
+function RunTiles({ row, prev, count, metric, spend, f, open, judgeOnly }) {
   const { run, vs, vsBase } = row;
   const when = runWhen(run);
   // When the compared run is the one before, its paired change already says how far the score moved.
@@ -125,8 +121,9 @@ function RunTiles({ row, prev, count, metric, spend, f, open }) {
     <div class="rv-tile">
       <div class="rv-label">${vs ? `${run.label} vs ${vs.label}${vsBase ? ` · ${vsBase.paired} of ${row.items} paired` : ""}` : run.baseline ? `${run.label} is the baseline` : "Comparison"}</div>
       ${vsBase ? html`<div class="rv-moves">
-          ${moves(metric).map(m => html`<button class=${cx("rv-move", tone(m.tone))} disabled=${!vsBase[m.key]}
-              data-tip="Open the table on these items" onClick=${() => open(run.id, { direction: m.key })}>
+          ${moves(metric).map(m => html`<button class=${cx("rv-move", tone(m.tone))} disabled=${!vsBase[m.key] || judgeOnly}
+              data-tip=${judgeOnly ? "Switch to Reviewed to open these items: the table shows reviewed answers" : "Open the table on these items"}
+              onClick=${() => open(run.id, { direction: m.key })}>
             ${m.glyph} ${vsBase[m.key]} ${m.word}</button>`)}
         </div>`
         : html`<div class="rv-sub">${vs ? `No items in common with ${vs.label}` : "No comparison"}</div>`}

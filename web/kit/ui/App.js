@@ -71,7 +71,9 @@ export function App() {
   const view = views.includes(wanted) ? wanted : wanted === "runs" || runs.length ? "table" : "review";
   // ordered is the suite as shown, with items in sidebar order, the base for the table's rows.
   // Baselines are the compared run's answers, so it follows the state.
-  const ordered = useMemo(() => suite && state && runSuite(suite, state, runs, shownRun), [suite, state, runs, shownRun]);
+  // Without runs it ignores the state, so answers must not rebuild it.
+  const baseState = shownRun ? state : !!state;
+  const ordered = useMemo(() => suite && state && runSuite(suite, state, runs, shownRun), [suite, baseState, runs, shownRun]);
   const items = ordered?.items ?? [];
   const cols = useMemo(() => (ordered ? columns(ordered) : []), [ordered]);
   const rows = useMemo(() => (ordered && state ? visible(ordered, state, cols, filters) : []), [ordered, state, cols, filters]);

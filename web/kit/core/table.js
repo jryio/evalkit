@@ -130,6 +130,10 @@ function deltaCell(col, item, state, suite) {
   }
   if (JSON.stringify(value) === JSON.stringify(base)) return { value: 0, text: "", tone: "neutral", sort: 0, base };
   const was = display(col.of, base);
+  if (col.of.q?.kind === "toggle") {
+    const tone = value === true ? "positive" : base === true ? "negative" : "neutral";
+    return { value: 1, text: `was ${base === true ? "yes" : "no"}`, tone, sort: tone === "negative" ? -1 : 1, base };
+  }
   const now = display(col.of, value);
   const rank = t => TONE_RANK[t] ?? TONE_RANK.neutral;
   const tone = rank(now.tone) > rank(was.tone) ? "positive" : rank(now.tone) < rank(was.tone) ? "negative" : "neutral";

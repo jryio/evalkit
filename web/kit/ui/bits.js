@@ -21,7 +21,7 @@ export const fmtDate = iso => new Date(iso).toLocaleDateString("en-US", { month:
 // runWhen is a run's date ("Nov 10"), else its round ("round 3"), when its dims have one.
 export function runWhen(run) {
   const { date, round } = run.dims;
-  if (date !== undefined) return /^\d{4}-\d\d-\d\d/.test(date) ? fmtDate(date) : String(date);
+  if (date !== undefined) return isDate(date) ? fmtDate(date) : String(date);
   return round !== undefined ? `round ${round}` : null;
 }
 export const fmtTime = date => date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -46,3 +46,5 @@ export class Boundary extends Component {
     return error ? html`<div class="artifact-error">${label} failed to render: ${error.message}</div>` : children;
   }
 }
+
+export const isDate = v => /^\d{4}-\d\d-\d\d/.test(String(v));

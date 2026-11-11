@@ -218,12 +218,15 @@ func (c *checker) runItems() {
 	for _, r := range s.Runs {
 		declared[r.ID] = true
 	}
-	inRuns := false
+	inRuns := slices.ContainsFunc(s.Items, func(it Item) bool { return it.Run != "" })
 	for i, it := range s.Items {
 		if it.Run == "" {
+			// No view would show it: the table and review show one run at a time.
+			if s.Runs != nil || inRuns {
+				c.add("item has no run: in a suite with runs, every item belongs to one", "items", idx(i))
+			}
 			continue
 		}
-		inRuns = true
 		if s.Runs != nil && !declared[it.Run] {
 			c.warn(fmt.Sprintf("run %q is not declared under runs", it.Run), "items", idx(i), "run")
 			declared[it.Run] = true

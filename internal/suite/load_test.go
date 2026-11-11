@@ -882,6 +882,16 @@ func TestLoad_Runs(t *testing.T) {
 			fatal:    true,
 		},
 		{
+			name: "an item without a run in a suite with runs",
+			file: "no-run.yaml",
+			items: []string{
+				"v8 v8/auth auth Auth v8",
+				"v8 v8/billing billing Billing v8",
+			},
+			runs:     []string{"v8"},
+			problems: []string{`no-run.yaml:5:5: error: items[0] (item stray): item has no run: in a suite with runs, every item belongs to one`},
+		},
+		{
 			name:     "two primary columns",
 			file:     "two-primary.yaml",
 			problems: []string{`two-primary.yaml:4:26: error: columns[1].primary: only one column can be primary; "audit" already is`},

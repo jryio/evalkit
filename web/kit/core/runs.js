@@ -1,14 +1,14 @@
 // Multi-run suites as data: the runs, the metric that ranks them, a summary per run with
 // intervals and paired comparisons, and a one-run suite the items table can show. No DOM.
 import { answersOf, optionOf, primaryOf, valueOf } from "./derive.js";
-import { deltaTone } from "./format.js";
+import { deltaTone, stepDecimals } from "./format.js";
 import { bootstrapMean, mcnemar, wilson } from "./stats.js";
 
 const isNum = v => typeof v === "number" && Number.isFinite(v);
 const unbox = v => (v !== null && typeof v === "object" ? v.value : v);
 const sum = xs => xs.reduce((a, b) => a + b, 0);
 const pairOf = item => item.pair ?? item.id;
-const TONE_SCORE = { positive: 1, negative: 0 };
+const TONE_SCORE = { positive: 1, warning: 0.5, negative: 0 };
 
 // caseOf is the pair without its rep suffix: every rep of one case shares it.
 function caseOf(item) {
@@ -26,9 +26,8 @@ export function runList(suite) {
     known.add(run);
     all.push({ id: run });
   }
-  const base = Math.max(0, all.findIndex(r => r.baseline));
   return all.map((r, index) => ({
-    id: r.id, label: r.label ?? r.id, note: r.note, baseline: index === base, dims: r.dims || {}, values: r.values || {}, index,
+    id: r.id, label: r.label ?? r.id, note: r.note, baseline: !!r.baseline, dims: r.dims || {}, values: r.values || {}, index,
   }));
 }
 
@@ -56,15 +55,15 @@ export function metricOf(suite) {
   const q = primaryOf(suite);
   if (q && !cols.some(c => c.primary) && ["choice", "toggle", "number", "scale"].includes(q.kind)) {
     const kind = q.kind === "choice" || q.kind === "toggle" ? "rate" : "mean";
-    return { id: q.id, label: q.label ?? q.id, source: "question", kind, better: q.better ?? "higher", unit: q.unit, decimals: q.decimals, noise: q.noise, q };
+    return { id: q.id, label: q.label ?? q.id, source: "question", kind, better: "higher", unit: q.unit, decimals: q.kind === "scale" ? 0 : stepDecimals(q.step), q };
   }
   const c = cols.find(c => c.primary) ?? cols.find(c => isNum(c.min) && isNum(c.max)) ?? cols.find(c => c.better);
   if (!c) return null;
   return { id: c.id, label: c.label ?? c.id, source: "column", kind: "mean", better: c.better ?? "higher", unit: c.unit, decimals: c.decimals, noise: c.noise };
 }
 
-export function spendOf(suite) {
-  const cols = suite.columns || [];
+export function spendOf(suite, metric = metricOf(suite)) {
+  const cols = (suite.columns || []).filter(c => !(metric?.source === "column" && c.id === metric.id));
   const c = cols.find(c => c.unit === "$") ?? cols.find(c => /token/i.test(`${c.id} ${c.label ?? ""}`)) ?? cols.find(c => c.unit === "s");
   return c ? { id: c.id, label: c.label ?? c.id, unit: c.unit, better: "lower", decimals: c.decimals, noise: c.noise } : null;
 }
@@ -81,7 +80,7 @@ function columnValue(item, id, runsById) {
 function rateScore(q, v) {
   if (q.kind === "toggle") return v === true ? 1 : v === false ? 0 : undefined;
   const o = optionOf(q, v);
-  return o?.score ?? TONE_SCORE[o?.tone];
+  return TONE_SCORE[o?.tone];
 }
 
 // itemValue is the item's metric value; undefined means the item does not count.
@@ -126,7 +125,8 @@ export function summarize(suite, state, { judgeOnly = false, group = null, seed 
 
 function scoreOf(metric, scored, seed) {
   const xs = scored.map(s => s.v);
-  if (metric?.kind === "rate") return wilson(sum(xs), xs.length);
+  const reps = scored.some(s => s.item.rep > 0);
+  if (metric?.kind === "rate" && !reps) return wilson(sum(xs), xs.length);
   return bootstrapMean(xs, { seed, clusters: scored.map(s => caseOf(s.item)) });
 }
 
@@ -206,4 +206,10 @@ export function acrossRuns(suite, state, item, metric, { judgeOnly = false } = {
     rows.push({ run, item: it, value, deltaPrev: isNum(value) && isNum(prev) ? value - prev : null });
   }
   return rows;
+}
+
+// bestRun is the row with the best score in the metric's direction, or null.
+export function bestRun(rows, metric) {
+  const sign = metric?.better === "lower" ? -1 : 1;
+  return rows.filter(r => r.score).reduce((a, b) => (!a || sign * (b.score.value - a.score.value) > 0 ? b : a), null);
 }
