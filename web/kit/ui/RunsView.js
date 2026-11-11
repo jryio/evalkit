@@ -83,14 +83,16 @@ export function RunsView({ suite, state, runs, rows, shown, metric, spend, filte
         ${metric?.source === "question" ? html`<${Segments} label="Answers" value=${filters.judgeOnly} set=${judgeOnly => setFilters({ ...filters, judgeOnly })}
           options=${[{ value: false, label: "Reviewed", tip: "Your answers where you gave one, else the judge's" }, { value: true, label: "Judge only", tip: "The judge's answers only" }]} />` : null}
         <div class="spacer"></div>
-        ${filters.search ? html`<span class="tv-count">${shown.length} of ${rows.length}</span>` : null}
       </div>
     </div>
     <div class="tv-scroll rv-body">
       ${row ? html`<${RunTiles} row=${row} prev=${rows[row.run.index - 1]} count=${runs.length} metric=${metric} spend=${spend} f=${f} open=${open} />` : null}
+      <section class="rv-card" aria-label="Runs">
+        <h2 class="rv-card-title">Runs <span class="rv-card-count">${filters.search ? `${shown.length} of ${rows.length}` : rows.length}</span></h2>
+        <${RunsTable} suite=${suite} runs=${runs} rows=${rows} shown=${shown} metric=${metric} spend=${spend} f=${f} marked=${marked}
+          selected=${selected} select=${select} open=${open} clear=${() => setFilters({ ...filters, search: "" })} />
+      </section>
       <div class="rv-band"><${RunTrends} ...${charts} /></div>
-      <${RunsTable} suite=${suite} runs=${runs} rows=${rows} shown=${shown} metric=${metric} spend=${spend} f=${f} marked=${marked}
-        selected=${selected} select=${select} open=${open} clear=${() => setFilters({ ...filters, search: "" })} />
       <div class="rv-band"><${RunPairs} ...${charts} /></div>
     </div>
   </div>`;
