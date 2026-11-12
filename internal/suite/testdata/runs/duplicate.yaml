@@ -1,0 +1,7 @@
+title: Duplicate items in a run
+runs:
+  - { id: v9, items_from: v9.jsonl }
+items:
+  - { id: auth, title: Auth inline, run: v9 }
+  - { id: billing, title: Billing, run: v9, rep: 1 }
+  - { id: billing, title: Billing again, run: v9, rep: 1 }

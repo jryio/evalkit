@@ -24,7 +24,8 @@
     "view": {
       "enum": [
         "review",
-        "table"
+        "table",
+        "runs"
       ],
       "description": "The view the page opens in. Default: review."
     },
@@ -69,6 +70,26 @@
       }
     },
     "items_from": {
+      "$ref": "#/$defs/itemsFrom",
+      "description": "JSONL files (paths or globs relative to the suite) with one item per line, appended after items. A later line replaces an earlier one with the same id."
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dimension"
+      },
+      "description": "What varies between runs, in legend order."
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      },
+      "description": "The runs of a multi-run suite, in order. Items pair across runs by id and rep."
+    }
+  },
+  "$defs": {
+    "itemsFrom": {
       "type": [
         "string",
         "array"
@@ -83,11 +104,73 @@
           "type": "string",
           "minLength": 1
         }
-      },
-      "description": "JSONL files (paths or globs relative to the suite) with one item per line, appended after items. A later line replaces an earlier one with the same id."
-    }
-  },
-  "$defs": {
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string",
+          "description": "Default: the id."
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scalar"
+          },
+          "description": "The values' order, for an ordinal dimension."
+        }
+      }
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string",
+          "description": "Shown instead of the id."
+        },
+        "note": {
+          "type": "string",
+          "description": "A one-line note."
+        },
+        "baseline": {
+          "type": "boolean",
+          "description": "The run others compare against. At most one run. Default: the first run."
+        },
+        "items_from": {
+          "$ref": "#/$defs/itemsFrom",
+          "description": "JSONL files with this run's items, as the top-level items_from. Each line gets this run."
+        },
+        "dims": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/scalar"
+          },
+          "description": "dimension id -> this run's value."
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/scalar"
+          },
+          "description": "column id -> value, used when an item lacks the column."
+        }
+      }
+    },
     "id": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
@@ -528,6 +611,15 @@
         },
         "group": {
           "$ref": "#/$defs/id"
+        },
+        "run": {
+          "$ref": "#/$defs/id",
+          "description": "The run this item belongs to. Set on every line a run's items_from reads."
+        },
+        "rep": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The repetition of the same case within a run. Default: 0."
         },
         "title": {
           "type": "string"
@@ -1379,6 +1471,10 @@
           "type": "number",
           "minimum": 0,
           "description": "Differences from the baseline smaller than this stay neutral."
+        },
+        "primary": {
+          "type": "boolean",
+          "description": "In a suite with runs, the score the Runs view ranks runs by, instead of the primary question."
         },
         "min": {
           "type": "number"

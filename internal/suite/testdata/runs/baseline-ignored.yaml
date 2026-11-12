@@ -1,0 +1,11 @@
+title: Inline baselines in a suite with runs
+questions:
+  - { id: verdict, kind: choice, options: [{ value: pass, label: Pass }, { value: fail, label: Fail }] }
+columns:
+  - { id: cost_usd }
+runs:
+  - { id: v9 }
+items:
+  - { id: auth, title: Auth, run: v9, values: { cost_usd: 1 } }
+  - { id: billing, title: Billing, run: v9, values: { cost_usd: { value: 1, baseline: 2 } } }
+  - { id: search, title: Search, run: v9, proposed: { verdict: { value: pass, baseline: fail } } }

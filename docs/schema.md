@@ -9,7 +9,7 @@ title: Code review findings            # sidebar title
 description: Triage each finding …     # what the reviewer does; under the title and in the help sheet
 send: Send to Claude                   # submit button label
 reviewed: [review]                     # an item is reviewed once one of these is answered (default: the primary question)
-view: table                            # the view the page opens in: review (default) or table
+view: table                            # the view the page opens in: review (default), table or runs
 groups: [{ id: checkout, label: acme/checkout }]   # sidebar sections, in order
 questions: [ … ]                       # asked of every item (narrow with a question's `groups`)
 renderers: { flamegraph: renderers/flame.js }     # optional custom artifact kinds
@@ -124,6 +124,7 @@ A column definition:
 | `label`, `unit`, `decimals` | Header and number format. Currency units (`$`, `€`, `£`, `¥`) come first |
 | `better` | `higher` or `lower`: which way a Δ is an improvement (booleans: whether true is good) |
 | `noise` | A Δ no larger than this stays neutral |
+| `primary` | With runs: the score the Runs view ranks runs by, instead of the primary question. At most one column |
 | `min`, `max` | The range for the cell bar and the histogram |
 
 A value is a number, string, boolean or `null`, or `{value, baseline}` to show the change from the baseline run.
@@ -157,6 +158,45 @@ items_from: runs/round-3.jsonl
 - **`items_from`** takes a path or glob relative to the suite, or a list of them. Each line is one item. A later line with the same id replaces the earlier one in place, so a loop can append a regraded row. A last line without a newline is skipped as still being written, and a missing file is a warning, so `evalkit serve` can start before the first row. A bad line hides only that row; problems name the JSONL file and line.
 - **The page updates live** as lines are appended, like any suite edit.
 - **Flag** the rows a human should see: failures, low judge confidence, judge errors.
+
+## Runs
+
+A run is one pass of an eval: one model, prompt or skill version over the same cases. With `runs`, one suite holds several runs and compares the same case across them.
+
+```yaml
+view: runs                 # review | table | runs
+dimensions:                # optional: what varies between runs, in legend order
+  - id: model
+    label: Model           # optional; default: the id
+  - id: effort
+    order: [low, medium, high, xhigh]   # optional: the values' order (an ordinal dimension)
+  - id: date               # values may be strings, numbers or YYYY-MM-DD dates
+runs:
+  - id: baseline           # an item id: letters, digits, '_', '.' and '-'; unique
+    label: Baseline        # optional; shown instead of the id
+    baseline: true         # optional; at most one run; default: the first run
+    note: no skill         # optional one-line note
+    items_from: baseline.jsonl          # as the top-level items_from
+    dims: {round: 0, date: "2026-10-14", model: opus-5.5}
+    values: {cost_usd: 0.79}            # run-level column values, used when an item lacks the column
+```
+
+Items gain two optional keys:
+
+| Key | Meaning |
+|---|---|
+| `run` | The run the item belongs to. The loader sets it on every line a run's `items_from` reads; such a line that names another run is an error. A line in the top-level `items` or `items_from` can set it itself, so one file can hold many runs |
+| `rep` | The repetition of the same case within a run: an integer, default 0 |
+
+**Ids.** The loader gives every item that has a `run` the id `<run>/<id>`, with `.r<rep>` appended when `rep` is above 0 (`v9/auth`, `v9/auth.r1`). The id stays unique in the state, the feedback and `evalkit wait` output. The item also gets `pair`: its own id, with the same `.r<rep>`. Items in two runs pair when their `pair` values are equal.
+
+**Identity** is (run, id, rep). A duplicate is an error, like a duplicate item id. A later JSONL line with the same run, id and rep replaces the earlier one in place.
+
+**Runs the suite does not declare.** A run that items name but `runs` does not list is added to `runs` as `{id}`, after the declared runs, in the order the items name them. When the suite has `runs`, each such run is a warning. A suite without `runs` gets its runs from the items and no warning.
+
+**Baseline.** The baseline run is the run with `baseline: true`, else the first run. When the suite has runs, a `baseline` in an item's values or proposals is ignored, and the validator warns once.
+
+A run's `dims` should name `dimensions` (a warning otherwise, when `dimensions` is set), and its `values` must name `columns`. `view: runs` without runs is a warning, and the page shows the table. A suite without `runs` and without a `run` on any item loads as it did before.
 
 ## What comes back
 

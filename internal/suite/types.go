@@ -1,26 +1,45 @@
 package suite
 
+import "strconv"
+
 // The typed view holds only what the semantic checks need. The UI gets the raw document.
 
 type Suite struct {
-	Title     string            `json:"title"`
-	Reviewed  []string          `json:"reviewed"`
-	Groups    []Group           `json:"groups"`
-	Questions []Question        `json:"questions"`
-	Renderers map[string]string `json:"renderers"`
-	Columns   []Column          `json:"columns"`
-	Items     []Item            `json:"items"`
-	ItemsFrom any               `json:"items_from"`
+	Title      string            `json:"title"`
+	View       string            `json:"view"`
+	Reviewed   []string          `json:"reviewed"`
+	Groups     []Group           `json:"groups"`
+	Questions  []Question        `json:"questions"`
+	Renderers  map[string]string `json:"renderers"`
+	Columns    []Column          `json:"columns"`
+	Dimensions []Dimension       `json:"dimensions"`
+	Runs       []Run             `json:"runs"`
+	Items      []Item            `json:"items"`
+	ItemsFrom  any               `json:"items_from"`
 }
 
 type Group struct {
 	ID string `json:"id"`
 }
 
+type Dimension struct {
+	ID    string `json:"id"`
+	Order []any  `json:"order"`
+}
+
+type Run struct {
+	ID        string         `json:"id"`
+	Baseline  bool           `json:"baseline"`
+	ItemsFrom any            `json:"items_from"`
+	Dims      map[string]any `json:"dims"`
+	Values    map[string]any `json:"values"`
+}
+
 type Column struct {
-	ID  string   `json:"id"`
-	Min *float64 `json:"min"`
-	Max *float64 `json:"max"`
+	ID      string   `json:"id"`
+	Min     *float64 `json:"min"`
+	Max     *float64 `json:"max"`
+	Primary bool     `json:"primary"`
 }
 
 type Question struct {
@@ -48,12 +67,30 @@ type Option struct {
 
 type Item struct {
 	ID       string              `json:"id"`
+	Run      string              `json:"run"`
+	Rep      int                 `json:"rep"`
 	Group    string              `json:"group"`
 	Show     []Artifact          `json:"show"`
 	Context  []Artifact          `json:"context"`
 	Ask      []Question          `json:"ask"`
 	Proposed map[string]Proposal `json:"proposed"`
 	Values   map[string]any      `json:"values"`
+}
+
+// pair is the key that pairs an item across runs: its id, plus .r<rep> for a repetition.
+func (it Item) pair() string {
+	if it.Rep > 0 {
+		return it.ID + ".r" + strconv.Itoa(it.Rep)
+	}
+	return it.ID
+}
+
+// fullID is the item's id in the loaded suite: <run>/<pair> for an item in a run.
+func (it Item) fullID() string {
+	if it.Run == "" {
+		return it.ID
+	}
+	return it.Run + "/" + it.pair()
 }
 
 type Artifact struct {

@@ -1,0 +1,4 @@
+title: Lines name runs that runs does not declare
+items_from: mixed.jsonl
+runs:
+  - { id: v8, items_from: v8.jsonl }

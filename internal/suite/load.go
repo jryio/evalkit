@@ -165,10 +165,7 @@ func Load(path string) (Result, error) {
 			if idx < len(itemFiles) {
 				p.File = itemFiles[idx]
 			}
-			if m, ok := items[idx].(*Map); ok {
-				id, _ := m.Get("id")
-				p.Item, _ = id.(string)
-			}
+			p.Item = typed.Items[idx].fullID()
 			if !is.warning {
 				badItems[idx] = true
 			}
@@ -182,23 +179,51 @@ func Load(path string) (Result, error) {
 	}
 
 	kept := make([]any, 0, len(items))
+	var runs []string // the run of each kept item that has one
 	for i, it := range items {
 		if badItems[i] {
 			continue
 		}
 		m := it.(*Map)
+		if t := typed.Items[i]; t.Run != "" {
+			m.Set("id", t.fullID())
+			m.Set("pair", t.pair())
+			runs = append(runs, t.Run)
+		}
 		dropDuplicateQuestions(m)
 		show, _ := m.Get("show")
 		m.Set("revision", revision(show))
 		kept = append(kept, m)
 	}
 	doc.Set("items", kept)
+	declareRuns(doc, typed.Runs, runs)
 	res.Doc = doc
 	return res, nil
 }
 
+// declareRuns appends {id} to the doc's runs for each run that items name but
+// runs does not declare, in first-seen order.
+func declareRuns(doc *Map, declared []Run, named []string) {
+	seen := map[string]bool{}
+	for _, r := range declared {
+		seen[r.ID] = true
+	}
+	v, _ := doc.Get("runs")
+	runs, _ := v.([]any)
+	n := len(runs)
+	for _, id := range named {
+		if !seen[id] {
+			seen[id] = true
+			runs = append(runs, &Map{keys: []string{"id"}, vals: map[string]any{"id": id}})
+		}
+	}
+	if len(runs) > n {
+		doc.Set("runs", runs)
+	}
+}
+
 // Version is Load's version without validating: a hash of the suite file and the
-// JSONL files its items_from names.
+// JSONL files its items_from and its runs' items_from name.
 func Version(path string) (string, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
@@ -224,14 +249,35 @@ func version(src []byte, sources []source) string {
 
 // source is one JSONL file named by items_from.
 type source struct {
-	rel  string // relative to the suite's dir, slash-separated
-	data []byte
+	rel      string // relative to the suite's dir, slash-separated
+	data     []byte
+	run      string // the run whose items_from names the file; "" for the top level
+	runIndex int    // the run's index in runs
 }
 
-// readSources reads the JSONL files the suite's top-level mapping names under
-// items_from. Files that cannot be read are skipped.
+// readSources reads the JSONL files named under the suite's top-level
+// items_from, then under each run's items_from. Files that cannot be read are
+// skipped.
 func readSources(top *yaml.Node, dir string) ([]source, []issue) {
-	n := child(top, "items_from")
+	sources, issues := readItemsFrom(child(top, "items_from"), dir, []string{"items_from"}, source{})
+	runs := child(top, "runs")
+	if runs == nil || runs.Kind != yaml.SequenceNode {
+		return sources, issues
+	}
+	for i, r := range runs.Content {
+		id, ok := stringID(r)
+		if !ok {
+			continue // the schema reports it
+		}
+		s, is := readItemsFrom(child(r, "items_from"), dir, []string{"runs", idx(i), "items_from"}, source{run: id, runIndex: i})
+		sources, issues = append(sources, s...), append(issues, is...)
+	}
+	return sources, issues
+}
+
+// readItemsFrom reads the files one items_from node at ptr names, each as a
+// copy of owner.
+func readItemsFrom(n *yaml.Node, dir string, ptr []string, owner source) ([]source, []issue) {
 	if n == nil {
 		return nil, nil
 	}
@@ -239,7 +285,7 @@ func readSources(top *yaml.Node, dir string) ([]source, []issue) {
 	if n.Decode(&itemsFrom) != nil {
 		return nil, nil
 	}
-	files, issues := jsonlFiles(dir, itemsFrom)
+	files, issues := jsonlFiles(dir, itemsFrom, ptr)
 	var out []source
 	for _, f := range files {
 		data, err := os.ReadFile(f)
@@ -250,20 +296,22 @@ func readSources(top *yaml.Node, dir string) ([]source, []issue) {
 		if err != nil {
 			rel = f
 		}
-		out = append(out, source{rel: filepath.ToSlash(rel), data: data})
+		s := owner
+		s.rel, s.data = filepath.ToSlash(rel), data
+		out = append(out, s)
 	}
 	return out, issues
 }
 
-// jsonlFiles expands items_from, a path or glob or a list of them relative to
-// dir, into files in entry order. Anything else returns nothing: the schema
-// reports it.
-func jsonlFiles(dir string, itemsFrom any) (files []string, issues []issue) {
+// jsonlFiles expands items_from at ptr, a path or glob or a list of them
+// relative to dir, into files in entry order. Anything else returns nothing:
+// the schema reports it.
+func jsonlFiles(dir string, itemsFrom any, ptr []string) (files []string, issues []issue) {
 	var entries []string
 	var ptrs [][]string
 	switch v := itemsFrom.(type) {
 	case string:
-		entries, ptrs = []string{v}, [][]string{{"items_from"}}
+		entries, ptrs = []string{v}, [][]string{ptr}
 	case []any:
 		for i, e := range v {
 			s, ok := e.(string)
@@ -271,7 +319,7 @@ func jsonlFiles(dir string, itemsFrom any) (files []string, issues []issue) {
 				return nil, nil
 			}
 			entries = append(entries, s)
-			ptrs = append(ptrs, []string{"items_from", idx(i)})
+			ptrs = append(ptrs, append(slices.Clone(ptr), idx(i)))
 		}
 	default:
 		return nil, nil
@@ -330,8 +378,9 @@ func escapeGlob(path string) string {
 }
 
 // mergeItems appends the items of each JSONL source to the items sequence of the
-// suite's top-level mapping. A later line replaces an earlier items_from line with
-// the same id in place. It returns the file each item in the sequence came from.
+// suite's top-level mapping, setting run on the lines a run's items_from reads.
+// A later line replaces an earlier items_from line with the same (run, id, rep)
+// in place. It returns the file each item in the sequence came from.
 func mergeItems(top *yaml.Node, name string, sources []source) ([]string, []Problem) {
 	seq := child(top, "items")
 	if seq == nil {
@@ -342,19 +391,23 @@ func mergeItems(top *yaml.Node, name string, sources []source) ([]string, []Prob
 		return nil, nil // the schema reports it
 	}
 	files := slices.Repeat([]string{name}, len(seq.Content))
-	merged := map[string]int{} // id -> index in seq, for items_from lines only
+	merged := map[string]int{} // identity -> index in seq, for items_from lines only
 	var problems []Problem
 	for _, src := range sources {
 		nodes, ps := parseLines(src)
 		problems = append(problems, ps...)
 		for _, n := range nodes {
-			id, hasID := stringID(n)
-			if i, ok := merged[id]; hasID && ok {
+			if err := setRun(n, src); err != nil {
+				problems = append(problems, Problem{File: src.rel, Line: n.Line, Col: 1, Message: err.Error()})
+				continue
+			}
+			key, hasID := identity(n)
+			if i, ok := merged[key]; hasID && ok {
 				seq.Content[i], files[i] = n, src.rel
 				continue
 			}
 			if hasID {
-				merged[id] = len(seq.Content)
+				merged[key] = len(seq.Content)
 			}
 			seq.Content = append(seq.Content, n)
 			files = append(files, src.rel)
@@ -363,9 +416,47 @@ func mergeItems(top *yaml.Node, name string, sources []source) ([]string, []Prob
 	return files, problems
 }
 
+// setRun gives an item line read by a run's items_from that run. A line that
+// names another run is an error.
+func setRun(item *yaml.Node, src source) error {
+	if src.run == "" {
+		return nil
+	}
+	n := child(item, "run")
+	if n == nil {
+		item.Content = append(item.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: "run", Line: item.Line, Column: 1},
+			&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: src.run, Line: item.Line, Column: 1})
+		return nil
+	}
+	if n.Kind != yaml.ScalarNode || n.Value != src.run {
+		return fmt.Errorf("line says run %q but runs[%d] %q reads it", n.Value, src.runIndex, src.run)
+	}
+	return nil
+}
+
+// identity is an item's (run, id, rep) as one key. ok is false without a string id.
+func identity(item *yaml.Node) (key string, ok bool) {
+	id, ok := stringID(item)
+	if !ok {
+		return "", false
+	}
+	var run string
+	if n := child(item, "run"); n != nil {
+		run = n.Value
+	}
+	var rep int
+	if n := child(item, "rep"); n != nil {
+		_ = n.Decode(&rep) // the schema reports a bad rep
+	}
+	return run + "\x00" + id + "\x00" + strconv.Itoa(rep), true
+}
+
+// stringID returns item's id as the loaded document holds it: a string, or the text
+// of an unquoted date, which YAML reads as a timestamp and fromNode keeps as text.
 func stringID(item *yaml.Node) (string, bool) {
 	id := child(item, "id")
-	if id == nil || id.Kind != yaml.ScalarNode || id.ShortTag() != "!!str" {
+	if id == nil || id.Kind != yaml.ScalarNode || (id.ShortTag() != "!!str" && id.ShortTag() != "!!timestamp") {
 		return "", false
 	}
 	return id.Value, true

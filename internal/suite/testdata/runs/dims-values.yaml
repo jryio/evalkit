@@ -1,0 +1,7 @@
+title: Run dims and values
+dimensions:
+  - { id: model }
+columns:
+  - { id: cost_usd }
+runs:
+  - { id: v8, items_from: v8.jsonl, dims: { model: small, temp: 0.2 }, values: { cost_usd: 0.5, latency: 3 } }
