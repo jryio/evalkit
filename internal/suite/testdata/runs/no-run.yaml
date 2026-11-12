@@ -1,0 +1,5 @@
+title: An item without a run
+runs:
+  - { id: v8, items_from: v8.jsonl }
+items:
+  - { id: stray, title: Stray }

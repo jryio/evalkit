@@ -39,30 +39,30 @@ const suite = {
 const byId = id => items.find(i => i.id === id);
 const counts = vs => vs && { paired: vs.paired, n: vs.n, up: vs.up, same: vs.same, down: vs.down };
 
-test("runList: declared runs, then runs only items name; the first run is the default baseline", () => {
+test("runList: declared runs, then runs only items name; only a marked run is the baseline", () => {
   const s = {
     runs: [{ id: "a" }, { id: "b", label: "Bee", note: "no skill", dims: { model: "x" }, values: { cost: 1 } }],
     items: [{ id: "c/1", run: "c" }, { id: "a/1", run: "a" }, { id: "d/1", run: "d" }, { id: "c/2", run: "c" }],
   };
   const runs = runList(s);
   assert.deepEqual(runs.map(r => [r.id, r.label, r.baseline, r.index]),
-    [["a", "a", true, 0], ["b", "Bee", false, 1], ["c", "c", false, 2], ["d", "d", false, 3]]);
+    [["a", "a", false, 0], ["b", "Bee", false, 1], ["c", "c", false, 2], ["d", "d", false, 3]]);
   assert.deepEqual([runs[1].note, runs[1].dims, runs[1].values], ["no skill", { model: "x" }, { cost: 1 }]);
   assert.deepEqual([runs[2].dims, runs[2].values], [{}, {}]);
   assert.equal(latestRun(s), "d");
   const declared = { ...s, runs: [{ id: "a" }, { id: "b", baseline: true }] };
   assert.deepEqual(runList(declared).filter(r => r.baseline).map(r => r.id), ["b"]);
-  assert.deepEqual(runList({ items: [{ id: "y/1", run: "y" }, { id: "x/1", run: "x" }] }).map(r => [r.id, r.baseline]), [["y", true], ["x", false]]);
+  assert.deepEqual(runList({ items: [{ id: "y/1", run: "y" }, { id: "x/1", run: "x" }] }).map(r => [r.id, r.baseline]), [["y", false], ["x", false]]);
   assert.deepEqual(runList({ items: [{ id: "x" }] }), []);
   assert.equal(latestRun({ items: [] }), null);
 });
 
-test("metricOf: a choice question is a rate; options score by score, else tone", () => {
+test("metricOf: a choice question is a rate; options score by tone", () => {
   const m = metricOf(suite);
   assert.deepEqual([m.id, m.source, m.kind, m.better], ["verdict", "question", "rate", "higher"]);
   const v = value => itemValue(emptyState(), it("x", "q", value), m, new Map());
   assert.deepEqual(["pass", "fail", "skip", "other"].map(v), [1, 0, undefined, undefined]);
-  const graded = { ...verdict, options: [...verdict.options, { value: "partial", label: "Partial", tone: "positive", score: 0.5 }] };
+  const graded = { ...verdict, options: [...verdict.options, { value: "partial", label: "Partial", tone: "warning" }] };
   assert.equal(itemValue(emptyState(), it("x", "q", "partial"), metricOf({ questions: [graded] }), new Map()), 0.5);
   const toggle = metricOf({ questions: [{ id: "ok", kind: "toggle", primary: true }] });
   assert.equal(toggle.kind, "rate");
@@ -82,6 +82,20 @@ test("metricOf: a number question is a mean; else a bounded column, then a direc
   assert.equal(metricOf({ columns: [{ id: "x" }] }), null);
   const primary = metricOf({ questions: [{ id: "v", kind: "choice", primary: true, options: [] }], columns: [...cols, { id: "audit", label: "Audit", primary: true }] });
   assert.equal(primary.id, "audit", "a primary column wins over the primary question");
+});
+
+test("spendOf: never the metric's own column", () => {
+  const latency = { id: "latency", unit: "s", better: "lower" };
+  assert.equal(spendOf({ columns: [latency] }), null);
+  assert.equal(spendOf({ columns: [latency, { id: "cost", unit: "$" }] }).id, "cost");
+});
+
+test("summarize: with reps, a rate's interval resamples cases instead of Wilson", () => {
+  const rep = (run, id, r, v) => ({ id: `${run}/${id}${r ? `.r${r}` : ""}`, run, pair: `${id}${r ? `.r${r}` : ""}`, rep: r, revision: "x", proposed: { verdict: { value: v } } });
+  const items = ["a", "b", "c", "d", "e"].flatMap((id, i) => [0, 1, 2].map(r => rep("v1", id, r, i < 3 ? "pass" : "fail")));
+  const [row] = summarize({ ...suite, runs: [{ id: "v1" }], items }, emptyState());
+  assert.equal(row.score.value, 0.6);
+  assert.ok(row.score.lo < wilson(9, 15).lo, "cases, not 15 independent items, set the width");
 });
 
 test("spendOf: dollars, else tokens, else seconds", () => {

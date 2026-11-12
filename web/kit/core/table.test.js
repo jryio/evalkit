@@ -78,6 +78,15 @@ test("cell: categorical Δ names the baseline and tones by option tone", () => {
   assert.equal(cell(col, same, emptyState(), suite).text, "");
 });
 
+test("cell: a toggle's Δ is better when it turns on, as the Runs view counts it", () => {
+  const s = { questions: [{ id: "ok", kind: "toggle", label: "OK" }], items: [] };
+  const toggled = (value, baseline) => ({ id: "t", revision: "r", proposed: { ok: { value, baseline } } });
+  s.items = [toggled(true, false), toggled(false, true), toggled(false, false)];
+  const col = columns(s).find(c => c.id === "d:q:ok");
+  assert.deepEqual(s.items.map(i => pick(cell(col, i, emptyState(), s))), [
+    { text: "was no", tone: "positive" }, { text: "was yes", tone: "negative" }, { text: "", tone: "neutral" }]);
+});
+
 test("cell: the note column shows the first line of the first text answer", () => {
   const col = columns(suite).find(c => c.id === "note");
   const state = setAnswer(emptyState(), items[1], "notes", "Judge missed the typo\nsecond line");

@@ -1,6 +1,6 @@
 # evalkit
 
-A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. Every suite also opens as a table: one row per item, a column per judged or measured value, with histograms and Δ-from-baseline in the headers, so a judge loop's hundreds of rows can be explored and spot-checked. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
+A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. Every suite also opens as a table: one row per item, a column per judged or measured value, with histograms and Δ-from-baseline in the headers, so a judge loop's hundreds of rows can be explored and spot-checked. A suite can also hold many runs of the same eval (rounds, models, weekly samples) and compare them on a Runs page. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
 
 <table>
   <tr>
@@ -62,7 +62,7 @@ evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit
 | 10 | [Weekly samples](demos/10-weekly-samples) | Runs over time: six weekly runs of fresh production tickets with no pairing, a date dimension, a dip and recovery in the pass rate, run notes |
 | 11 | [Judge change](demos/11-judge-change) | Two runs of the same drafts graded by an old and a new rubric, identical `show`, different proposals, flagged verdict flips; opens in the default view |
 
-Run one: `bin/evalkit serve demos/0N-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
+Run one: `bin/evalkit serve demos/NN-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
 
 ### Coverage
 
@@ -84,11 +84,12 @@ internal/suite/     load YAML, JSON Schema validation with line numbers, semanti
 internal/feedback/  state, numbered snapshots, action results
 internal/server/    HTTP API and static files
 internal/summary/   diff of two snapshots, for agents
-web/kit/core/       framework-free state, derivations and keyboard model (node --test)
-web/kit/ui/         layout: App, Sidebar, ItemView, ItemsTable, micro charts, sheets
+web/kit/core/       framework-free state, derivations, run statistics and keyboard model (node --test)
+web/kit/ui/         layout: App, Sidebar, ItemView, ItemsTable, RunsView and its charts, micro charts, sheets
 web/kit/controls/   one module per question kind
 web/kit/renderers/  one module per artifact kind
 web/styles/         tokens (light and dark) and component CSS
+web/vendor/         Preact, htm, marked, uPlot and Observable Plot (scripts/vendor-plot.sh)
 ```
 
 Adding a kind: write the module, register it in `web/kit/builtins.js`, add its branch to `internal/suite/suite.schema.json`, and add an item to the kitchen sink.

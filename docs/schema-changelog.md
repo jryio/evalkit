@@ -82,9 +82,12 @@ Evals graded by a judge loop have dozens to hundreds of rows, most of which need
 
 An eval loop runs the same cases again and again: a new model, a new prompt, a new skill version. Comparing two rounds meant two suites or a `baseline` on every value.
 
-- **`runs`** lists the runs of one suite, in order. Each run has an `id` and optionally a `label`, a `note`, `baseline: true`, its own `items_from`, `dims` and run-level `values`. The baseline is the run with `baseline: true`, else the first run.
+- **`runs`** lists the runs of one suite, in order. Each run has an `id` and optionally a `label`, a `note`, `baseline: true`, its own `items_from`, `dims` and run-level `values`. Each run is compared with the run marked `baseline: true`, else with the run before it.
 - **`dimensions`** names what varies between runs (model, effort, date), in legend order. `order` makes a dimension ordinal.
 - **Items gain `run` and `rep`.** A run's `items_from` sets `run` on each line, so harness output needs no change. `rep` numbers repetitions of the same case within a run.
 - **Composite ids.** The loader rewrites the id of an item in a run to `<run>/<id>` (plus `.r<rep>`) and adds `pair`, the key that pairs items across runs. State, feedback and `evalkit wait` keep unique ids without a change.
 - Identity is (run, id, rep): a duplicate is an error, and a later JSONL line replaces the earlier one in place. Runs that items name but `runs` does not declare are added, with a warning. With runs, inline `baseline` keys are ignored, with one warning. `view: runs` opens the runs view.
+- **`primary: true` on a column** makes it the score runs are ranked by, when that is a measured value rather than the primary question.
+- **The Runs view** (`view: runs`): tiles for the selected run, a table of every run, run-by-run and cost charts, and each case before and after. The table and review show one run at a time.
+- In a suite with runs, an item without `run` is an error.
 - A suite without runs loads exactly as before.

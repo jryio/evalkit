@@ -15,11 +15,10 @@
 import * as Plot from "plot";
 import { html, useEffect, useMemo, useRef, useState } from "../html.js";
 import { autoDecimals, deltaTone, fmtNumber, withUnit } from "../core/format.js";
-import { frontier, itemValue, markedBaseline, pairsOf, summarize, vsOf } from "../core/runs.js";
-import { cx, fmtDate, tone } from "./bits.js";
+import { bestRun, frontier, itemValue, markedBaseline, pairsOf, summarize, vsOf } from "../core/runs.js";
+import { cx, fmtDate, isDate, tone } from "./bits.js";
 
 const isNum = v => typeof v === "number" && Number.isFinite(v);
-const ISO_DATE = /^\d{4}-\d\d-\d\d/;
 const HEIGHT = 260;
 const STYLE = { background: "transparent", color: "var(--secondary)", fontFamily: "var(--font)", fontSize: "11px", fontVariantNumeric: "tabular-nums", overflow: "visible" };
 const TIP = { fill: "var(--surface)", stroke: "var(--separator)", fontSize: 12, lineHeight: 1.35, pathFilter: "none", textPadding: 8 };
@@ -107,10 +106,10 @@ export function RunPairs({ suite, state, metric, runs, selected, vs: other, open
   return html`<${Card} title=${`${run.label} vs ${other.label}, item by item (${mine.pairs.length} paired)`} answer=${answer}>
     <div class="rc-pairs">
       ${rate
-        ? html`<${PairBars} bars=${bars} metric=${metric} selected=${selected} open=${open} />`
+        ? html`<${PairBars} bars=${bars} metric=${metric} selected=${selected} open=${open} judgeOnly=${judgeOnly} />`
         : html`<${PairScatter} suite=${suite} metric=${metric} pairs=${mine.pairs} run=${run} other=${other} open=${open} />`}
       <div class="rc-aside">
-        <${DirectionKey} counts=${counts} metric=${metric} on=${direction => open(selected, { direction })} />
+        <${DirectionKey} counts=${counts} metric=${metric} on=${judgeOnly ? null : direction => open(selected, { direction })} />
         <p>${rate ? barsNote(suite, runs) : scatterNote(run, other, metric)}</p>
       </div>
     </div>
@@ -126,7 +125,7 @@ const Card = ({ title, answer, children }) => html`<section class="rc-card">
 function Trend({ rows, groupRows, metric, axis, selected, vs, select }) {
   const series = trendSeries(rows, groupRows, axis, selected);
   const main = series.filter(s => s.main).flatMap(s => s.rows);
-  const best = bestOf(main, metric);
+  const best = bestRun(main, metric);
   const hollow = main.find(d => d.run.id === vs?.id) ?? main.find(d => d.run.baseline);
   const ref = usePlot(width => clickable(trendPlot({ width, series, axis, metric, selected, hollow, best }), d => select(d.run.id)),
     [rows, groupRows, axis, metric, selected, vs]);
@@ -166,16 +165,17 @@ function PairScatter({ suite, metric, pairs, run, other, open }) {
   return html`<div class="rc-plot rc-square" ref=${ref}></div>`;
 }
 
-function PairBars({ bars, metric, selected, open }) {
-  const ref = usePlot(width => clickable(barsPlot({ width, bars, metric, selected }), d => open(d.bar.run.id, { direction: DIRECTION[d.tone] })),
-    [bars, metric, selected]);
+function PairBars({ bars, metric, selected, open, judgeOnly }) {
+  const ref = usePlot(width => clickable(barsPlot({ width, bars, metric, selected }), judgeOnly ? null : d => open(d.bar.run.id, { direction: DIRECTION[d.tone] })),
+    [bars, metric, selected, judgeOnly]);
   return html`<div class="rc-plot rc-grow" ref=${ref}></div>`;
 }
 
 function DirectionKey({ counts, metric, on }) {
   const m = moves(metric);
   return html`<div class="rc-key" role="group" aria-label="Open the items that moved">
-    ${TONES.map(t => html`<button class=${cx("pf-dir", tone(t))} disabled=${!counts[t]} onClick=${() => on(DIRECTION[t])}>
+    ${TONES.map(t => html`<button class=${cx("pf-dir", tone(t))} disabled=${!counts[t] || !on} onClick=${() => on(DIRECTION[t])}
+        data-tip=${on ? null : "Switch to Reviewed to open these items: the table shows reviewed answers"}>
       ${m[t].glyph} ${m[t].word} <strong>${counts[t]}</strong>
     </button>`)}
   </div>`;
@@ -211,6 +211,7 @@ function usePlot(build, deps) {
 
 // clickable calls on(datum) when a click lands while a pointer mark points at a datum.
 function clickable(plot, on) {
+  if (!on) return plot;
   plot.addEventListener("input", () => plot.classList.toggle("rc-pointing", plot.value != null));
   plot.addEventListener("click", () => plot.value != null && on(plot.value));
   return plot;
@@ -234,7 +235,7 @@ function trendAxis(suite, runs) {
     const ticks = [...new Set(runs.map(x))].sort((a, b) => a - b); // rounds are whole: no 0.5 ticks
     return { x, rank: x, ticks, scale: { type: "linear", inset: 12, label: labelOf("round", "Round"), tickFormat: v => fmtNumber(v) } };
   }
-  if (runs.every(r => ISO_DATE.test(r.dims.date ?? ""))) {
+  if (runs.every(r => isDate(r.dims.date ?? ""))) {
     const x = r => new Date(r.dims.date.slice(0, 10));
     const ticks = [...new Set(runs.map(r => r.dims.date.slice(0, 10)))].sort().map(d => new Date(d));
     return { x, rank: r => x(r).getTime(), ticks, scale: { type: "utc", inset: 12, label: labelOf("date", "Date"), tickFormat: fmtDate } };
@@ -488,11 +489,6 @@ function tally(pairs) {
   const counts = { positive: 0, neutral: 0, negative: 0 };
   for (const p of pairs) counts[p.tone]++;
   return counts;
-}
-
-function bestOf(rows, metric) {
-  const sign = metric.better === "lower" ? -1 : 1;
-  return rows.reduce((a, b) => (sign * (b.score.value - a.score.value) > 0 ? b : a));
 }
 
 const seriesOf = (series, d) => series.find(s => s.rows.includes(d));

@@ -174,7 +174,7 @@ dimensions:                # optional: what varies between runs, in legend order
 runs:
   - id: baseline           # an item id: letters, digits, '_', '.' and '-'; unique
     label: Baseline        # optional; shown instead of the id
-    baseline: true         # optional; at most one run; default: the first run
+    baseline: true         # optional; at most one run; without one, each run is compared with the run before
     note: no skill         # optional one-line note
     items_from: baseline.jsonl          # as the top-level items_from
     dims: {round: 0, date: "2026-10-14", model: opus-5.5}
@@ -194,13 +194,24 @@ Items gain two optional keys:
 
 **Runs the suite does not declare.** A run that items name but `runs` does not list is added to `runs` as `{id}`, after the declared runs, in the order the items name them. When the suite has `runs`, each such run is a warning. A suite without `runs` gets its runs from the items and no warning.
 
-**Baseline.** The baseline run is the run with `baseline: true`, else the first run. When the suite has runs, a `baseline` in an item's values or proposals is ignored, and the validator warns once.
+**Baseline.** Each run is compared with the run marked `baseline: true`, else with the run before it. With runs, every item belongs to a run (an item without one is an error), and a `baseline` in an item's values or proposals is ignored, with one warning.
 
-A run's `dims` should name `dimensions` (a warning otherwise, when `dimensions` is set), and its `values` must name `columns`. `view: runs` without runs is a warning, and the page shows the table. A suite without `runs` and without a `run` on any item loads as it did before.
+A run's `dims` should name `dimensions` (a warning otherwise, when `dimensions` is set), and its `values` must name `columns`. `view: runs` without runs is a warning, and the page shows the table.
 
-**On the page.** The table and review show one run at a time: the latest, or `?run=<id>` (a link to an item opens its run). A suite with runs opens on the table unless `view: review` or `view: runs`. The toolbar names the run, its `dims.date` (or `dims.round`) and the run it is compared with: the run marked `baseline: true`, else the run before. Δ columns compare each item with its pair in that run, using the human's answer where there is one, else the proposal. `[` and `]` (or the toolbar's ‹ ›) step to the previous and next run and keep the same case selected when the other run has it. An item's review lists its case in every run under **Across runs**: the score that ranks runs (the primary question, else the first column with `min` and `max` or with `better`) and its change from the run before; click a run to open the case there. Send still sends every run.
+**The score.** Runs are ranked by one score: the column marked `primary: true`, else the primary question, else the first column with `min` and `max` (or with `better`). A choice scores its options by tone: positive 1, warning 0.5, negative 0; other options don't count. A toggle scores 1 when on. Spend is the first `$` column, else a token column, else a seconds column, and never the score's own column.
 
-**The Runs view.** A suite with runs gets a third view, **Runs**, before Table and Review (`?view=runs`, or `view: runs` to open on it); Esc climbs from Review to the Table and from the Table to Runs. It shows the selected run in tiles: the run, its score with a 95% interval and its change from the run before and from the run it is compared with, the paired items that moved up, stayed the same or moved down, and its spend (the first `$` column, else a token column, else a seconds column). Charts and a table of every run follow, newest first: its varying `dimensions`, note, paired items, score, interval, Δ from the run before and from the compared run, the up, same and down counts, and spend. A Δ is green when it moves the metric's `better` way, red when it moves the other way, and gray within the metric's `noise` or when its interval crosses zero. The bar above filters runs by id, label or note, recomputes everything for one group, and switches between your answers (where you gave one) and the judge's only. Click a run to select it; double-click, `↵` or › opens it in the table. Click an up, same or down count to open the table on those items, filtered by the metric's Δ. In Runs, `↑`/`↓` (or `J`/`K`) select a run, `↵` opens it, `[`/`]` step runs, `/` filters and `?` shows help.
+**Statistics.** Every score has a 95% interval: Wilson for a rate, and a seeded bootstrap that resamples cases for a mean (and for a rate whose cases have reps). A paired change resamples cases too, and McNemar's exact test backs a pass/fail change. The page computes all of it, so an override updates every number at once. A Δ stays gray within the metric's `noise` or when its interval crosses zero.
+
+**Table and review.** They show one run at a time: the latest, or `?run=<id>` (a link to an item opens its run). A suite with runs opens on the table unless `view: review` or `view: runs`. The toolbar names the run, its date or round, and the run it is compared with; `[` and `]` (or ‹ ›) step between runs and keep the same case selected. Δ columns compare each item with its pair in the compared run, using your answer where you gave one, else the proposal. An item's review lists its case in every run under **Across runs**; click a run to open the case there. Send still sends every run.
+
+**The Runs view.** A third view, before Table and Review (`?view=runs`, or `view: runs` to open on it). Esc climbs from Review to the table and from the table to Runs. Top to bottom:
+
+- **Tiles** for the selected run: the run, its score and interval with its change from the run before and from the compared run, the paired items that moved up, stayed the same or moved down, and its spend.
+- **Runs**, a table of every run, newest first: varying dimensions, note, paired items, score, interval, both changes, the up, same and down counts, and spend.
+- **Charts:** the score run by run (across an ordered dimension with one line per value of another, else by round, date or run order) and the score against spend, with its frontier.
+- **Item by item:** the selected run against the compared run, as a scatter for a mean or a bar per run of improved, same and regressed for a rate.
+
+The bar above filters runs by id, label or note, recomputes everything for one group, and switches between your answers and the judge's only. Click a run, a dot or a count to open the table on it; with Judge only on, counts are not links, since the table shows your answers. Keys: `↑`/`↓` or `J`/`K` select a run, `↵` opens it, `[`/`]` step runs, `/` filters and `?` shows help.
 
 ## What comes back
 
