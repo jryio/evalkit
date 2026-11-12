@@ -1,0 +1,33 @@
+# Production monitoring: each week a job samples 20 tickets the support assistant
+# answered and has a judge grade the replies. One JSONL per week in runs/; the tickets
+# differ every week, so the weeks compare as wholes. Regenerate the rows with: python3 build.py
+title: support assistant · weekly samples
+description: A judge graded 20 fresh production replies each week. Check the replies it failed, override any verdict you disagree with, and tell Claude what went wrong in the week the pass rate dipped.
+send: Send to Claude
+view: runs
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What went wrong in this reply? What should the assistant have said?
+columns:
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower, noise: 1 }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 3, better: lower, noise: 0.002 }
+dimensions:
+  - { id: date, label: Week }
+runs:
+  - { id: "2026-10-05", items_from: runs/2026-10-05.jsonl, dims: { date: "2026-10-05" }, note: "20 of 1,284 tickets" }
+  - { id: "2026-10-12", items_from: runs/2026-10-12.jsonl, dims: { date: "2026-10-12" }, note: "20 of 1,251 tickets" }
+  - { id: "2026-10-19", items_from: runs/2026-10-19.jsonl, dims: { date: "2026-10-19" }, note: "20 of 1,307 tickets" }
+  - { id: "2026-10-26", items_from: runs/2026-10-26.jsonl, dims: { date: "2026-10-26" }, note: "20 of 1,962 tickets · EU incident Oct 27-28" }
+  - { id: "2026-11-02", items_from: runs/2026-11-02.jsonl, dims: { date: "2026-11-02" }, note: "20 of 1,398 tickets · status-page feed fixed" }
+  - { id: "2026-11-09", items_from: runs/2026-11-09.jsonl, dims: { date: "2026-11-09" }, note: "20 of 1,276 tickets" }

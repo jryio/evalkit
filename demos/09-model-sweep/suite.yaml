@@ -1,0 +1,45 @@
+# A model sweep: three models at four effort levels, each over the support-reply cases
+# of demo 08, twice. The sweep writes one JSONL per configuration to runs/; this file
+# declares the runs, the questions and the columns. Regenerate the rows with: python3 build.py
+title: support-reply · model sweep
+description: The same judge graded twelve configurations of the reply drafter. Find the cheapest one that beats what ships today, check the flagged rows, and override any verdict you disagree with.
+send: Send to Claude
+view: runs
+groups:
+  - { id: test, label: Held-out }
+  - { id: train, label: Train }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - { id: quality, kind: number, label: Quality, min: 0, max: 10, step: 1, key: q }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the judge miss? Which configuration should ship?
+columns:
+  - { id: cost_usd, label: Cost, unit: $, decimals: 3, better: lower, noise: 0.002 }
+  - { id: out_tokens, label: Output tokens, better: lower, noise: 200 }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower, noise: 1 }
+dimensions:
+  - { id: model, label: Model }
+  - { id: effort, label: Effort, order: [low, medium, high, max] }
+runs:
+  - { id: lark-low, items_from: runs/lark-low.jsonl, dims: { model: lark, effort: low }, note: "$0.50 / $2.50 per M tokens · 1k thinking budget" }
+  - { id: lark-medium, items_from: runs/lark-medium.jsonl, dims: { model: lark, effort: medium }, note: "$0.50 / $2.50 per M tokens · 4k thinking budget" }
+  - { id: lark-high, items_from: runs/lark-high.jsonl, dims: { model: lark, effort: high }, note: "$0.50 / $2.50 per M tokens · 16k thinking budget" }
+  - { id: lark-max, items_from: runs/lark-max.jsonl, dims: { model: lark, effort: max }, note: "$0.50 / $2.50 per M tokens · no thinking limit" }
+  - { id: heron-low, items_from: runs/heron-low.jsonl, dims: { model: heron, effort: low }, note: "$1.50 / $7.50 per M tokens · 1k thinking budget" }
+  - { id: heron-medium, items_from: runs/heron-medium.jsonl, dims: { model: heron, effort: medium }, baseline: true, note: "What ships today · $1.50 / $7.50 per M tokens · 4k thinking budget" }
+  - { id: heron-high, items_from: runs/heron-high.jsonl, dims: { model: heron, effort: high }, note: "$1.50 / $7.50 per M tokens · 16k thinking budget" }
+  - { id: heron-max, items_from: runs/heron-max.jsonl, dims: { model: heron, effort: max }, note: "$1.50 / $7.50 per M tokens · no thinking limit" }
+  - { id: osprey-low, items_from: runs/osprey-low.jsonl, dims: { model: osprey, effort: low }, note: "$5 / $25 per M tokens · 1k thinking budget" }
+  - { id: osprey-medium, items_from: runs/osprey-medium.jsonl, dims: { model: osprey, effort: medium }, note: "$5 / $25 per M tokens · 4k thinking budget" }
+  - { id: osprey-high, items_from: runs/osprey-high.jsonl, dims: { model: osprey, effort: high }, note: "$5 / $25 per M tokens · 16k thinking budget" }
+  - { id: osprey-max, items_from: runs/osprey-max.jsonl, dims: { model: osprey, effort: max }, note: "$5 / $25 per M tokens · no thinking limit" }
