@@ -41,6 +41,7 @@ When a script or an LLM judge already scored the outputs (an eval run, a hill-cl
 - `flag: <reason>` the rows that need a human (failures, low confidence, judge errors). Progress counts only flagged rows.
 - Let the loop append one item per line to a JSONL file and point `items_from` at it. A later line with the same id replaces the earlier one. Serve before the first row lands; the table fills in live.
 - Add a `text` question (e.g. "Note to Claude") so the reviewer can say what the judge missed.
+- Many rounds or configurations of the same eval: give each its own JSONL and list them under `runs:`, with `baseline: true` on the reference run and `dims` such as `round`, `date` or `model`. The page pairs each case across runs, adds a Runs view, and needs no inline `baseline`. If a measured value is the score (not the verdict), mark that column `primary: true`.
 
 ## Good to know
 

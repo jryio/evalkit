@@ -27,7 +27,7 @@
         "table",
         "runs"
       ],
-      "description": "The view the page opens in. Default: review."
+      "description": "The view the page opens in. Default: review, or the table when the suite has runs."
     },
     "reviewed": {
       "description": "An item counts as reviewed when any of these questions has an answer. Default: the primary question.",
@@ -149,7 +149,7 @@
         },
         "baseline": {
           "type": "boolean",
-          "description": "The run others compare against. At most one run. Default: the first run."
+          "description": "The run every other run is compared with. At most one run. Without one, each run is compared with the run before it."
         },
         "items_from": {
           "$ref": "#/$defs/itemsFrom",
