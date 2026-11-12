@@ -116,3 +116,19 @@ test("panelBindings keep the item's keys and move the table selection with J/K a
   const withRows = panelBindings({}, item, [verdict], 3);
   assert.deepEqual(match(withRows, { key: "ArrowDown" }).action, { type: "row", by: 1 });
 });
+
+test("[ and ] step runs in review, table and panel, only with two runs or more", () => {
+  const step = list => [match(list, { key: "[" })?.action, match(list, { key: "]" })?.action];
+  const both = [{ type: "run", by: -1 }, { type: "run", by: 1 }];
+  for (const runs of [0, 1]) {
+    assert.deepEqual(step(bindings({}, item, questions, 0, runs)), [undefined, undefined]);
+    assert.deepEqual(step(tableBindings([], runs)), [undefined, undefined]);
+    assert.deepEqual(step(panelBindings({}, item, questions, 0, runs)), [undefined, undefined]);
+  }
+  const lists = [bindings({}, item, questions, 0, 3), tableBindings([verdict], 3), panelBindings({}, item, questions, 2, 3)];
+  for (const list of lists) {
+    assert.deepEqual(step(list), both);
+    assert.deepEqual(conflicts(list), []);
+    assert.deepEqual(helpRows(list, "Send").find(r => r.label === "Previous / next run"), { keys: ["[", "]"], also: [], label: "Previous / next run" });
+  }
+});

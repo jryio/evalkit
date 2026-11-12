@@ -18,6 +18,7 @@
 .tv-head { flex: none; padding: 22px 28px 0; }
 .tv-head h1 { margin: 0; font-size: 24px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tv-desc { margin: 4px 0 0; max-width: 860px; font-size: 14px; color: var(--secondary); }
+.tv-run { margin: 6px 0 0; font-size: 13px; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .tv-progress { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: var(--secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tv-progress .progress { width: 140px; margin: 0; }
 .tv-progress strong { color: var(--text); font-weight: 600; }
@@ -122,6 +123,16 @@ h1.tight { margin-bottom: 8px; }
 .values .delta { font-size: 12px; }
 .values .glyph { color: var(--secondary); }
 
+/* Review mode: this case across runs. Rows are buttons whose hover reaches 8px past the text. */
+.across { display: grid; grid-template-columns: repeat(3, max-content); column-gap: 28px; justify-content: start; margin: 0 0 24px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.across-title { grid-column: 1 / -1; }
+.across-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; height: 28px; margin: 0 -8px; padding: 0 8px; border: 0; border-radius: 6px; background: none; font: inherit; color: var(--secondary); text-align: left; }
+button.across-row { cursor: pointer; }
+button.across-row:hover { background: var(--hover); }
+.across-row.on { color: var(--text); font-weight: 600; }
+.across-head { height: 24px; font-size: 12px; font-weight: 600; color: var(--tertiary); }
+.across .r { text-align: right; }
+
 /* Bounded number questions: a slider beside the field */
 .number-slider { width: 180px; margin-left: 6px; accent-color: var(--accent); }
 .number-slider.tentative { accent-color: var(--tertiary); }
@@ -132,6 +143,9 @@ h1.tight { margin-bottom: 8px; }
 .segmented.icons .seg { padding: 0 9px; }
 .segmented.icons svg { width: 16px; height: 12px; display: block; }
 .view-switch .seg kbd { margin-left: 6px; padding: 1px 4px; min-width: 0; font-size: 10px; }
+.run-stepper { display: flex; align-items: center; gap: 8px; min-width: 0; margin-right: 6px; }
+.run-name { font-size: 13px; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.run-name strong { color: var(--text); font-weight: 600; }
 
 /* Review panel: docked beside the table, or floating over its body */
 :root { --panel-w: clamp(460px, 42vw, 780px); }

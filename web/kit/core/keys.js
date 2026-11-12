@@ -3,8 +3,9 @@
 
 const lower = s => (s || "").toLowerCase();
 
-// rows is how many rows the keyboard cursor can visit on this item (see rowTargets).
-export function bindings(suite, item, questions, rows = 0) {
+// rows is how many rows the keyboard cursor can visit on this item (see rowTargets);
+// runs is how many runs the suite has.
+export function bindings(suite, item, questions, rows = 0, runs = 0) {
   const out = [];
   const add = (keys, label, action, row) => out.push({ keys, label, action, row });
 
@@ -14,6 +15,7 @@ export function bindings(suite, item, questions, rows = 0) {
     add(["ArrowDown"], "Next row", { type: "row", by: 1 }, { id: "rows", label: "Next / previous row" });
     add(["ArrowUp"], "Previous row", { type: "row", by: -1 }, { id: "rows" });
   }
+  runKeys(add, runs);
 
   primaryKeys(add, questions.find(q => q.primary), "");
 
@@ -46,13 +48,21 @@ function primaryKeys(add, primary, suffix) {
     add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, row));
 }
 
+// runKeys step through the runs, when there is more than one.
+function runKeys(add, runs) {
+  if (runs < 2) return;
+  add(["["], "Previous run", { type: "run", by: -1 }, { id: "runs", label: "Previous / next run" });
+  add(["]"], "Next run", { type: "run", by: 1 }, { id: "runs" });
+}
+
 // tableBindings are the table view's keys: move the selection, open it, answer its
 // primary question, filter. questions are those on screen for the selected row.
-export function tableBindings(questions) {
+export function tableBindings(questions, runs = 0) {
   const out = [];
   const add = (keys, label, action, row) => out.push({ keys, label, action, row });
   add(["ArrowDown", "j"], "Next row", { type: "select", by: 1 }, { id: "rows", label: "Next / previous row" });
   add(["ArrowUp", "k"], "Previous row", { type: "select", by: -1 }, { id: "rows" });
+  runKeys(add, runs);
   add(["Enter"], "Open the row for review", { type: "open" });
   primaryKeys(add, questions.find(q => q.primary), " of the selected row");
   add(["/"], "Filter items", { type: "focus", target: "table-search" });
@@ -63,8 +73,8 @@ export function tableBindings(questions) {
 // panelBindings are the table's keys while a panel shows the selected row: the item's own
 // keys, with J/K and ←/→ moving the selection (and ↑/↓ too, unless the item has rows to
 // answer) and / filtering.
-export function panelBindings(suite, item, questions, rows = 0) {
-  const out = bindings(suite, item, questions, rows).map(b => b.action.type !== "move" ? b : {
+export function panelBindings(suite, item, questions, rows = 0, runs = 0) {
+  const out = bindings(suite, item, questions, rows, runs).map(b => b.action.type !== "move" ? b : {
     ...b,
     label: b.action.by > 0 ? "Next row" : "Previous row",
     action: { type: "select", by: b.action.by },

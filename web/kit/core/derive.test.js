@@ -166,3 +166,10 @@ test("snapshot compares proposed lists by value", () => {
   const diff = snapshot(suite, setAnswer(emptyState(), item, "tags", ["a"]));
   assert.deepEqual(diff.items.m.changed, { tags: { from: ["a", "b"], to: ["a"] } });
 });
+
+test("a proposed entry without a value is a baseline, not a proposal the human overrode", () => {
+  const onlyBase = { id: "o1", group: "back", title: "Baseline only", revision: "r1", proposed: { verdict: { baseline: "bad" } } };
+  const s = setAnswer(emptyState(), onlyBase, "verdict", "good");
+  assert.equal(valueOf(s, onlyBase, verdict), "good");
+  assert.equal("changed" in snapshot({ ...suite, items: [onlyBase] }, s).items.o1, false);
+});

@@ -168,3 +168,17 @@ test("profile survives an inverted range", () => {
   assert.equal(col.range, null);
   assert.equal(profile(col, [item], emptyState(), s2).n, 1);
 });
+
+test("cell: an entry with only a baseline is no proposal, but feeds the Δ", () => {
+  const item = { id: "z", title: "Zulu", revision: "r", proposed: { verdict: { baseline: "pass" } } };
+  const one = { ...suite, items: [item] };
+  const [col, delta] = columns(one).filter(c => c.id.endsWith("q:verdict"));
+  assert.deepEqual([col.id, delta.id], ["q:verdict", "d:q:verdict"]);
+  assert.deepEqual(cell(col, item, emptyState(), one), { value: undefined, text: "", sort: undefined, human: false });
+  const state = setAnswer(emptyState(), item, "verdict", "fail");
+  const c = cell(col, item, state, one);
+  assert.deepEqual([c.text, c.human, c.from], ["Fail", true, undefined]);
+  assert.deepEqual(scopeCounts([item], state), { all: 1, flagged: 0, input: 1, overrides: 0 });
+  const d = cell(delta, item, state, one);
+  assert.deepEqual([d.text, d.tone], ["was Pass", "negative"]);
+});

@@ -89,7 +89,7 @@ export function cell(col, item, state, suite) {
     const answer = answersOf(state, item)[col.q.id];
     const proposed = item.proposed?.[col.q.id];
     out.human = answer !== undefined;
-    if (out.human && proposed && JSON.stringify(proposed.value) !== JSON.stringify(answer)) out.from = display(col, proposed.value).text;
+    if (out.human && proposed?.value !== undefined && JSON.stringify(proposed.value) !== JSON.stringify(answer)) out.from = display(col, proposed.value).text;
     if (col.q.kind === "action") return { ...out, ...actionCell(col.q, item, answer) };
     if (col.q.kind === "toggle" && value !== true) return out; // false is a turned-off proposal
   }

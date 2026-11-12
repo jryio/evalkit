@@ -90,7 +90,7 @@ Rows of `list`, `table` and `transcript` share one vocabulary: a stable `id` mak
 
 ### Keyboard
 
-`J`/`K` (or `→`/`←`) move between items. `Esc` goes back to the table; in the table `↑`/`↓` (or `J`/`K`) select a row, `↵` opens it in the sidebar, floating panel or full screen, `1`–`9` answer its primary question and `/` filters. `1`–`9` answer the primary question. `↑`/`↓` move the row cursor when the item has per-row questions. Letter keys come from the suite; pressing a selected option's key again clears it. `E` edits, `?` shows help (generated from the suite), `Esc` leaves a field or closes a sheet, `⌘↵` sends from anywhere. Letter keys are off while typing. The validator rejects conflicting keys.
+`J`/`K` (or `→`/`←`) move between items. `Esc` goes back to the table; in the table `↑`/`↓` (or `J`/`K`) select a row, `↵` opens it in the sidebar, floating panel or full screen, `1`–`9` answer its primary question and `/` filters. `1`–`9` answer the primary question. `↑`/`↓` move the row cursor when the item has per-row questions. Letter keys come from the suite; pressing a selected option's key again clears it. `[`/`]` step to the previous or next run in a suite with runs. `E` edits, `?` shows help (generated from the suite), `Esc` leaves a field or closes a sheet, `⌘↵` sends from anywhere. Letter keys are off while typing. The validator rejects conflicting keys.
 
 ## Table view
 
@@ -197,6 +197,8 @@ Items gain two optional keys:
 **Baseline.** The baseline run is the run with `baseline: true`, else the first run. When the suite has runs, a `baseline` in an item's values or proposals is ignored, and the validator warns once.
 
 A run's `dims` should name `dimensions` (a warning otherwise, when `dimensions` is set), and its `values` must name `columns`. `view: runs` without runs is a warning, and the page shows the table. A suite without `runs` and without a `run` on any item loads as it did before.
+
+**On the page.** The table and review show one run at a time: the latest, or `?run=<id>` (a link to an item opens its run). A suite with runs opens on the table unless `view: review`. The toolbar names the run, its `dims.date` (or `dims.round`) and the run it is compared with: the run marked `baseline: true`, else the run before. Δ columns compare each item with its pair in that run, using the human's answer where there is one, else the proposal. `[` and `]` (or the toolbar's ‹ ›) step to the previous and next run and keep the same case selected when the other run has it. An item's review lists its case in every run under **Across runs**: the score that ranks runs (the primary question, else the first column with `min` and `max` or with `better`) and its change from the run before; click a run to open the case there. Send still sends every run.
 
 ## What comes back
 
