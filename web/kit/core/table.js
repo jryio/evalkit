@@ -128,7 +128,7 @@ function deltaCell(col, item, state, suite) {
     const tone = deltaTone(delta, col);
     return { value: delta, text: signed(delta, col.decimals ?? 2), tone, sort: delta, base };
   }
-  if (JSON.stringify(value) === JSON.stringify(base)) return { value: 0, text: "", sort: 0, base };
+  if (JSON.stringify(value) === JSON.stringify(base)) return { value: 0, text: "", tone: "neutral", sort: 0, base };
   const was = display(col.of, base);
   const now = display(col.of, value);
   const rank = t => TONE_RANK[t] ?? TONE_RANK.neutral;
@@ -188,7 +188,8 @@ export function histogram(values, [lo, hi], col = {}) {
 export const inBin = (v, b) => isNum(v) && (b.first || v >= b.lo) && (b.last || v < b.hi);
 
 // matches tests one column filter against an item. A filter is { column, bin } (a
-// histogram bin), { column, value } (an option) or { column, tone } (a Δ direction).
+// histogram bin), { column, value } (an option) or { column, tone } (a Δ direction:
+// positive, negative, or neutral for no change beyond the noise).
 export function matches(f, col, item, state, suite) {
   const c = cell(col, item, state, suite);
   if (f.bin) return inBin(c.value, f.bin);

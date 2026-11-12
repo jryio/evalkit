@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bindings, conflicts, helpRows, match, panelBindings, tableBindings } from "./keys.js";
+import { bindings, conflicts, helpRows, match, panelBindings, runsBindings, tableBindings } from "./keys.js";
 
 const verdict = {
   id: "verdict", kind: "choice", label: "Verdict", primary: true,
@@ -131,4 +131,27 @@ test("[ and ] step runs in review, table and panel, only with two runs or more",
     assert.deepEqual(conflicts(list), []);
     assert.deepEqual(helpRows(list, "Send").find(r => r.label === "Previous / next run"), { keys: ["[", "]"], also: [], label: "Previous / next run" });
   }
+});
+
+test("runsBindings move the run selection, open it in the table and filter runs", () => {
+  const list = runsBindings(3);
+  const key = k => match(list, { key: k })?.action;
+  assert.deepEqual([key("ArrowDown"), key("j")], [{ type: "selectRun", by: 1 }, { type: "selectRun", by: 1 }]);
+  assert.deepEqual([key("ArrowUp"), key("K")], [{ type: "selectRun", by: -1 }, { type: "selectRun", by: -1 }]);
+  assert.deepEqual(key("Enter"), { type: "openRun" });
+  assert.deepEqual(key("/"), { type: "focus", target: "runs-search" });
+  assert.deepEqual(key("?"), { type: "help" });
+  assert.deepEqual([key("["), key("]")], [{ type: "run", by: -1 }, { type: "run", by: 1 }]);
+  assert.equal(key("1"), undefined);
+  assert.deepEqual(conflicts(list), []);
+  const rows = helpRows(list, "Send", "runs", 3);
+  assert.deepEqual(rows[0], { keys: ["↓", "↑"], also: ["J", "K"], label: "Select the run below / above" });
+  assert.equal(rows.find(r => r.keys[0] === "Esc").label, "Stop typing or close a sheet");
+});
+
+test("Esc help climbs review → table → runs", () => {
+  const esc = (view, runs) => helpRows([], "Send", view, runs).find(r => r.keys[0] === "Esc").label;
+  assert.equal(esc("review", 3), "Stop typing or close a sheet; then back to the table");
+  assert.equal(esc("table", 3), "Stop typing or close a sheet; then back to runs");
+  assert.equal(esc("table", 0), "Stop typing or close a sheet");
 });

@@ -6,6 +6,7 @@ import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
 import { cell } from "../core/table.js";
 import { questionsFor, answersOf, editsOf, valueOf, asked } from "../core/derive.js";
 import { deltaTone, fmtNumber, signed, withUnit } from "../core/format.js";
+import { metricColumn } from "../core/runs.js";
 
 const isSection = q => controlFor(q.kind)?.layout === "section";
 // An entry without a value only carries the compared run's baseline: it is no proposal.
@@ -108,7 +109,7 @@ function Values({ item, suite, cols: all }) {
 // AcrossRuns is this case's metric in every run that has it, with the step from the run
 // before; a row opens that run on this case. A rate shows the answer, a mean the number.
 function AcrossRuns({ rows, metric, current, open, suite, cols, state }) {
-  const col = metric && cols.find(c => c.id === `${metric.source === "question" ? "q" : "v"}:${metric.id}`);
+  const col = metric && cols.find(c => c.id === metricColumn(metric));
   const value = r => {
     if (metric.kind === "rate") return col ? cell(col, r.item, state, suite).text : "";
     return typeof r.value === "number" ? withUnit(fmtNumber(r.value, col?.decimals), metric.unit) : "";

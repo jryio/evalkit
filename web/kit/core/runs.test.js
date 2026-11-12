@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { acrossRuns, frontier, itemValue, latestRun, metricOf, pairsOf, runList, spendOf, summarize, withBaselines } from "./runs.js";
+import { acrossRuns, findRuns, frontier, itemValue, latestRun, markedBaseline, metricColumn, metricOf, pairsOf, runList, spendOf, summarize, vsOf, withBaselines } from "./runs.js";
 import { bootstrapMean, mcnemar, wilson } from "./stats.js";
 import { cell, columns } from "./table.js";
 import { emptyState, setAnswer } from "./state.js";
@@ -33,7 +33,7 @@ const suite = {
   title: "Runs",
   questions: [verdict],
   columns: [{ id: "cost", label: "Cost", unit: "$" }],
-  runs: [{ id: "base", values: { cost: 1 } }, { id: "v2", values: { cost: 2 } }, { id: "v3", values: { cost: 0.5 } }],
+  runs: [{ id: "base", baseline: true, values: { cost: 1 } }, { id: "v2", values: { cost: 2 } }, { id: "v3", values: { cost: 0.5 } }],
   items,
 };
 const byId = id => items.find(i => i.id === id);
@@ -86,7 +86,7 @@ test("metricOf: a number question is a mean; else a bounded column, then a direc
 
 test("spendOf: dollars, else tokens, else seconds", () => {
   const secs = { id: "latency", unit: "s" }, toks = { id: "out", label: "Output tokens" }, usd = { id: "cost", unit: "$" };
-  assert.deepEqual(spendOf({ columns: [secs, toks, usd] }), { id: "cost", label: "cost", unit: "$", better: "lower" });
+  assert.deepEqual(spendOf({ columns: [secs, toks, { ...usd, decimals: 3, noise: 0.01 }] }), { id: "cost", label: "cost", unit: "$", better: "lower", decimals: 3, noise: 0.01 });
   assert.equal(spendOf({ columns: [secs, toks] }).id, "out");
   assert.equal(spendOf({ columns: [secs] }).id, "latency");
   assert.equal(spendOf({ columns: [{ id: "x" }] }), null);
@@ -114,6 +114,35 @@ test("summarize: scores, spend, paired counts against the baseline and the step 
   assert.equal(rows[2].vsBase.p, mcnemar(2, 0));
   const d = rows[2].vsBase.delta;
   assert.ok(Math.abs(d.value - 2 / 3) < 1e-12 && d.lo <= d.value && d.value <= d.hi);
+});
+
+test("vsOf: the marked baseline, else the run before; summarize pairs each run with it", () => {
+  const unmarked = { ...suite, runs: suite.runs.map(({ baseline, ...r }) => r) };
+  const runs = runList(unmarked);
+  assert.equal(markedBaseline(unmarked, runs), null);
+  assert.deepEqual(runs.map(r => vsOf(unmarked, runs, r)?.id ?? null), [null, "base", "v2"]);
+  const marked = runList(suite);
+  assert.equal(markedBaseline(suite, marked).id, "base");
+  assert.deepEqual(marked.map(r => vsOf(suite, marked, r)?.id ?? null), [null, "base", "base"]);
+  const rows = summarize(unmarked, emptyState());
+  assert.deepEqual(rows.map(r => r.vs?.id ?? null), [null, "base", "v2"]);
+  // v3 against v2: a and b pair and both pass in each.
+  assert.deepEqual(counts(rows[2].vsBase), { paired: 2, n: 2, up: 0, same: 2, down: 0 });
+});
+
+test("findRuns matches id, label and note, newest first", () => {
+  const rows = runList({ runs: [{ id: "a", note: "no skill" }, { id: "b", label: "Bee" }, { id: "c", note: "skill v2" }], items: [] }).map(run => ({ run }));
+  const ids = search => findRuns(rows, search).map(r => r.run.id);
+  assert.deepEqual(ids(""), ["c", "b", "a"]);
+  assert.deepEqual(ids("SKILL"), ["c", "a"]);
+  assert.deepEqual(ids("bee"), ["b"]);
+  assert.deepEqual(ids("skill v2"), ["c"]);
+  assert.deepEqual(ids("zzz"), []);
+});
+
+test("metricColumn names the items table's column for the metric", () => {
+  assert.equal(metricColumn(metricOf(suite)), "q:verdict");
+  assert.equal(metricColumn(metricOf({ columns: [{ id: "latency", better: "lower" }] })), "v:latency");
 });
 
 test("summarize: a human override counts unless judgeOnly", () => {

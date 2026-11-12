@@ -4,10 +4,11 @@ import { cx, tone, runWhen } from "./bits.js";
 import { helpRows } from "../core/keys.js";
 import { progressLabel } from "../core/derive.js";
 
-const VIEWS = [
-  { value: "review", label: "Review", tip: "One item at a time, full screen" },
-  { value: "table", label: "Table", tip: "Every item as a row (Esc from review)" },
-];
+const REVIEW = { value: "review", label: "Review", tip: "One item at a time, full screen" };
+const TABLE = { value: "table", label: "Table", tip: "Every item as a row (Esc from review)" };
+const RUNS = { value: "runs", label: "Runs", tip: "Every run: its score, its change and its spend (Esc from the table)" };
+// Esc climbs one view: review to the table, the table to runs.
+const UP = { review: "table", table: "runs" };
 
 // Where Enter opens a table row. Icons follow the shape each mode takes on screen.
 const OPEN_MODES = [
@@ -26,11 +27,13 @@ export function OpenIn({ value, set }) {
   </div>`;
 }
 
+// A suite with runs gets the Runs view first, in the order Esc climbs.
 export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend, run }) {
+  const views = run ? [RUNS, TABLE, REVIEW] : [REVIEW, TABLE];
   return html`<div class="toolbar"><div class="toolbar-inner">
     <div class="segmented small view-switch" role="radiogroup" aria-label="View">
-      ${VIEWS.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
-          title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === "table" && view === "review" ? html`<kbd>esc</kbd>` : null}</button>`)}
+      ${views.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
+          title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === UP[view] ? html`<kbd>esc</kbd>` : null}</button>`)}
     </div>
     ${run ? html`<${RunStepper} ...${run} />` : null}
     ${view === "review" ? html`
@@ -79,11 +82,11 @@ export function SendSheet({ sendLabel, progress, actions, pending, close, confir
   </${Sheet}>`;
 }
 
-export function HelpSheet({ binds, sendLabel, description, view, close }) {
+export function HelpSheet({ binds, sendLabel, description, view, runs, close }) {
   return html`<${Sheet} title="Keyboard shortcuts" close=${close} actions=${html`<button class="btn-primary" onClick=${close}>Done</button>`}>
     ${description ? html`<p>${description}</p>` : null}
     <div class="keys">
-      ${helpRows(binds, sendLabel, view).map(r => html`
+      ${helpRows(binds, sendLabel, view, runs).map(r => html`
         <span class="caps">${r.keys.map(k => html`<kbd>${k}</kbd>`)}</span>
         <span>${r.label}${r.also.length ? html` (also ${r.also.map(k => html`<kbd>${k}</kbd> `)})` : null}</span>`)}
     </div>
