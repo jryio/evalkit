@@ -15,10 +15,7 @@ export function bindings(suite, item, questions, rows = 0) {
     add(["ArrowUp"], "Previous row", { type: "row", by: -1 }, { id: "rows" });
   }
 
-  const primary = questions.find(q => q.primary);
-  const primaryRow = primary && { id: primary.id, label: `${primary.label}: ${primary.options.map(o => lower(o.label)).join(", ")}` };
-  primary?.options.forEach((o, i) =>
-    add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, primaryRow));
+  primaryKeys(add, questions.find(q => q.primary), "");
 
   for (const q of questions) {
     const perRow = !!q.each;
@@ -26,6 +23,7 @@ export function bindings(suite, item, questions, rows = 0) {
     const k = q.key;
     if (k && q.kind === "choice") add([k], label(`Change ${q.label}, or ${keyName(k)} then 1–${q.options.length}`), { type: "cycle", qid: q.id, perRow });
     if (k && q.kind === "scale") add([k], label(`${q.label}: ${keyName(k)} then ${q.min ?? 1}–${q.max ?? 5}`), { type: "arm", qid: q.id, perRow });
+    if (k && q.kind === "multi") add([k], label(`${q.label}: ${keyName(k)} then 1–${Math.min(9, q.options.length)} to toggle`), { type: "arm", qid: q.id, perRow });
     if (k && q.kind === "toggle") add([k], label(q.label), { type: "toggle", qid: q.id, perRow });
     if (k && q.kind === "action" && !item.done?.[q.id]) add([k], q.states.off.button, { type: "toggle", qid: q.id });
     if (k && (q.kind === "text" || q.kind === "number")) add([k], q.label, { type: "focus", target: `q:${q.id}` });
@@ -38,6 +36,45 @@ export function bindings(suite, item, questions, rows = 0) {
     if (a.editable) add([a.key || "e"], `Edit ${a.label || "text"}`, { type: "focus", target: `a:${a.id ?? "edit"}` });
   }
   add(["?"], "Keyboard shortcuts", { type: "help" });
+  return out;
+}
+
+// primaryKeys binds 1–9 to the primary question's options, when it is on screen.
+function primaryKeys(add, primary, suffix) {
+  const row = primary && { id: primary.id, label: `${primary.label}${suffix}: ${primary.options.map(o => lower(o.label)).join(", ")}` };
+  primary?.options.forEach((o, i) =>
+    add([String(i + 1)], `${primary.label}: ${o.label}`, { type: "set", qid: primary.id, value: o.value }, row));
+}
+
+// tableBindings are the table view's keys: move the selection, open it, answer its
+// primary question, filter. questions are those on screen for the selected row.
+export function tableBindings(questions) {
+  const out = [];
+  const add = (keys, label, action, row) => out.push({ keys, label, action, row });
+  add(["ArrowDown", "j"], "Next row", { type: "select", by: 1 }, { id: "rows", label: "Next / previous row" });
+  add(["ArrowUp", "k"], "Previous row", { type: "select", by: -1 }, { id: "rows" });
+  add(["Enter"], "Open the row for review", { type: "open" });
+  primaryKeys(add, questions.find(q => q.primary), " of the selected row");
+  add(["/"], "Filter items", { type: "focus", target: "table-search" });
+  add(["?"], "Keyboard shortcuts", { type: "help" });
+  return out;
+}
+
+// panelBindings are the table's keys while a panel shows the selected row: the item's own
+// keys, with J/K and ←/→ moving the selection (and ↑/↓ too, unless the item has rows to
+// answer) and / filtering.
+export function panelBindings(suite, item, questions, rows = 0) {
+  const out = bindings(suite, item, questions, rows).map(b => b.action.type !== "move" ? b : {
+    ...b,
+    label: b.action.by > 0 ? "Next row" : "Previous row",
+    action: { type: "select", by: b.action.by },
+    row: { id: "nav", label: "Next / previous row" },
+  });
+  if (!rows) {
+    out.push({ keys: ["ArrowDown"], label: "Next row", action: { type: "select", by: 1 }, row: { id: "nav" } });
+    out.push({ keys: ["ArrowUp"], label: "Previous row", action: { type: "select", by: -1 }, row: { id: "nav" } });
+  }
+  out.push({ keys: ["/"], label: "Filter items", action: { type: "focus", target: "table-search" } });
   return out;
 }
 
@@ -63,7 +100,7 @@ export const keyName = k => NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
 
 // helpRows merges bindings that share a row (number keys of one question, J/K) and
 // adds the fixed keys the app handles itself.
-export function helpRows(list, sendLabel) {
+export function helpRows(list, sendLabel, view = "review") {
   const rows = [];
   const byId = new Map();
   for (const b of list) {
@@ -78,7 +115,7 @@ export function helpRows(list, sendLabel) {
     if (b.row) byId.set(b.row.id, row);
     rows.push(row);
   }
-  rows.push({ keys: ["Esc"], also: [], label: "Stop typing or close a sheet" });
+  rows.push({ keys: ["Esc"], also: [], label: view === "review" ? "Stop typing or close a sheet; then back to the table" : "Stop typing or close a sheet" });
   rows.push({ keys: ["⌘", "↵"], also: [], label: sendLabel });
   return rows;
 }

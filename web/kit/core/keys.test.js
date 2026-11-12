@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bindings, conflicts, helpRows, match } from "./keys.js";
+import { bindings, conflicts, helpRows, match, panelBindings, tableBindings } from "./keys.js";
 
 const verdict = {
   id: "verdict", kind: "choice", label: "Verdict", primary: true,
@@ -35,6 +35,12 @@ test("bindings", async t => {
   });
   await t.test("multi option keys", () => {
     assert.deepEqual(actionFor(list, "p"), { type: "option", qid: "tags", value: "perf", perRow: false });
+  });
+  await t.test("a multi key arms it for digits", () => {
+    const off = { ...tags, key: "f" };
+    const armed = bindings({}, item, [verdict, off]).find(b => b.keys.includes("f"));
+    assert.deepEqual(armed.action, { type: "arm", qid: "tags", perRow: false });
+    assert.equal(armed.label, "Tags: F then 1–2 to toggle");
   });
   await t.test("a text key focuses the question", () => {
     assert.deepEqual(actionFor(list, "n"), { type: "focus", target: "q:notes" });
@@ -74,7 +80,39 @@ test("helpRows merges the primary digits and navigation and appends fixed keys",
     { keys: ["1", "2", "3"], also: [], label: "Verdict: good, close, off" },
     { keys: ["N"], also: [], label: "Notes" },
     { keys: ["?"], also: [], label: "Keyboard shortcuts" },
-    { keys: ["Esc"], also: [], label: "Stop typing or close a sheet" },
+    { keys: ["Esc"], also: [], label: "Stop typing or close a sheet; then back to the table" },
     { keys: ["⌘", "↵"], also: [], label: "Send to Claude" },
   ]);
+});
+
+test("tableBindings move the selection, open it, answer the primary question and filter", () => {
+  const questions = [{ id: "v", kind: "choice", label: "Verdict", primary: true, options: [{ value: "pass", label: "Pass" }, { value: "fail", label: "Fail" }] }];
+  assert.equal(match(tableBindings([]), { key: "1" }), undefined, "no digits without a primary on screen");
+  const list = tableBindings(questions);
+  const key = k => match(list, { key: k })?.action;
+  assert.deepEqual(key("ArrowDown"), { type: "select", by: 1 });
+  assert.deepEqual(key("k"), { type: "select", by: -1 });
+  assert.deepEqual(key("Enter"), { type: "open" });
+  assert.deepEqual(key("2"), { type: "set", qid: "v", value: "fail" });
+  assert.deepEqual(key("/"), { type: "focus", target: "table-search" });
+  assert.deepEqual(conflicts(list), []);
+  assert.equal(helpRows(list, "Send", "table").find(r => r.keys[0] === "Esc").label, "Stop typing or close a sheet");
+});
+
+test("panelBindings keep the item's keys and move the table selection with J/K and arrows", () => {
+  const verdict = { id: "v", kind: "choice", label: "Verdict", primary: true, options: [{ value: "pass", label: "Pass" }, { value: "fail", label: "Fail" }] };
+  const notes = { id: "n", kind: "text", label: "Notes", key: "n" };
+  const item = { id: "i" };
+  const list = panelBindings({}, item, [verdict, notes]);
+  const key = k => match(list, { key: k })?.action;
+  assert.deepEqual(key("j"), { type: "select", by: 1 });
+  assert.deepEqual(key("ArrowUp"), { type: "select", by: -1 });
+  assert.deepEqual(key("ArrowRight"), { type: "select", by: 1 });
+  assert.deepEqual(key("ArrowLeft"), { type: "select", by: -1 });
+  assert.deepEqual(key("1"), { type: "set", qid: "v", value: "pass" });
+  assert.deepEqual(key("n"), { type: "focus", target: "q:n" });
+  assert.deepEqual(key("/"), { type: "focus", target: "table-search" });
+  assert.deepEqual(conflicts(list), []);
+  const withRows = panelBindings({}, item, [verdict], 3);
+  assert.deepEqual(match(withRows, { key: "ArrowDown" }).action, { type: "row", by: 1 });
 });

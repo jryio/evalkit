@@ -1,0 +1,38 @@
+# One round of a hill-climbing loop, graded by an LLM judge. The loop appends one
+# JSON line per case and rep to runs/round-3.jsonl; this file only declares the
+# questions and columns. Regenerate the rows with: python3 build.py
+# Watch rows land live:                            python3 build.py --trickle
+title: support-reply · round 3
+description: The judge graded every draft. Check the flagged rows, override any score you disagree with, and leave a note where the judge missed something.
+send: Send to Claude
+view: table
+groups:
+  - { id: test, label: Held-out }
+  - { id: train, label: Train }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - { id: answers, kind: choice, label: Answers the ask, key: a, options: &yesno [
+      { value: "yes", label: "Yes", tone: positive, icon: check },
+      { value: "no", label: "No", tone: negative, icon: cross } ] }
+  - { id: grounded, kind: choice, label: Grounded, key: g, options: *yesno }
+  - { id: tone, kind: choice, label: On tone, key: t, options: *yesno }
+  - { id: quality, kind: number, label: Quality, min: 0, max: 10, step: 1, key: q }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the judge miss? How should the reply change?
+columns:
+  - { id: coverage, label: Facts covered, min: 0, max: 1, decimals: 2, better: higher, noise: 0.05 }
+  - { id: policy_ok, label: Policy check, better: higher }
+  - { id: words, label: Words, better: lower, noise: 15 }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 3, better: lower, noise: 0.002 }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower, noise: 1 }
+items_from: runs/round-3.jsonl

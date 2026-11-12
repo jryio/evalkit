@@ -13,9 +13,13 @@ import (
 )
 
 // check runs the semantic rules JSON Schema cannot express: references,
-// uniqueness and keyboard conflicts.
-func check(s Suite, dir string) []issue {
+// uniqueness and keyboard conflicts. hasItemsKey tells whether the suite file
+// itself has an items key, before items_from lines are merged in.
+func check(s Suite, dir string, hasItemsKey bool) []issue {
 	c := checker{suite: s, dir: dir, keys: map[string]string{}}
+	if !hasItemsKey && s.ItemsFrom == nil {
+		c.add("a suite needs items or items_from")
+	}
 	c.suiteLevel()
 	for i, it := range s.Items {
 		c.item(i, it)
@@ -74,6 +78,7 @@ func (c *checker) suiteLevel() {
 			}
 		}
 		c.options(q, at)
+		c.questionRange(q, at)
 	}
 	if len(primary) > 1 {
 		c.add(fmt.Sprintf("only one question can be primary, got %s", list(primary)), "questions")
@@ -101,6 +106,7 @@ func (c *checker) suiteLevel() {
 			c.add(fmt.Sprintf("unknown question %q", id), "reviewed", idx(i))
 		}
 	}
+	c.columns(ids)
 	for kind, file := range s.Renderers {
 		at := []string{"renderers", kind}
 		if slices.Contains(BuiltinKinds, kind) {
@@ -110,6 +116,42 @@ func (c *checker) suiteLevel() {
 			c.add(fmt.Sprintf("renderer module %q must be a .js file", file), at...)
 		} else if _, err := os.Stat(filepath.Join(c.dir, file)); err != nil {
 			c.add(fmt.Sprintf("renderer module %q not found next to the suite", file), at...)
+		}
+	}
+}
+
+// columns checks the table view's value columns against each other and the
+// suite's question ids.
+func (c *checker) columns(questions map[string]bool) {
+	seen := map[string]bool{}
+	for i, col := range c.suite.Columns {
+		at := []string{"columns", idx(i)}
+		if seen[col.ID] {
+			c.add(fmt.Sprintf("duplicate column id %q", col.ID), append(at, "id")...)
+		}
+		seen[col.ID] = true
+		if questions[col.ID] {
+			c.add(fmt.Sprintf("column %q has the same id as a question", col.ID), append(at, "id")...)
+		}
+		if col.Min != nil && col.Max != nil && *col.Min >= *col.Max {
+			c.add("min must be below max", append(at, "min")...)
+		}
+	}
+}
+
+// values checks that an item sets only the suite's columns.
+func (c *checker) values(values map[string]any, at []string) {
+	if values == nil {
+		return
+	}
+	cols := c.suite.Columns
+	if len(cols) == 0 {
+		c.add("values set but the suite defines no columns", at...)
+		return
+	}
+	for _, k := range slices.Sorted(maps.Keys(values)) {
+		if !slices.ContainsFunc(cols, func(col Column) bool { return col.ID == k }) {
+			c.add(fmt.Sprintf("unknown column %q (want one of %s)", k, list(columnIDs(cols))), append(slices.Clone(at), k)...)
 		}
 	}
 }
@@ -185,6 +227,7 @@ func (c *checker) item(i int, it Item) {
 	case len(s.Groups) == 0 && it.Group != "":
 		c.add("group set but the suite defines no groups", append(at, "group")...)
 	}
+	c.values(it.Values, append(slices.Clone(at), "values"))
 
 	artifacts := map[string]located{}
 	editable := 0
@@ -247,6 +290,7 @@ func (c *checker) item(i int, it Item) {
 		applicable[q.ID] = q
 		asked = append(asked, q)
 		c.options(q, qp)
+		c.questionRange(q, qp)
 		c.questionKeys(q, qp, keys)
 		c.with(q, it.Ask, qp)
 		c.rowSource(q.Each, artifacts, append(qp, "each"))
@@ -278,6 +322,13 @@ func (c *checker) item(i int, it Item) {
 		if q.Kind == "action" {
 			c.add("an action cannot be proposed; the human approves it", pp...)
 			continue
+		}
+		if b := it.Proposed[qid].Baseline; b != nil {
+			if q.Each != "" {
+				c.add("baseline is not supported for per-row questions", append(pp, "baseline")...)
+			} else {
+				c.proposal(q, b, append(pp, "baseline"))
+			}
 		}
 		v := it.Proposed[qid].Value
 		if q.Each == "" {
@@ -344,10 +395,26 @@ func (c *checker) proposal(q Question, v any, at []string) {
 		for k, e := range vs {
 			c.option(q, e, append(slices.Clone(at), idx(k)))
 		}
-	case "scale":
-		c.number(q, v, cmp.Or(q.Min, new(1.0)), cmp.Or(q.Max, new(5.0)), at)
-	case "number":
-		c.number(q, v, q.Min, q.Max, at)
+	case "scale", "number":
+		c.number(q, v, at)
+	}
+}
+
+// bounds returns a scale or number question's range; nil is unbounded.
+func bounds(q Question) (lo, hi *float64) {
+	if q.Kind == "scale" {
+		return cmp.Or(q.Min, new(1.0)), cmp.Or(q.Max, new(5.0))
+	}
+	return q.Min, q.Max
+}
+
+// questionRange checks that a scale or number question's range is not empty.
+func (c *checker) questionRange(q Question, at []string) {
+	if q.Kind != "scale" && q.Kind != "number" {
+		return
+	}
+	if lo, hi := bounds(q); lo != nil && hi != nil && *lo >= *hi {
+		c.add("min must be below max", append(at, "min")...)
 	}
 }
 
@@ -357,8 +424,9 @@ func (c *checker) option(q Question, v any, at []string) {
 	}
 }
 
-// number checks v is a number within the bounds that are set.
-func (c *checker) number(q Question, v any, lo, hi *float64, at []string) {
+// number checks v is a number within the question's bounds.
+func (c *checker) number(q Question, v any, at []string) {
+	lo, hi := bounds(q)
 	n, ok := v.(float64)
 	switch {
 	case !ok:
@@ -427,6 +495,14 @@ func groupIDs(gs []Group) []string {
 	out := make([]string, len(gs))
 	for i, g := range gs {
 		out[i] = g.ID
+	}
+	return out
+}
+
+func columnIDs(cs []Column) []string {
+	out := make([]string, len(cs))
+	for i, c := range cs {
+		out[i] = c.ID
 	}
 	return out
 }

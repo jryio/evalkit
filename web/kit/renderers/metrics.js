@@ -1,13 +1,12 @@
 // Metrics against an optional baseline, as tiles (default) or a table. The change is
 // toned by whether it moves in the `better` direction beyond the tolerance.
 import { html } from "../html.js";
-import { cx, tone, withUnit } from "../ui/bits.js";
+import { cx, tone } from "../ui/bits.js";
+import { autoDecimals, fmtNumber as fmt, withUnit } from "../core/format.js";
 
 const MINUS = "−";
 
-// Whole numbers (counts) print without decimals; otherwise large values get none, small ones two.
-const decimals = m => m.decimals ?? (Number.isInteger(m.value) && Number.isInteger(m.baseline ?? 0) ? 0 : Math.abs(m.value) >= 100 ? 0 : 2);
-const fmt = (v, d) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", MINUS);
+const decimals = m => m.decimals ?? autoDecimals([m.value, m.baseline ?? 0]);
 
 // change returns { pct, tone } against the baseline, or null without one.
 function change(m) {

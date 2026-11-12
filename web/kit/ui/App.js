@@ -1,19 +1,27 @@
-// App owns the loaded suite, the review state, navigation, autosave, sending,
-// the keyboard and live reload of the suite.
+// App owns the loaded suite, the review state, the view (review or table) with its
+// filters, navigation, autosave, sending, the keyboard and live reload of the suite.
 import { html, useState, useEffect, useRef, useMemo } from "../html.js";
 import { api } from "../core/api.js";
 import { emptyState, reconcile, setAnswer, setEdit } from "../core/state.js";
 import { orderedItems, questionsFor, valueOf, answersOf, asked, progress, pendingActions, snapshot, rowTargets } from "../core/derive.js";
+import { columns, visible, scopeCounts } from "../core/table.js";
 import { scaleRange } from "../controls/scale.js";
-import { bindings, match } from "../core/keys.js";
+import { bindings, tableBindings, panelBindings, match } from "../core/keys.js";
 import { loadSuiteRenderers } from "../registry.js";
 import { fmtTime } from "./bits.js";
 import { Sidebar } from "./Sidebar.js";
 import { ItemView } from "./ItemView.js";
+import { ItemsTable } from "./ItemsTable.js";
+import { ReviewPanel } from "./ReviewPanel.js";
 import { Toolbar, SendSheet, HelpSheet, Toast, Banner } from "./chrome.js";
 
-const isTyping = el => !!el?.matches?.("textarea, input, select, [contenteditable]");
+// Only fields the reviewer types into keep the keys; sliders, checkboxes and buttons pass them on.
+const isTyping = el => !!el?.matches?.("textarea, select, [contenteditable], input:not([type=range], [type=checkbox], [type=radio], [type=button], [type=submit], [type=reset], [type=color], [type=file])");
 const hashId = () => decodeURIComponent(location.hash.slice(1)) || null;
+const NO_FILTERS = { scope: "all", group: null, search: "", where: [], sort: null };
+const VIEWS = ["review", "table"];
+const OPEN_IN = ["sidebar", "floating", "full"];
+const savedOpenIn = () => OPEN_IN.find(m => m === localStorage.getItem("evalkit.openIn")) ?? "sidebar";
 
 export function App() {
   const [loaded, setLoaded] = useState(null); // { suite, problems, version, fatal, done }
@@ -25,6 +33,12 @@ export function App() {
   const [stale, setStale] = useState(false);
   const [loadErrors, setLoadErrors] = useState([]);
   const [cursor, setCursor] = useState(null); // { artifact, row } under the keyboard row cursor
+  const [mode, setModeState] = useState(() => VIEWS.find(v => v === new URLSearchParams(location.search).get("view")) ?? null); // null: the suite's default
+  const [filters, setFilters] = useState(NO_FILTERS); // the table's scope, group, search, column filters and sort
+  const [walk, setWalk] = useState(null); // ids review walks, pinned from the filtered table; null: every item
+  const [openIn, setOpenInState] = useState(savedOpenIn); // where Enter opens a table row: sidebar, floating or full
+  const [panel, setPanel] = useState(false); // the table's review panel is open
+  const selIndex = useRef(0); // the selected row's position, so the selection survives the row leaving the filter
   const armed = useRef(null); // { qid, row, until }: a question key waiting for a number
   const dirty = useRef(false);
   const rev = useRef(0); // the server's state revision this tab last saw
@@ -33,10 +47,25 @@ export function App() {
   const scroller = useRef();
 
   const suite = loaded?.suite;
-  const items = useMemo(() => (suite ? orderedItems(suite) : []), [suite]);
-  const found = items.findIndex(i => i.id === currentId);
+  const view = mode ?? suite?.view ?? "review";
+  // ordered is the suite with items in sidebar order, the base for the table's rows.
+  const ordered = useMemo(() => suite && { ...suite, items: orderedItems(suite) }, [suite]);
+  const items = ordered?.items ?? [];
+  const cols = useMemo(() => (ordered ? columns(ordered) : []), [ordered]);
+  const rows = useMemo(() => (ordered && state ? visible(ordered, state, cols, filters) : []), [ordered, state, cols, filters]);
+  const filtered = filters !== NO_FILTERS;
+  // Review walks the table's rows as they were when review opened, so answering an item
+  // out of the filter does not change what J and K visit.
+  const list = useMemo(() => {
+    if (!walk) return items;
+    const byId = new Map(items.map(i => [i.id, i]));
+    return walk.map(id => byId.get(id)).filter(Boolean);
+  }, [walk, items]);
+  const found = list.findIndex(i => i.id === currentId);
   const index = found >= 0 ? found : 0;
-  const item = items[index];
+  // In the table, keys act on the panel's item, else on the selected row while it is visible.
+  const panelOpen = view === "table" && panel && openIn !== "full";
+  const item = !(view === "table") ? list[index] : panelOpen ? items.find(i => i.id === currentId) : rows.find(r => r.id === currentId);
 
   const showToast = message => {
     setToast({ message, show: true });
@@ -124,14 +153,52 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (suite?.title) document.title = `${suite.title} · evalkit`;
+  }, [suite?.title]);
+
+  useEffect(() => {
     setCursor(null);
     if (scroller.current) scroller.current.scrollTop = 0;
   }, [item?.id]);
 
+  const show = id => {
+    setCurrentId(id);
+    history.replaceState(null, "", `${location.search}#${encodeURIComponent(id)}`);
+  };
   const go = i => {
-    if (i < 0 || i >= items.length) return;
-    setCurrentId(items[i].id);
-    history.replaceState(null, "", `#${encodeURIComponent(items[i].id)}`);
+    if (i >= 0 && i < list.length) show(list[i].id);
+  };
+  const setView = v => {
+    if (v === "review") setWalk(filtered ? rows.map(r => r.id) : null);
+    const url = new URL(location.href);
+    url.searchParams.set("view", v);
+    history.replaceState(null, "", url);
+    setModeState(v);
+  };
+  const open = id => {
+    show(id);
+    setView("review");
+  };
+  // openRow opens a table row where the reviewer chose: the panel, or full screen.
+  const openRow = id => {
+    if (openIn === "full") return open(id);
+    show(id);
+    setPanel(true);
+  };
+  const setOpenIn = mode => {
+    localStorage.setItem("evalkit.openIn", mode);
+    setOpenInState(mode);
+    if (mode === "full" && panel && currentId) open(currentId);
+  };
+  const setTableFilters = f => setFilters(f.scope === "all" && !f.group && !f.search && !f.where.length && !f.sort ? NO_FILTERS : f);
+  // selectRow moves the table selection through the visible rows. When the selected row
+  // has left the filter, the row now in its place is next and the one before it previous.
+  const selected = rows.findIndex(r => r.id === currentId);
+  if (selected >= 0) selIndex.current = selected;
+  const selectRow = by => {
+    const at = selected >= 0 ? selected + by : by > 0 ? selIndex.current : selIndex.current - 1;
+    const next = rows[Math.max(0, Math.min(rows.length - 1, at))];
+    if (next) show(next.id);
   };
 
   const act = {
@@ -164,7 +231,8 @@ export function App() {
   // Keys only reach questions that are on screen: `when` can hide one.
   const onScreen = item ? questions.filter(q => q.each || asked(state, item, questions, q)) : [];
   const targets = item ? rowTargets(item, questions) : [];
-  const binds = item ? bindings(suite, item, onScreen, targets.length) : [];
+  const binds = !suite ? [] : view === "table" ? (panelOpen && item ? panelBindings(suite, item, onScreen, targets.length) : tableBindings(onScreen))
+    : item ? bindings(suite, item, onScreen, targets.length) : [];
 
   // The row a per-row key applies to: the cursor row, else the first row of q's artifact.
   function rowFor(q) {
@@ -184,8 +252,11 @@ export function App() {
     const answer = q && (row === undefined ? answersOf(state, item)[q.id] : answersOf(state, item)[q.id]?.[row]);
     const proposed = q && (row === undefined ? item.proposed?.[q.id]?.value : item.proposed?.[q.id]?.value?.[row]);
     const set = v => act.answer(item, q.id, v, row);
+    if (action.qid && !q) return; // the question does not apply to this item
     switch (action.type) {
       case "move": return go(index + action.by);
+      case "select": return selectRow(action.by);
+      case "open": return item && openRow(item.id);
       case "help": return setSheet("help");
       case "row": {
         const i = targets.findIndex(t => t.artifact === cursor?.artifact && t.row === cursor?.row);
@@ -202,12 +273,8 @@ export function App() {
         const i = q.options.findIndex(o => o.value === value);
         return set(q.options[(i + 1) % q.options.length].value);
       }
-      case "option": {
-        if (q.kind !== "multi") return set(answer === action.value ? undefined : action.value);
-        const list = value || [];
-        const next = list.includes(action.value) ? list.filter(v => v !== action.value) : [...list, action.value];
-        return set(next.length ? next : proposed !== undefined ? null : undefined);
-      }
+      case "option":
+        return q.kind === "multi" ? toggleTag(q, row, action.value) : set(answer === action.value ? undefined : action.value);
       case "pick": {
         const picked = rowFor(q);
         if (picked !== undefined) act.answer(item, q.id, answer === picked ? undefined : picked);
@@ -221,11 +288,25 @@ export function App() {
     }
   }
 
-  // pickNumber completes a chord: a choice's key then n picks option n; a scale's key then n sets n.
+  // toggleTag adds or removes one value of a multi question's answer.
+  function toggleTag(q, row, tag) {
+    const list = valueOf(state, item, q, row) || [];
+    const proposed = row === undefined ? item.proposed?.[q.id]?.value : item.proposed?.[q.id]?.value?.[row];
+    const next = list.includes(tag) ? list.filter(v => v !== tag) : [...list, tag];
+    act.answer(item, q.id, next.length ? next : proposed !== undefined ? null : undefined, row);
+  }
+
+  // pickNumber completes a chord: a choice's key then n picks option n; a scale's key then n
+  // sets n; a multi's key then n toggles option n and stays armed for the next tag.
   function pickNumber(n) {
     const { qid, row } = armed.current;
     armed.current = null;
     const q = questions.find(x => x.id === qid);
+    if (q.kind === "multi") {
+      if (q.options[n - 1]) toggleTag(q, row, q.options[n - 1].value);
+      armed.current = { qid, row, until: Date.now() + 1500 };
+      return;
+    }
     const value = q.kind === "scale" ? scaleRange(q).find(v => v === n) : q.options[n - 1]?.value;
     if (value !== undefined) act.answer(item, q.id, value, row);
   }
@@ -243,7 +324,15 @@ export function App() {
       if (e.repeat) return; // holding ⌘↵ must not open the sheet and then confirm it
       return sheet === "send" ? confirmSend() : setSheet("send");
     }
-    if (e.key === "Escape") return sheet ? setSheet(null) : typing ? e.target.blur() : setCursor(null);
+    // Esc unwinds one layer at a time: sheet, field, row cursor, the review panel, then review back to the table.
+    if (e.key === "Escape") {
+      if (sheet) return setSheet(null);
+      if (typing) return e.target.blur();
+      if (cursor) return setCursor(null);
+      if (panelOpen) return setPanel(false);
+      if (view === "review") setView("table");
+      return;
+    }
     if (sheet) {
       // Enter confirms, except on a focused Cancel button, which cancels.
       if (e.key === "Enter" && !e.repeat) {
@@ -253,14 +342,25 @@ export function App() {
       }
       return;
     }
-    if (typing || e.metaKey || e.ctrlKey || e.altKey || !item) return;
+    // From the table's filter field, ↓ or ↵ moves into the results.
+    if (typing && e.target.dataset?.focus === "table-search" && (e.key === "ArrowDown" || e.key === "Enter")) {
+      e.preventDefault();
+      e.target.blur();
+      if (rows[0]) show(rows[0].id);
+      return;
+    }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key.startsWith("Arrow") && e.target.matches?.("input[type=range]")) return; // the slider's own arrows
+    if (!item && view !== "table") return;
+    // A control reached with Tab handles its own Enter; one last clicked with the mouse does not.
+    if (e.key === "Enter" && e.target.closest?.("button, a, summary")?.matches(":focus-visible")) return;
     if (/^[1-9]$/.test(e.key) && armed.current && Date.now() < armed.current.until) {
       e.preventDefault();
       return pickNumber(Number(e.key));
     }
     armed.current = null;
     const b = match(binds, e);
-    if (b) {
+    if (b && (item || b.action.type === "select" || b.action.type === "focus" || b.action.type === "help")) {
       e.preventDefault();
       run(b.action);
     }
@@ -282,22 +382,33 @@ export function App() {
   const errors = loaded.problems.filter(p => !p.warning);
   const sendLabel = suite.send ?? "Send";
   const actionQs = [...new Map(items.flatMap(i => questionsFor(suite, i)).filter(q => q.kind === "action").map(q => [q.id, q])).values()];
+  const banners = html`
+    ${stale ? html`<${Banner} tone="accent" title="The suite changed." action=${html`<button class="btn-secondary" onClick=${() => refresh()}>Refresh</button>`} />` : null}
+    ${errors.length ? html`<${Banner} tone="negative" title=${`${errors.length} problem${errors.length > 1 ? "s" : ""} in the suite. Items with errors are hidden.`}
+        lines=${errors.map(p => `${p.item ? `${p.item}: ` : ""}${p.path ? `${p.path}: ` : ""}${p.message} (${p.file ?? ""}${p.line ? ` line ${p.line}` : ""})`)} />` : null}
+    ${loadErrors.length ? html`<${Banner} tone="negative" title="Custom renderers failed to load." lines=${loadErrors} />` : null}`;
 
-  return html`<div class="app">
-    <${Sidebar} suite=${suite} items=${items} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")} />
+  return html`<div class=${view === "table" ? "app table-mode" : "app"}>
+    ${view === "table" ? null : html`<${Sidebar} suite=${suite} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
+      filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />`}
     <main class="main">
-      <${Toolbar} index=${index} count=${items.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
-      <div class="scroll" ref=${scroller}><div class="content">
-        ${stale ? html`<${Banner} tone="accent" title="The suite changed." action=${html`<button class="btn-secondary" onClick=${() => refresh()}>Refresh</button>`} />` : null}
-        ${errors.length ? html`<${Banner} tone="negative" title=${`${errors.length} problem${errors.length > 1 ? "s" : ""} in the suite. Items with errors are hidden.`}
-            lines=${errors.map(p => `${p.item ? `${p.item}: ` : ""}${p.path ? `${p.path}: ` : ""}${p.message} (line ${p.line})`)} />` : null}
-        ${loadErrors.length ? html`<${Banner} tone="negative" title="Custom renderers failed to load." lines=${loadErrors} />` : null}
-        ${item ? html`<${ItemView} key=${item.id} suite=${suite} item=${item} state=${state} act=${act} cursor=${cursor} />` : html`<p class="muted">This suite has no items.</p>`}
-      </div></div>
+      <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")} />
+      ${view === "table"
+        ? html`<div class=${panelOpen && openIn === "sidebar" ? "tv-layout with-sidebar" : "tv-layout"}>
+            <${ItemsTable} suite=${ordered} state=${state} cols=${cols} rows=${rows} view=${filters} setView=${setTableFilters}
+              selected=${currentId} select=${show} open=${openRow} openIn=${openIn} setOpenIn=${setOpenIn} counts=${scopeCounts(items, state)} progress=${progress(suite, state)} banners=${banners} />
+            ${panelOpen ? html`<${ReviewPanel} mode=${openIn} setMode=${setOpenIn} item=${item} close=${() => setPanel(false)}
+                position=${{ index: rows.findIndex(r => r.id === currentId), count: rows.length }} go=${selectRow}
+                suite=${suite} cols=${cols} state=${state} act=${act} cursor=${cursor} />` : null}
+          </div>`
+        : html`<div class="scroll" ref=${scroller}><div class="content">
+            ${banners}
+            ${item ? html`<${ItemView} key=${item.id} suite=${suite} cols=${cols} item=${item} state=${state} act=${act} cursor=${cursor} />` : html`<p class="muted">This suite has no items.</p>`}
+          </div></div>`}
     </main>
     ${sheet === "send" ? html`<${SendSheet} sendLabel=${sendLabel} progress=${progress(suite, state)} actions=${actionQs}
         pending=${pendingActions(suite, state)} close=${() => setSheet(null)} confirm=${confirmSend} />` : null}
-    ${sheet === "help" ? html`<${HelpSheet} binds=${binds} sendLabel=${sendLabel} description=${suite.description} close=${() => setSheet(null)} />` : null}
+    ${sheet === "help" ? html`<${HelpSheet} binds=${binds} sendLabel=${sendLabel} description=${suite.description} view=${view} close=${() => setSheet(null)} />` : null}
     <${Toast} ...${toast} />
   </div>`;
 }

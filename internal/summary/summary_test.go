@@ -47,6 +47,16 @@ func TestWrite(t *testing.T) {
 			notWant: []string{"Changed since", "Unchanged", "Approved actions"},
 		},
 		{
+			name: "flagged progress counts flagged items",
+			cur: obj{
+				"suite": "Kitchen sink", "sequence": 1, "sent_at": "2026-11-09T12:00:00Z",
+				"progress": obj{"reviewed": 1, "total": 2, "flagged": true},
+				"items":    obj{"a": item("Alpha", obj{"verdict": "good"})},
+			},
+			want:    []string{"Kitchen sink · sent #1 at 2026-11-09T12:00:00Z · 1 of 2 flagged reviewed\n"},
+			notWant: []string{"of 2 reviewed"},
+		},
+		{
 			name:    "second send prints only changed keys",
 			cur:     snapshot(2, obj{"a": item("Alpha", obj{"verdict": "bad", "notes": "looks fine"})}),
 			prev:    snapshot(1, obj{"a": item("Alpha", obj{"verdict": "good", "notes": "looks fine"})}),

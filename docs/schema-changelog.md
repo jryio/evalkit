@@ -66,3 +66,14 @@ No schema change. That is the signal the schema has converged:
 - **An empty answer can override a proposal.** Clearing a proposed text, number or multi stores `null`, and turning off a proposed toggle stores `false`, so the proposal does not come back. `null` in a snapshot means "explicitly empty".
 - **Actions hidden by `when` cannot be approved or sent.**
 - Protocol, not schema: state saves carry a revision (a stale tab gets 409 and reloads), the server only accepts same-origin JSON on loopback, action results are one file each under `feedback/done/`, and `evalkit wait` lists an approved action once, then under "Still approved" until it is recorded done.
+
+## v7: demo 8 (an LLM judge's round) and the table view
+
+Evals graded by a judge loop have dozens to hundreds of rows, most of which need no human. Reviewing them one by one does not scale, and the loop writes rows as it goes.
+
+- **A table view for every suite.** Columns come from what the suite already declares: each suite-level question, a group column and a note column. No per-view configuration. Review and table share filters and sort, so J and K walk the rows the table shows.
+- **Judge scores are proposals.** No `score` kind: a verdict is a `choice`, a 0–10 or 0–1 score is a `number` with `min` and `max`. Overrides already come back as `changed`, which is the calibration signal (as demo 4 showed for pairwise).
+- **`columns` and item `values`** hold what nobody should edit: cost, latency, word counts, deterministic checks. A value may carry a `baseline`, and so may a proposal; the table adds a Δ column toned by the column's `better` and `noise`.
+- **`flag`** marks the items the loop wants a human on. When any item is flagged, progress counts only those.
+- **`items_from`** reads items from JSONL files, the format harnesses already append to. A later line with the same id replaces the earlier one; a partial last line is skipped; a missing file is a warning. Problems point at the JSONL file and line.
+- `scale` gained a judge reason beside it (`why`), like `choice` and `number`; a bounded `number` shows a slider.

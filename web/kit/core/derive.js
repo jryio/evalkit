@@ -61,10 +61,15 @@ export function isReviewed(suite, state, item) {
   return ids ? ids.some(id => answers[id] !== undefined) : Object.keys(answers).length > 0;
 }
 
+// When the agent flags items, progress counts only those: the rest need no human.
 export function progress(suite, state) {
-  const reviewed = suite.items.filter(i => isReviewed(suite, state, i)).length;
-  return { reviewed, total: suite.items.length };
+  const flagged = suite.items.some(i => i.flag);
+  const pool = flagged ? suite.items.filter(i => i.flag) : suite.items;
+  const reviewed = pool.filter(i => isReviewed(suite, state, i)).length;
+  return { reviewed, total: pool.length, ...(flagged ? { flagged } : {}) };
 }
+
+export const progressLabel = p => `${p.reviewed} of ${p.total} ${p.flagged ? "flagged " : ""}reviewed`;
 
 export function statusTone(suite, state, item) {
   const q = statusOf(suite);
@@ -112,22 +117,30 @@ function liveAnswers(state, item, questions, answers) {
   return out;
 }
 
+// changes lists the proposals the human overrode: { qid: { from, to } }, per row
+// for per-row questions. With a judge's proposals these are the disagreements.
+export function changes(state, item) {
+  const { answers } = entry(state, item);
+  const out = {};
+  for (const [qid, p] of Object.entries(item.proposed || {})) {
+    const a = answers[qid];
+    if (a === undefined) continue;
+    if (isRowMap(p.value)) {
+      const rows = Object.fromEntries(Object.entries(a)
+        .filter(([r, v]) => p.value[r] !== undefined && !same(p.value[r], v))
+        .map(([r, v]) => [r, { from: p.value[r], to: v }]));
+      if (Object.keys(rows).length) out[qid] = rows;
+    } else if (!same(a, p.value)) out[qid] = { from: p.value, to: a };
+  }
+  return out;
+}
+
 export function snapshot(suite, state) {
   const items = {};
   for (const item of suite.items) {
     const e = entry(state, item);
     if (!hasInput(e)) continue;
-    const changed = {};
-    for (const [qid, p] of Object.entries(item.proposed || {})) {
-      const a = e.answers[qid];
-      if (a === undefined) continue;
-      if (isRowMap(p.value)) {
-        const rows = Object.fromEntries(Object.entries(a)
-          .filter(([r, v]) => p.value[r] !== undefined && !same(p.value[r], v))
-          .map(([r, v]) => [r, { from: p.value[r], to: v }]));
-        if (Object.keys(rows).length) changed[qid] = rows;
-      } else if (!same(a, p.value)) changed[qid] = { from: p.value, to: a };
-    }
+    const changed = changes(state, item);
     items[item.id] = {
       title: item.title,
       revision: item.revision,

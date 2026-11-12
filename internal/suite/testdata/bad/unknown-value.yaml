@@ -1,0 +1,12 @@
+title: Unknown value
+columns:
+  - { id: score }
+  - { id: cost }
+items:
+  - id: a
+    title: First
+    values:
+      score: 1
+      latency: 2
+  - id: b
+    title: Second

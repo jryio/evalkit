@@ -34,11 +34,16 @@ func copyFile(tb testing.TB, src, dst string) {
 	if err != nil {
 		tb.Fatalf("read %s: %v", src, err)
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		tb.Fatalf("mkdir %s: %v", filepath.Dir(dst), err)
+	writeFile(tb, dst, string(b))
+}
+
+func writeFile(tb testing.TB, path, content string) {
+	tb.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		tb.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(dst, b, 0o644); err != nil {
-		tb.Fatalf("write %s: %v", dst, err)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		tb.Fatalf("write %s: %v", path, err)
 	}
 }
 
@@ -175,6 +180,28 @@ func TestGetSuite_BrokenItem(t *testing.T) {
 	}
 	if len(got.Suite.Items) != 1 || got.Suite.Items[0]["id"] != "good" {
 		t.Errorf("items = %v, want only good", got.Suite.Items)
+	}
+}
+
+func TestGetVersion_MatchesSuite(t *testing.T) {
+	t.Parallel()
+	s := startServer(t, func(dir string) {
+		writeFile(t, filepath.Join(dir, "suite.yaml"), "title: Runs\nitems:\n  - { id: a, title: A }\nitems_from: runs/*.jsonl\n")
+		writeFile(t, filepath.Join(dir, "runs", "1.jsonl"), `{"id":"b","title":"B"}`+"\n")
+	})
+	if err := s.fb.RecordDone("a", "post", feedback.Done{Note: "posted"}); err != nil {
+		t.Fatalf("RecordDone: %v", err)
+	}
+	resp, body := s.do(t, "GET", "/api/suite", "")
+	wantStatus(t, resp, body, http.StatusOK)
+	got := decode[suiteResponse](t, body)
+	if len(got.Suite.Items) != 2 {
+		t.Fatalf("items = %v, want a and b", got.Suite.Items)
+	}
+	resp, body = s.do(t, "GET", "/api/version", "")
+	wantStatus(t, resp, body, http.StatusOK)
+	if v := decode[map[string]any](t, body)["version"]; v != got.Version {
+		t.Errorf("/api/version version = %v, want the suite's %q", v, got.Version)
 	}
 }
 

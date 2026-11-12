@@ -50,11 +50,33 @@ func revisions(tb testing.TB, res suite.Result) map[string]string {
 
 func writeSuite(tb testing.TB, content string) string {
 	tb.Helper()
-	path := filepath.Join(tb.TempDir(), "suite.yaml")
+	return writeDir(tb, map[string]string{"suite.yaml": content})
+}
+
+// writeDir writes files (slash path -> content) to a temp dir and returns the
+// path of suite.yaml in it.
+func writeDir(tb testing.TB, files map[string]string) string {
+	tb.Helper()
+	dir := tb.TempDir()
+	for name, content := range files {
+		writeFile(tb, filepath.Join(dir, filepath.FromSlash(name)), content)
+	}
+	return filepath.Join(dir, "suite.yaml")
+}
+
+func writeFile(tb testing.TB, path, content string) {
+	tb.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		tb.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		tb.Fatalf("write %s: %v", path, err)
 	}
-	return path
+}
+
+// jsonl is one JSONL item line.
+func jsonl(id, title string) string {
+	return fmt.Sprintf(`{"id":%q,"title":%q}`+"\n", id, title)
 }
 
 func TestLoad_ValidSuites(t *testing.T) {
@@ -260,6 +282,51 @@ func TestLoad_InvalidSuites(t *testing.T) {
 			item: "a", kept: []string{"Second"},
 		},
 		{
+			name: "no items and no items_from", file: "no-items.yaml",
+			contains: []string{"a suite needs items or items_from"}, line: 1, fatal: true,
+		},
+		{
+			name: "duplicate column id", file: "duplicate-column.yaml",
+			contains: []string{`duplicate column id "score"`}, line: 4, path: "columns[1].id", fatal: true,
+		},
+		{
+			name: "column id same as a question", file: "column-question-id.yaml",
+			contains: []string{`column "verdict" has the same id as a question`}, line: 5, path: "columns[0].id", fatal: true,
+		},
+		{
+			name: "column min not below max", file: "column-min-max.yaml",
+			contains: []string{"min must be below max"}, line: 4, path: "columns[0].min", fatal: true,
+		},
+		{
+			name: "value for an unknown column", file: "unknown-value.yaml",
+			contains: []string{`unknown column "latency" (want one of "score", "cost")`}, line: 10, path: "items[0].values.latency",
+			item: "a", kept: []string{"Second"},
+		},
+		{
+			name: "values without columns", file: "values-no-columns.yaml",
+			contains: []string{"values set but the suite defines no columns"}, line: 5, path: "items[0].values",
+			item: "a", kept: []string{"Second"},
+		},
+		{
+			name: "per-row proposal with a baseline", file: "proposed-baseline-per-row.yaml",
+			contains: []string{"baseline is not supported for per-row questions"}, line: 10, path: "items[0].proposed.keep.baseline",
+			item: "a", kept: []string{"Second"},
+		},
+		{
+			name: "proposal baseline not an option", file: "proposed-baseline-not-option.yaml",
+			contains: []string{`proposed value medium is not an option of "risk"`}, line: 15, path: "items[0].proposed.risk.baseline",
+			item: "a", kept: []string{"Second"},
+		},
+		{
+			name: "number question min not below max", file: "question-min-max.yaml",
+			contains: []string{"min must be below max"}, line: 6, path: "questions[0].min", fatal: true,
+		},
+		{
+			name: "item scale question max at the default min", file: "ask-scale-min-max.yaml",
+			contains: []string{"min must be below max"}, line: 6, path: "items[0].ask[0].min",
+			item: "a", kept: []string{"Second"},
+		},
+		{
 			name: "duplicate ask label", file: "duplicate-label.yaml",
 			contains: []string{"duplicate question label"}, line: 7, path: "items[0].ask[1].label", warning: true,
 			item: "a", kept: []string{"First", "Second"}, askOf: "a", ask: []string{"why"},
@@ -373,4 +440,369 @@ func TestLoad_KeepsKeyOrder(t *testing.T) {
 	if want := `"data":{"zeta":1,"alpha":2,"mid":{"b":1,"a":2}}`; !strings.Contains(string(b), want) {
 		t.Errorf("Doc JSON = %s, want it to contain %s", b, want)
 	}
+}
+
+// canonicalJSON keeps key order and turns the surrogate pair into one rune.
+func TestLoad_JSONLKeepsKeyOrder(t *testing.T) {
+	t.Parallel()
+	path := writeDir(t, map[string]string{
+		"suite.yaml": "title: Order\nitems_from: runs.jsonl\n",
+		"runs.jsonl": `{"id":"j","title":"J \ud83d\udc40","show":[{"kind":"json","data":{"zeta":1,"alpha":2,"mid":{"b":[3,1],"a":null,"ok":true}}}]}` + "\n",
+	})
+	res := load(t, path)
+	if len(res.Problems) != 0 {
+		t.Fatalf("problems = %v, want none", res.Problems)
+	}
+	b, err := json.Marshal(res.Doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`"title":"J ` + "\U0001F440" + `"`,
+		`"data":{"zeta":1,"alpha":2,"mid":{"b":[3,1],"a":null,"ok":true}}`,
+	} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("Doc JSON = %s, want it to contain %s", b, want)
+		}
+	}
+}
+
+func TestLoad_TableSuite(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join("testdata", "table.yaml")
+	res := load(t, path)
+	if res.Fatal || len(res.Problems) != 0 {
+		t.Fatalf("Load(%q) fatal = %v, problems = %v, want a clean load", path, res.Fatal, res.Problems)
+	}
+	if got := len(docItems(t, res)); got != 2 {
+		t.Errorf("Load(%q) items = %d, want 2", path, got)
+	}
+}
+
+func TestLoad_ItemsFrom(t *testing.T) {
+	t.Parallel()
+	const inline = "title: Runs\nitems:\n  - { id: a, title: A }\n"
+	tests := []struct {
+		name     string
+		dir      string            // the suite's directory under the temp dir
+		files    map[string]string // suite.yaml and the files beside it, relative to the temp dir
+		items    []string          // id=title of each Doc item, in order
+		problems []string          // prefix of each Problem.String(), in order
+		fatal    bool
+	}{
+		{
+			name: "string form appends after inline items",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + jsonl("c", "C"),
+			},
+			items: []string{"a=A", "b=B", "c=C"},
+		},
+		{
+			name: "list form keeps entry order",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: [z.jsonl, y.jsonl]\n",
+				"z.jsonl":    jsonl("b", "B"),
+				"y.jsonl":    jsonl("c", "C"),
+			},
+			items: []string{"a=A", "b=B", "c=C"},
+		},
+		{
+			name: "glob sorts its matches",
+			files: map[string]string{
+				"suite.yaml":   inline + "items_from: runs/*.jsonl\n",
+				"runs/2.jsonl": jsonl("c", "C"),
+				"runs/1.jsonl": jsonl("b", "B"),
+			},
+			items: []string{"a=A", "b=B", "c=C"},
+		},
+		{
+			name: "a file named twice loads once",
+			files: map[string]string{
+				"suite.yaml":   inline + "items_from: [runs/1.jsonl, \"runs/*.jsonl\"]\n",
+				"runs/1.jsonl": jsonl("b", "B"),
+				"runs/2.jsonl": jsonl("c", "C"),
+			},
+			items: []string{"a=A", "b=B", "c=C"},
+		},
+		{
+			name: "items_from without items",
+			files: map[string]string{
+				"suite.yaml": "title: Runs\nitems_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B"),
+			},
+			items: []string{"b=B"},
+		},
+		{
+			name: "explicit empty items",
+			files: map[string]string{
+				"suite.yaml": "title: Runs\nitems: []\n",
+			},
+		},
+		{
+			name: "a later line replaces an earlier one in place",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B1") + jsonl("c", "C") + jsonl("b", "B2"),
+			},
+			items: []string{"a=A", "b=B2", "c=C"},
+		},
+		{
+			name: "a later file replaces an earlier one's line",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: [x.jsonl, y.jsonl]\n",
+				"x.jsonl":    jsonl("b", "B1") + jsonl("c", "C"),
+				"y.jsonl":    jsonl("b", "B2"),
+			},
+			items: []string{"a=A", "b=B2", "c=C"},
+		},
+		{
+			name: "a line does not replace an inline item",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("a", "A2"),
+			},
+			items:    []string{"a=A"},
+			problems: []string{`runs.jsonl:1:1: error: items[1].id (item a): duplicate item id "a" (first at items[0])`},
+		},
+		{
+			name: "unfinished last line and blank lines are skipped",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + "\n  \n" + jsonl("c", "C") + `{"id":"d","ti`,
+			},
+			items: []string{"a=A", "b=B", "c=C"},
+		},
+		{
+			name: "malformed line",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + "{not json\n" + jsonl("c", "C"),
+			},
+			items:    []string{"a=A", "b=B", "c=C"},
+			problems: []string{"runs.jsonl:2:1: error: JSON syntax: "},
+		},
+		{
+			name: "escaped surrogate pair",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"e1","title":"watching \ud83d\udc40"}` + "\n",
+			},
+			items: []string{"a=A", "e1=watching \U0001F440"},
+		},
+		{
+			name: "malformed line reports the JSON error",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + `{"id": "x" "title": "X"}` + "\n",
+			},
+			items:    []string{"a=A", "b=B"},
+			problems: []string{`runs.jsonl:2:1: error: JSON syntax: invalid character '"' after object key:value pair`},
+		},
+		{
+			name: "line not an object",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": "[1, 2]\n" + jsonl("b", "B"),
+			},
+			items:    []string{"a=A", "b=B"},
+			problems: []string{"runs.jsonl:1:1: error: each line must be a JSON object"},
+		},
+		{
+			name: "semantic error in a line hides only that item",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + `{"id":"c","title":"C","show":[{"kind":"chartt"}]}` + "\n" + jsonl("d", "D"),
+			},
+			items:    []string{"a=A", "b=B", "d=D"},
+			problems: []string{`runs.jsonl:2:1: error: items[2].show[0].kind (item c): unknown kind "chartt"`},
+		},
+		{
+			name: "schema error in a line hides only that item",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + `{"id":"c"}` + "\n",
+			},
+			items:    []string{"a=A", "b=B"},
+			problems: []string{"runs.jsonl:2:1: error: items[2] (item c): "},
+		},
+		{
+			name: "missing file is a warning",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: missing.jsonl\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{`suite.yaml:4:13: warning: items_from: "missing.jsonl" matches no file yet`},
+		},
+		{
+			name: "list entry matching nothing is a warning",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: [runs.jsonl, \"later/*.jsonl\"]\n",
+				"runs.jsonl": jsonl("b", "B"),
+			},
+			items:    []string{"a=A", "b=B"},
+			problems: []string{`suite.yaml:4:26: warning: items_from[1]: "later/*.jsonl" matches no file yet`},
+		},
+		{
+			name: "a directory is not a file",
+			files: map[string]string{
+				"suite.yaml":   inline + "items_from: runs\n",
+				"runs/1.jsonl": jsonl("b", "B"),
+			},
+			items:    []string{"a=A"},
+			problems: []string{`suite.yaml:4:13: warning: items_from: "runs" matches no file yet`},
+		},
+		{
+			name: "bad glob pattern",
+			files: map[string]string{
+				"suite.yaml":   inline + "items_from: \"runs/[.jsonl\"\n",
+				"runs/1.jsonl": jsonl("b", "B"),
+			},
+			problems: []string{`suite.yaml:4:13: error: items_from: bad glob pattern "runs/[.jsonl"`},
+			fatal:    true,
+		},
+		{
+			name: "plain path in a directory with glob characters",
+			dir:  "b [v2]",
+			files: map[string]string{
+				"b [v2]/suite.yaml":   "title: Runs\nitems_from: runs/1.jsonl\n",
+				"b [v2]/runs/1.jsonl": jsonl("b", "B"),
+			},
+			items: []string{"b=B"},
+		},
+		{
+			name: "glob in a directory with glob characters",
+			dir:  "b [v2]",
+			files: map[string]string{
+				"b [v2]/suite.yaml":   "title: Runs\nitems_from: runs/*.jsonl\n",
+				"b [v2]/runs/1.jsonl": jsonl("b", "B"),
+				"b [v2]/runs/2.jsonl": jsonl("c", "C"),
+			},
+			items: []string{"b=B", "c=C"},
+		},
+		{
+			name: "two objects on one line",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"b","title":"B"} {"id":"c","title":"C"}` + "\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{"runs.jsonl:1:1: error: JSON syntax: unexpected data after the JSON value"},
+		},
+		{
+			name: "data after the object",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"x","title":"x"} junk` + "\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{"runs.jsonl:1:1: error: JSON syntax: unexpected data after the JSON value"},
+		},
+		{
+			name: "YAML flow mapping",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": "{id: yamlish, title: t}\n",
+			},
+			items:    []string{"a=A"},
+			problems: []string{"runs.jsonl:1:1: error: JSON syntax: invalid character 'i'"},
+		},
+		{
+			name: "trailing comma",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": jsonl("b", "B") + `{"id": "x",}` + "\n",
+			},
+			items:    []string{"a=A", "b=B"},
+			problems: []string{"runs.jsonl:2:1: error: JSON syntax: invalid character '}' looking for beginning of object key string"},
+		},
+		{
+			name: "control characters YAML does not allow raw",
+			files: map[string]string{
+				"suite.yaml": inline + "items_from: runs.jsonl\n",
+				"runs.jsonl": `{"id":"d1","title":"del\u007f"}` + "\n" +
+					"{\"id\":\"d2\",\"title\":\"del\x7f\"}\n" +
+					"{\"id\":\"n1\",\"title\":\"nel\xc2\x85\"}\n",
+			},
+			items: []string{"a=A", "d1=del\x7f", "d2=del\x7f", "n1=nel\xc2\x85"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root := filepath.Dir(writeDir(t, tc.files))
+			res := load(t, filepath.Join(root, tc.dir, "suite.yaml"))
+			if res.Fatal != tc.fatal {
+				t.Fatalf("Fatal = %v, want %v; problems = %v", res.Fatal, tc.fatal, res.Problems)
+			}
+			if len(res.Problems) != len(tc.problems) {
+				t.Fatalf("problems = %v, want %d", res.Problems, len(tc.problems))
+			}
+			for i, p := range res.Problems {
+				if !strings.HasPrefix(p.String(), tc.problems[i]) {
+					t.Errorf("problem %d = %q, want prefix %q", i, p, tc.problems[i])
+				}
+			}
+			var items []string
+			for _, it := range docItems(t, res) {
+				items = append(items, fmt.Sprintf("%v=%v", it["id"], it["title"]))
+			}
+			if !slices.Equal(items, tc.items) {
+				t.Errorf("Doc items = %v, want %v", items, tc.items)
+			}
+		})
+	}
+}
+
+func TestVersion_MatchesLoad(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		files map[string]string
+	}{
+		{"no items_from", map[string]string{"suite.yaml": "title: Runs\nitems: []\n"}},
+		{"items_from", map[string]string{"suite.yaml": "title: Runs\nitems_from: runs/*.jsonl\n", "runs/1.jsonl": jsonl("a", "A")}},
+		{"yaml syntax error", map[string]string{"suite.yaml": "title: [\n"}},
+		{"top level not a mapping", map[string]string{"suite.yaml": "- a\n"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			version(t, writeDir(t, tc.files))
+		})
+	}
+}
+
+func TestVersion_ChangesWithJSONL(t *testing.T) {
+	t.Parallel()
+	path := writeDir(t, map[string]string{
+		"suite.yaml":   "title: Runs\nitems_from: runs/*.jsonl\n",
+		"runs/1.jsonl": jsonl("a", "A"),
+	})
+	runs := filepath.Join(filepath.Dir(path), "runs")
+	before := version(t, path)
+
+	writeFile(t, filepath.Join(runs, "1.jsonl"), jsonl("a", "A")+jsonl("b", "B"))
+	appended := version(t, path)
+	if appended == before {
+		t.Errorf("version = %q after appending a line, want a change", appended)
+	}
+
+	writeFile(t, filepath.Join(runs, "2.jsonl"), jsonl("c", "C"))
+	if added := version(t, path); added == appended {
+		t.Errorf("version = %q after adding a file, want a change", added)
+	}
+}
+
+// version returns Version(path), checking that Load reports the same.
+func version(tb testing.TB, path string) string {
+	tb.Helper()
+	v, err := suite.Version(path)
+	if err != nil {
+		tb.Fatalf("Version(%q): %v", path, err)
+	}
+	if got := load(tb, path).Version; got != v {
+		tb.Errorf("Load(%q).Version = %q, Version() = %q, want equal", path, got, v)
+	}
+	return v
 }

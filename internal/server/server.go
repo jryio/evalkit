@@ -123,13 +123,14 @@ func (s *Server) getSuite(w http.ResponseWriter, r *http.Request) {
 	}{res, done})
 }
 
+// getVersion hashes the files without validating them: the page polls it.
 func (s *Server) getVersion(w http.ResponseWriter, r *http.Request) {
-	res, err := s.load()
+	v, err := suite.Version(s.suitePath)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"version": res.Version, "sequence": s.fb.Latest()})
+	writeJSON(w, http.StatusOK, map[string]any{"version": v + s.fb.DoneVersion(), "sequence": s.fb.Latest()})
 }
 
 func (s *Server) getState(w http.ResponseWriter, r *http.Request) {
