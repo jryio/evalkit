@@ -1,21 +1,14 @@
-// Source list: suite title, progress, then items under their group headers.
+// Source list: items under their group headers. The suite's title and progress head the main column.
 import { html, useEffect, useRef } from "../html.js";
 import { cx, Dot } from "./bits.js";
-import { progress, progressLabel, statusTone, trailing } from "../core/derive.js";
+import { statusTone, trailing } from "../core/derive.js";
 
 // items is the list review walks: every item, or the table's filtered and sorted rows.
 export function Sidebar({ suite, items, state, current, go, openHelp, filtered, clearFilters, total: all }) {
-  const p = progress(suite, state);
   const sections = suite.groups?.length && !filtered
     ? suite.groups.map(g => ({ label: g.label, items: items.filter(i => i.group === g.id) })).filter(s => s.items.length)
     : [{ label: "", items }];
   return html`<aside class="sidebar">
-    <div class="sb-head">
-      <div class="sb-title">${suite.title}</div>
-      ${suite.description ? html`<div class="sb-desc" title=${suite.description}>${suite.description}</div>` : null}
-      <div class="progress"><span style=${{ width: `${p.total ? (100 * p.reviewed) / p.total : 0}%` }}></span></div>
-      <div class="sb-count">${progressLabel(p)}</div>
-    </div>
     ${filtered ? html`<div class="sb-filter">
       <span>Table filter: ${items.length} of ${all}</span>
       <button class="link" onClick=${clearFilters}>Show all</button>

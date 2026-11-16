@@ -981,6 +981,10 @@
                 "type": "integer",
                 "minimum": 1,
                 "description": "Lines shown before the panel scrolls inside itself. Default 250."
+              },
+              "diff": {
+                "type": "boolean",
+                "description": "With two panes, start as a split diff of the left pane against the right; the reviewer can switch back to Panes."
               }
             }
           }
@@ -1019,6 +1023,10 @@
                 "type": "integer",
                 "minimum": 1,
                 "description": "Lines shown before the panel scrolls inside itself. Default 250."
+              },
+              "split": {
+                "type": "boolean",
+                "description": "Start in the side-by-side view; the reviewer can switch to Unified."
               }
             }
           }

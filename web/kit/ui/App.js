@@ -15,7 +15,7 @@ import { ItemView } from "./ItemView.js";
 import { ItemsTable } from "./ItemsTable.js";
 import { RunsView } from "./RunsView.js";
 import { ReviewPanel } from "./ReviewPanel.js";
-import { Toolbar, SendSheet, HelpSheet, Toast, Banner } from "./chrome.js";
+import { Toolbar, SuiteHead, SendSheet, HelpSheet, Toast, Banner } from "./chrome.js";
 
 // Only fields the reviewer types into keep the keys; sliders, checkboxes and buttons pass them on.
 const isTyping = el => !!el?.matches?.("textarea, select, [contenteditable], input:not([type=range], [type=checkbox], [type=radio], [type=button], [type=submit], [type=reset], [type=color], [type=file])");
@@ -32,6 +32,21 @@ const savedOpenIn = () => OPEN_IN.find(m => m === localStorage.getItem("evalkit.
 function runSuite(suite, state, runs, run) {
   const s = run ? withBaselines(suite, state, run.id, vsOf(suite, runs, run)?.id ?? null) : suite;
   return { ...s, items: orderedItems(s) };
+}
+
+// animated applies update, a change of view, as a view transition: the sidebar slides away or back
+// while the main column takes its space (kit.css). Preact renders in a microtask, so the new view is
+// in the DOM by the next task. Without the API, or with reduced motion, the view switches at once.
+// A switch made during another's transition skips it, and the browser may still run the skipped
+// update after the newer one, so only the latest update applies.
+let latestSwitch = 0;
+function animated(update) {
+  if (!document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) return update();
+  const id = ++latestSwitch;
+  document.startViewTransition(() => {
+    if (id === latestSwitch) update();
+    return new Promise(resolve => setTimeout(resolve));
+  });
 }
 
 export function App() {
@@ -209,10 +224,11 @@ export function App() {
     history.replaceState(null, "", url);
     setModeState(v);
   };
-  const open = id => {
+  const switchView = v => animated(() => setView(v));
+  const open = id => animated(() => {
     show(id);
     setView("review");
-  };
+  });
   // openRow opens a table row where the reviewer chose: the panel, or full screen.
   const openRow = id => {
     if (openIn === "full") return open(id);
@@ -252,7 +268,7 @@ export function App() {
   };
   // openRun opens a run in the table: on one case (pair) in the review panel, or filtered
   // to the cases that moved in one direction against the run it is compared with.
-  const openRun = (id, { pair, direction } = {}) => {
+  const openRun = (id, { pair, direction } = {}) => animated(() => {
     const full = pair !== undefined && openIn === "full";
     setView(full ? "review" : "table"); // before setRun, which unpins review's walk
     if (direction && metric) {
@@ -264,7 +280,7 @@ export function App() {
       setRun(id, pair === undefined ? undefined : `${id}/${pair}`);
     }
     if (pair !== undefined && !full) setPanel(true);
-  };
+  });
   const setTableFilters = f => setFilters(f.scope === "all" && !f.group && !f.search && !f.where.length && !f.sort ? NO_FILTERS : f);
   // selectRow moves the table selection through the visible rows. When the selected row
   // has left the filter, the row now in its place is next and the one before it previous.
@@ -409,8 +425,8 @@ export function App() {
       if (typing) return e.target.blur();
       if (cursor) return setCursor(null);
       if (panelOpen) return setPanel(false);
-      if (view === "review") setView("table");
-      else if (view === "table" && runs.length) setView("runs");
+      if (view === "review") switchView("table");
+      else if (view === "table" && runs.length) switchView("runs");
       return;
     }
     if (sheet) {
@@ -471,12 +487,15 @@ export function App() {
         lines=${errors.map(p => `${p.item ? `${p.item}: ` : ""}${p.path ? `${p.path}: ` : ""}${p.message} (${p.file ?? ""}${p.line ? ` line ${p.line}` : ""})`)} />` : null}
     ${loadErrors.length ? html`<${Banner} tone="negative" title="Custom renderers failed to load." lines=${loadErrors} />` : null}`;
 
+  // The toolbar's ‹ › and counter walk review's items, or the table's rows as J and K do.
+  const nav = view === "review" ? { index, count: list.length, step: by => go(index + by) } : { index: selected, count: rows.length, step: selectRow };
+
   return html`<div class=${view === "review" ? "app" : "app table-mode"}>
+    <${Toolbar} view=${view} setView=${switchView} nav=${nav} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")}
+      run=${shownRun && { run: shownRun, vs, count: runs.length, step: stepRun }} />
     ${view === "review" ? html`<${Sidebar} suite=${ordered} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
       filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />` : null}
     <main class="main">
-      <${Toolbar} view=${view} setView=${setView} index=${index} count=${list.length} go=${go} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")}
-        run=${shownRun && { run: shownRun, vs, count: runs.length, step: stepRun }} />
       ${view === "runs"
         ? html`<${RunsView} suite=${suite} state=${state} runs=${runs} rows=${summary} shown=${runRows} metric=${metric} spend=${spend}
             filters=${runFilters} setFilters=${setRunFilters} selected=${shownRun.id} vs=${vs} select=${id => setRun(id)} open=${openRun} banners=${banners} />`
@@ -489,7 +508,8 @@ export function App() {
                 position=${{ index: rows.findIndex(r => r.id === currentId), count: rows.length }} go=${selectRow}
                 suite=${ordered} cols=${cols} state=${state} act=${act} cursor=${cursor} across=${acrossView} />` : null}
           </div>`
-        : html`<div class="scroll" ref=${scroller}><div class="content">
+        : html`<${SuiteHead} title=${title} description=${suite.description} progress=${progress(ordered, state)} />
+          <div class="scroll" ref=${scroller}><div class="content">
             ${banners}
             ${item ? html`<${ItemView} key=${item.id} suite=${ordered} cols=${cols} item=${item} state=${state} act=${act} cursor=${cursor} across=${acrossView} />` : html`<p class="muted">This suite has no items.</p>`}
           </div></div>`}

@@ -1,0 +1,13 @@
+/* @pierre/diffs views take evalkit's code font, size and line height, and the line cap of
+   every code panel. The Pierre themes supply the colors. */
+.pierre { --diffs-font-family: var(--mono); --diffs-font-size: 13px; --diffs-line-height: 1.6; --diffs-tab-size: 4;
+  --diffs-header-font-family: var(--font); border-radius: var(--radius); overflow: auto;
+  max-height: calc(var(--max-lines, 250) * 13px * 1.6 + 24px); }
+.pierre > * + * { margin-top: 12px; }
+
+/* Two-button switch a renderer shows in its own bar: Unified | Split, Panes | Diff. */
+.view-toggle { display: inline-flex; border: 1px solid var(--separator); border-radius: 6px; overflow: hidden; }
+.view-toggle button { font: 500 12px var(--font); color: var(--secondary); background: var(--surface); border: 0; padding: 3px 8px; cursor: pointer; }
+.view-toggle button + button { border-left: 1px solid var(--separator); }
+.view-toggle button.on { color: var(--accent); background: var(--fill); }
+.diff-bar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
