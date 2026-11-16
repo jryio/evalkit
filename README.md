@@ -1,44 +1,43 @@
 # evalkit
 
-evalkit is a review page for work an agent did. The agent lists what it wants you to check, each with its own proposed answer. You go through them in the browser, mostly by keyboard, and change only what you disagree with. When you press ⌘↵ the agent gets back just your changes and carries on, and you can keep reviewing.
+evalkit is a review system for building evals with your agent. You describe an eval in a short YAML file, and evalkit turns it into a review page: the work to check, the questions to answer and the scores to keep.
 
-Use it to:
+Use it on anything you want to get better at: writing, code, performance benchmarks, a judge's grades, or data pulled out of documents. Grade by hand, let an automated grader suggest answers for you to confirm, or combine the two.
 
-- **Approve before anything goes out:** a draft, code review comments, a deploy or a price change waits for your OK.
-- **Correct a batch:** fix extracted fields, find the first wrong step in an agent's run, or rate two responses side by side.
-- **Spot-check a judge:** see every row an LLM judge graded in one table, with the change from the last run, and open only the ones that look wrong.
-- **Compare runs:** see the same eval across models, settings or weeks on one page.
+- **Score what matters to you.** Pass or fail, a category such as tone, confidence or slop, a rating from 1 to 10, or a measurement such as CPU time, latency or error count.
+- **Track every round.** Run the same eval again and again, and evalkit shows whether each score is trending up or down and which cases regressed, so you can hill-climb on the score you care about.
+- **Stay on the keyboard.** Moving between items, answering and sending all have shortcuts. evalkit is a single Go binary with the page built in.
 
-The agent writes the review as YAML. evalkit is one static Go binary with the page built in (Preact + htm, no build step).
+Most importantly, your feedback from every round goes back to your agent, so its next attempt starts from what you said.
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit the draft against a length target, pick a verdict and flags, answer the agent's questions.</sub><br>
+      <sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit a draft against a length target, pick a verdict and flags, and answer open questions.</sub><br>
       <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: a proposed health with its reason, a verdict with flags, a posting gate and the draft against its length target"></a>
     </td>
     <td width="50%" valign="top">
-      <sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding, then read the change as a split diff before anything posts.</sub><br>
+      <sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding, then read the change as a split diff before any comment posts.</sub><br>
       <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: findings triaged with proposed severities above a split diff of the change"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: metric tiles and canary-versus-fleet charts behind a promote, hold or roll back verdict.</sub><br>
+      <sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: promote, hold or roll back a change, with its metrics and charts against the fleet.</sub><br>
       <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: a proposed roll back with its reason, metric tiles with deltas and canary-versus-fleet charts"></a>
     </td>
     <td width="50%" valign="top">
-      <sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub><br>
+      <sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and watch precision and recall update.</sub><br>
       <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: two wrong fields with typed corrections beside the source document, and live precision and recall"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view: every row a judge graded, with a histogram and the change from the baseline in each header.</sub><br>
+      <sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: see every row a judge graded in one table, with a histogram and the change from the last round in each column.</sub><br>
       <a href="docs/screenshots/judge-round.png"><img src="docs/screenshots/judge-round.png" alt="Table view of an LLM judge's round: verdicts, criteria and scores per row, histograms and baseline deltas in the headers, flagged rows"></a>
     </td>
     <td width="50%" valign="top">
-      <sub><b><a href="demos/12-hill-climb">Hill climb</a></b>: the Runs view: six rounds of prompt changes on the same questions, and what each round fixed or broke.</sub><br>
+      <sub><b><a href="demos/12-hill-climb">Hill climb</a></b>: follow six rounds of prompt changes on the same questions: the score round by round, and what each round fixed or broke.</sub><br>
       <a href="docs/screenshots/hill-climb.png"><img src="docs/screenshots/hill-climb.png" alt="Runs view of a hill climb: six rounds, the pass rate round by round for all, train and held-out questions, pass rate against cost, and each round against the baseline item by item"></a>
     </td>
   </tr>
@@ -47,21 +46,21 @@ The agent writes the review as YAML. evalkit is one static Go binary with the pa
 ```sh
 go install github.com/jryio/evalkit/cmd/evalkit@latest   # or: make install, from a checkout
 
-evalkit init           # ./suite.yaml, a starter to edit
-evalkit serve          # review page at http://127.0.0.1:8790, opens the browser
-evalkit wait           # (the agent) blocks until the human sends, prints what changed
-evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit/SKILL.md
+evalkit init           # writes ./suite.yaml, a starter to edit
+evalkit serve          # opens the review page at http://127.0.0.1:8790
+evalkit wait           # waits for you to press Send, then prints what changed
+evalkit skill --install   # teaches Claude Code the whole loop
 ```
 
 `evalkit help` lists every command; `evalkit help <command>` shows flags and examples. `make release` builds static binaries for macOS, Linux and Windows into `dist/`.
 
 - **Schema:** [docs/schema.md](docs/schema.md) (also `evalkit docs`). How the demos shaped it: [docs/schema-changelog.md](docs/schema-changelog.md). Prior art: [docs/research/prior-art.md](docs/research/prior-art.md). Decisions: `adr list`.
-- **Agent protocol:** [skill/SKILL.md](skill/SKILL.md).
+- **Claude Code skill:** [skill/SKILL.md](skill/SKILL.md).
 - **Catalog:** `examples/kitchen-sink/suite.yaml` renders every artifact and question kind once.
 
-## What the agent writes
+## What an eval looks like
 
-Your agent writes a suite like this one, and `evalkit serve` turns it into the review page. Each item shows something to check and asks the same questions; `proposed` is the agent's own answer, which you keep or change.
+An eval is one YAML file. Each item shows something to check and asks the same questions, and `proposed` holds a suggested answer that you keep or change. Your agent can write the file for you, and `evalkit serve` turns it into the review page.
 
 ```yaml
 title: Release notes drafts
@@ -101,7 +100,7 @@ items:
 | 9 | [Model sweep](demos/09-model-sweep) | Runs: twelve model × effort configurations over the same cases and reps, two ordinal dimensions, a baseline run (what ships today), cost against pass rate with a dominated configuration |
 | 10 | [Weekly samples](demos/10-weekly-samples) | Runs over time: six weekly runs of fresh production tickets with no pairing, a date dimension, a dip and recovery in the pass rate, run notes |
 | 11 | [Judge change](demos/11-judge-change) | Two runs of the same drafts graded by an old and a new rubric, identical `show`, different proposals, flagged verdict flips; opens in the default view |
-| 12 | [Hill climb](demos/12-hill-climb) | Six sequential rounds of an agent's instructions on the same questions, a round dimension, train and held-out groups, a round that overfits, regressions flagged, and a split diff of each query that changed (`python3 build.py`) |
+| 12 | [Hill climb](demos/12-hill-climb) | Six sequential rounds of prompt changes on the same questions, a round dimension, train and held-out groups, a round that overfits, regressions flagged, and a split diff of each query that changed (`python3 build.py`) |
 
 Run one: `bin/evalkit serve demos/NN-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
 
