@@ -3,6 +3,7 @@
 // after a drag so the kit's keys work again.
 import { html, useState, useEffect } from "../html.js";
 import { cx } from "../ui/bits.js";
+import { proposalNote } from "../core/derive.js";
 
 export default function NumberField({ q, value, answer, proposed, set, row }) {
   const [text, setText] = useState(value ?? "");
@@ -30,8 +31,7 @@ NumberField.note = ({ q, value, proposed }) => {
   if (value !== undefined && ((q.min !== undefined && value < q.min) || (q.max !== undefined && value > q.max))) {
     return `Must be between ${q.min ?? "−∞"} and ${q.max ?? "∞"}`;
   }
-  if (!proposed) return null;
-  return value === proposed.value ? proposed.why ?? null : `Changed from ${proposed.value}`;
+  return proposalNote(proposed?.value, proposed);
 };
 
 NumberField.labelKey = true;

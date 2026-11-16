@@ -19,6 +19,9 @@ export function questionsFor(suite, item) {
 export const answersOf = (state, item) => entry(state, item).answers;
 export const editsOf = (state, item) => entry(state, item).edits;
 export const optionOf = (q, value) => (q.options || []).find(o => o.value === value);
+// proposalNote is the line under a control: what the agent proposed and why. It reads the
+// same whatever the human picks, so changing an answer never moves the controls.
+export const proposalNote = (shown, proposed) => (proposed ? { lead: `Proposed ${shown}`, text: proposed.why ?? "" } : null);
 export const doneOf = (item, qid) => item.done?.[qid];
 export const artifactsOf = item => [...(item.show || []), ...(item.context || [])];
 

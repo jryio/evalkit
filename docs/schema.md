@@ -32,7 +32,7 @@ items:
     done: { post: { at: …, url: … } }  # results of actions (usually recorded with `evalkit done`)
 ```
 
-**Page layout**, top to bottom: header (badges, meta, title) → `show` → a card with one row per compact question (choice, multi, toggle, scale, number, pick, action) → suite-level text questions → item-level text questions under "Questions" → `context` as disclosures.
+**Page layout**, top to bottom: header (badges, meta, title) → a card with one row per compact question (choice, multi, toggle, scale, number, pick, action) → `show` → suite-level text questions → item-level text questions under "Questions" → `below` artifacts → `context` as disclosures. The card comes first so the verdict sits in the same place on every item. Under a proposed answer the card shows what was proposed and why, and that line stays the same when the reviewer picks something else.
 
 **Revision.** Each item gets a hash of its `show`. When the agent changes what is under review, the item starts a fresh review and the old answers move to history. Editing `context` or metadata keeps the answers.
 
@@ -68,7 +68,7 @@ An option is `{value, label, tone?, icon?, key?}`; icons: `check`, `approx`, `cr
 
 ### Artifacts
 
-Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` and edits), `label`, `note` (secondary text), `status: {label, tone}` (a dot and label), `width: half` (two halves sit side by side; they stack below 1240 px) and `below: true` (shown after the questions, for long material such as code that the reviewer checks after a first judgment).
+Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` and edits), `label`, `note` (secondary text), `status: {label, tone}` (a dot and label), `width: half` (two halves sit side by side; they stack below 1240 px) and `below: true` (shown after the text questions, for long material such as code that the reviewer checks after a first judgment).
 
 | Kind | Keys |
 |---|---|

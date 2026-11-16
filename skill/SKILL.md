@@ -9,6 +9,18 @@ You write a suite (YAML), serve it, and wait in the background. The human review
 
 If `evalkit` is not on PATH: `go install github.com/jryio/evalkit/cmd/evalkit@latest`.
 
+## Write for someone who has not been following along
+
+This rule comes before every other one, every time. The reviewer has not seen your work. Every text they read (the suite `title` and `description`, each item `title`, every `label`, `note` and option, and each proposal's `why`) must:
+
+- Say in plain, natural sentences what this is and why it matters, with the context that reader is missing.
+- Stay within its budget: a title fits on one line, a `why` is one sentence, a `description` is one line telling the reviewer what to do.
+- Make sense spoken out loud to a high-school student: explain every term the reader needs, and use no metaphors and no analogies.
+- Be plain prose: no headings, lists, bold or other formatting inside it.
+
+Not this: `R: pins exported AsRange int inputs; public API rule forces R despite the dup flag and 3/3 co-killers.`
+This: `Another test already checks that whole numbers work as range limits, so deleting this one loses nothing.`
+
 ## The loop
 
 1. **Write the suite.** `evalkit init <dir>` writes a starter `<dir>/suite.yaml`; edit it. `evalkit docs` is the full reference; `evalkit init --example <tmpdir>` writes one item for every artifact and question kind to copy from.
@@ -27,12 +39,11 @@ If `evalkit` is not on PATH: `go install github.com/jryio/evalkit/cmd/evalkit@la
 - Give one choice question `primary: true`: keys 1–9 answer it, and answering it marks the item reviewed (or set `reviewed: [question ids]`).
 - Put your own judgment in `proposed: {question: {value, why}}`. The human sees your reason and only changes what they disagree with; overrides come back as `(proposed X)`. Keep `why` to one sentence; put evidence in `show`, where it has room.
 - Code read side by side (before and after, a deleted test beside the test that keeps its proof) goes in one `compare` artifact, which spans the full page width; not in two `width: half` code artifacts.
-- Put the evidence a verdict rests on first and long code after it: `below: true` shows an artifact after the questions.
+- The controls card (the verdict) sits right under the title on every item, then `show`. Put long code last: `below: true` shows an artifact after the text questions.
 - Per-row questions (`each: <artifact id>`) put a control on every row of a `list`, `table` or `transcript`; `pick` (`from: <artifact id>`) selects one row. Rows need stable `id`s.
 - `when: {question: [values]}` asks a follow-up only when it applies (a correction only when a field is Wrong).
 - Use an `action` question for anything outward-facing; its `summary` tells the human exactly what you will do.
 - Keys `j k ? ↑ ↓ 1–9 e` belong to the kit; give other questions single-letter `key`s. The validator reports conflicts.
-- Write `description` as one line telling the reviewer what to do.
 
 ## Automated judges
 

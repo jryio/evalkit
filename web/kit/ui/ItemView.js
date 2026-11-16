@@ -1,5 +1,6 @@
-// One item: header, the artifacts under review, the controls card, text questions,
-// then collapsed context. The layout is fixed; the suite only supplies content.
+// One item: header, the controls card, the artifacts under review, text questions,
+// then collapsed context. The layout is fixed; the suite only supplies content, and the
+// verdict sits right under the title on every item.
 import { html, useState } from "../html.js";
 import { controlFor, rendererFor } from "../registry.js";
 import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
@@ -55,7 +56,7 @@ export function ItemView({ suite, cols, item, state, act, cursor, across }) {
     answers=${answers} questions=${questions}
     cursor=${cursor && a.id !== undefined && cursor.artifact === a.id ? cursor.row : undefined} />`;
 
-  // below: true moves an artifact after the questions, so a judgment comes before long material.
+  // below: true moves an artifact after the text questions, so long material comes last.
   const shown = (item.show || []).map((a, i) => [a, i]);
   const top = shown.filter(([a]) => !a.below);
   const under = shown.filter(([a]) => a.below);
@@ -66,10 +67,10 @@ export function ItemView({ suite, cols, item, state, act, cursor, across }) {
 
   return html`
     <${ItemHeader} item=${item} suite=${suite} cols=${cols} />
-    ${across ? html`<${AcrossRuns} ...${across} suite=${suite} cols=${cols} state=${state} />` : null}
-    ${top.length ? html`<div class="show">${top.map(([a, i]) => artifact(a, i, false))}</div>` : null}
     ${rows.length ? html`<div class="card">${rows.map(q => html`<${CardRow} q=${q} control=${control}
         attached=${own.filter(o => o.with === q.id)} note=${controlFor(q.kind)?.note?.(props(q))} />`)}</div>` : null}
+    ${across ? html`<${AcrossRuns} ...${across} suite=${suite} cols=${cols} state=${state} />` : null}
+    ${top.length ? html`<div class="show">${top.map(([a, i]) => artifact(a, i, false))}</div>` : null}
     ${notes.map(q => html`<div class="section" key=${q.id}>
       <div class="section-title">${q.label}${q.key ? html`<${Key} k=${q.key} />` : null}</div>
       ${control(q)}
@@ -132,22 +133,25 @@ function AcrossRuns({ rows, metric, current, open, suite, cols, state }) {
   </div>`;
 }
 
+// The note takes its own line under the control, so its length never moves the control.
 function CardRow({ q, control, attached, note }) {
   return html`<div class="card-row">
     <div class="row-label">${q.label}${controlFor(q.kind)?.labelKey && q.key ? html`<${Key} k=${q.key} />` : null}</div>
     ${control(q)}
-    ${attached.length ? html`<div class="row-extra">${attached.map(o => control(o, { inline: true, key: o.id }))}</div>` : note ? html`<${RowNote} text=${note} />` : null}
+    ${attached.length ? html`<div class="row-extra">${attached.map(o => control(o, { inline: true, key: o.id }))}</div>` : null}
+    ${note ? html`<${RowNote} note=${note} />` : null}
   </div>`;
 }
 
-// RowNote shows the agent's reason. A reason should be one sentence; a longer one shows
-// two lines until the reviewer opens it, so it never pushes the controls apart.
+// RowNote shows a control's note: a plain message, or { lead, text } for the agent's proposal
+// and its reason. A reason should be one sentence; a longer one shows two lines until opened.
 const LONG_NOTE = 160;
-function RowNote({ text }) {
+function RowNote({ note }) {
   const [open, setOpen] = useState(false);
-  const long = typeof text === "string" && text.length > LONG_NOTE;
+  const { lead, text } = typeof note === "string" ? { text: note } : note;
+  const long = (lead?.length ?? 0) + (text?.length ?? 0) > LONG_NOTE;
   return html`<div class="row-note">
-    <div class=${cx(long && !open && "clamped")}>${text}</div>
+    <div class=${cx(long && !open && "clamped")}>${lead ? html`<span class="row-note-lead">${lead}${text ? ":" : ""}</span> ` : null}${text}</div>
     ${long ? html`<button class="link-btn" onClick=${() => setOpen(!open)}>${open ? "Less" : "More"}</button>` : null}
   </div>`;
 }

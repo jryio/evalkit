@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   isReviewed, limitTone, measure, orderedItems, pendingActions, progress,
-  questionsFor, snapshot, statusTone, trailing, valueOf,
+  proposalNote, questionsFor, snapshot, statusTone, trailing, valueOf,
 } from "./derive.js";
 import { emptyState, setAnswer } from "./state.js";
 
@@ -172,4 +172,10 @@ test("a proposed entry without a value is a baseline, not a proposal the human o
   const s = setAnswer(emptyState(), onlyBase, "verdict", "good");
   assert.equal(valueOf(s, onlyBase, verdict), "good");
   assert.equal("changed" in snapshot({ ...suite, items: [onlyBase] }, s).items.o1, false);
+});
+
+test("proposalNote names the proposal and keeps its reason", () => {
+  assert.equal(proposalNote("Bad", undefined), null);
+  assert.deepEqual(proposalNote("Bad", { value: "bad", why: "Drops the only check." }), { lead: "Proposed Bad", text: "Drops the only check." });
+  assert.deepEqual(proposalNote(7, { value: 7 }), { lead: "Proposed 7", text: "" });
 });
