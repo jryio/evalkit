@@ -1,6 +1,7 @@
 // A 1–N rating as a segmented control with words for the two ends.
 import { html } from "../html.js";
 import { cx } from "../ui/bits.js";
+import { proposalNote } from "../core/derive.js";
 
 export const scaleRange = q => Array.from({ length: (q.max ?? 5) - (q.min ?? 1) + 1 }, (_, i) => (q.min ?? 1) + i);
 
@@ -15,10 +16,6 @@ export default function Scale({ q, value, answer, set }) {
   </div>`;
 }
 
-// note: the agent's reason while its proposal stands, else what the human changed.
-Scale.note = ({ value, proposed }) => {
-  if (!proposed) return null;
-  return value === proposed.value ? proposed.why ?? null : `Changed from ${proposed.value}`;
-};
+Scale.note = ({ proposed }) => proposalNote(proposed?.value, proposed);
 
 Scale.labelKey = true;

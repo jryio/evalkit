@@ -2,7 +2,7 @@
 // The primary question shows number keys; clicking the selected option clears it.
 import { html } from "../html.js";
 import { cx, tone, Key, Dot, Icon } from "../ui/bits.js";
-import { optionOf } from "../core/derive.js";
+import { optionOf, proposalNote } from "../core/derive.js";
 
 // compact (set by dense renderers such as tables) shows icons only when every option has one.
 // A per-row value that is only the agent's proposal renders dashed until the human confirms it.
@@ -22,11 +22,6 @@ export default function Choice({ q, value, answer, set, compact, row }) {
   </div>`;
 }
 
-// note: the agent's reason while its proposal stands, else what the human changed.
-Choice.note = ({ q, value, proposed }) => {
-  if (!proposed) return null;
-  if (value === proposed.value) return proposed.why ?? null;
-  return `Changed from ${optionOf(q, proposed.value)?.label ?? proposed.value}`;
-};
+Choice.note = ({ q, proposed }) => proposalNote(optionOf(q, proposed?.value)?.label ?? proposed?.value, proposed);
 
 Choice.labelKey = true;

@@ -104,3 +104,12 @@ Reviewing a test-pruning run meant reading a deleted test beside the test that k
 - **A proposal's reason clamps to two lines** with More and Less. `why` is meant to be one sentence; evidence goes in `show`.
 - **Fix:** an artifact without an `id` no longer takes every question without `each` as a per-row question. A `list` without an `id` showed a Verdict and a Note on each row.
 - **Clearer schema errors:** when a kind's own rule fails (a `compare` with one pane, an action without `states`), the loader no longer adds a "false schema" error for each of that kind's keys.
+
+## v10: verdict first, and the writing rule
+
+Reviewing the test-audit pilot, the verdict sat at a different height on every item, below evidence of different lengths, and its row changed size when the reviewer changed the answer.
+
+- **The controls card comes right after the title** on every item, before `show`. `below: true` artifacts now follow the text questions.
+- **The proposal has its own line under the control**: "Proposed Reject: <why>". It no longer turns into "Changed from Reject", so changing an answer never resizes the card.
+- **The skill's first rule**: every text the reviewer reads is written for someone who has not been following along, in one plain sentence within its budget, with no formatting, metaphors or analogies.
+
