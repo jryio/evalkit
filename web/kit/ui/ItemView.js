@@ -6,6 +6,7 @@ import { controlFor, rendererFor } from "../registry.js";
 import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
 import { cell } from "../core/table.js";
 import { questionsFor, answersOf, editsOf, valueOf, asked } from "../core/derive.js";
+import { editKeys } from "../core/keys.js";
 import { deltaTone, fmtNumber, signed, withUnit } from "../core/format.js";
 import { metricColumn } from "../core/runs.js";
 
@@ -170,6 +171,7 @@ function Artifact({ a, item, edit, setEdit, rowControls, cursor, inContext, answ
   return html`<div class=${width} data-artifact=${a.id}>
     ${a.label || a.note || a.status ? html`<div class="panel-head">
       ${a.label ? html`<span class="panel-title">${a.label}</span>` : null}
+      ${a.editable ? html`<${Key} k=${editKeys(a, questions)[0]} />` : null}
       ${R.head?.({ a, edit }) ?? null}
       ${a.note ? html`<span class="muted">${a.note}</span>` : null}
       ${a.status ? html`<${StatusTag} tag=${a.status} />` : null}

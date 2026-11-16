@@ -9,7 +9,7 @@ import { acrossRuns, findRuns, metricColumn, metricOf, pairsOf, runList, spendOf
 import { scaleRange } from "../controls/scale.js";
 import { bindings, tableBindings, panelBindings, runsBindings, match } from "../core/keys.js";
 import { loadSuiteRenderers } from "../registry.js";
-import { fmtTime } from "./bits.js";
+import { cx, fmtTime } from "./bits.js";
 import { Sidebar } from "./Sidebar.js";
 import { ItemView } from "./ItemView.js";
 import { ItemsTable } from "./ItemsTable.js";
@@ -51,6 +51,7 @@ function animated(update) {
 
 export function App() {
   const [loaded, setLoaded] = useState(null); // { suite, problems, version, fatal, done }
+  const [navOpen, setNavOpen] = useState(false); // the sidebar drawer, on narrow screens
   const [state, setState] = useState(null);
   const [currentId, setCurrentId] = useState(hashId); // the item on screen, by id so suite edits never move it
   const [sheet, setSheet] = useState(null); // "send" | "help" | null
@@ -450,8 +451,16 @@ export function App() {
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key.startsWith("Arrow") && e.target.matches?.("input[type=range]")) return; // the slider's own arrows
     if (!item && view === "review") return;
-    // A control reached with Tab handles its own Enter; one last clicked with the mouse does not.
-    if (e.key === "Enter" && e.target.closest?.("button, a, summary")?.matches(":focus-visible")) return;
+    // Tab and Shift+Tab step like J and K instead of moving focus.
+    if (e.key === "Tab") {
+      const step = match(binds, { key: e.shiftKey ? "k" : "j" });
+      if (step) {
+        e.preventDefault();
+        return run(step.action);
+      }
+    }
+    // A focused control handles its own Enter and Space; one last clicked with the mouse does not.
+    if ((e.key === "Enter" || e.key === " ") && e.target.closest?.("button, a, summary")?.matches(":focus-visible")) return;
     if (/^[1-9]$/.test(e.key) && armed.current && Date.now() < armed.current.until) {
       e.preventDefault();
       return pickNumber(Number(e.key));
@@ -490,11 +499,12 @@ export function App() {
   // The toolbar's ‹ › and counter walk review's items, or the table's rows as J and K do.
   const nav = view === "review" ? { index, count: list.length, step: by => go(index + by) } : { index: selected, count: rows.length, step: selectRow };
 
-  return html`<div class=${view === "review" ? "app" : "app table-mode"}>
+  return html`<div class=${cx(view === "review" ? "app" : "app table-mode", navOpen && "nav-open")}>
     <${Toolbar} view=${view} setView=${switchView} nav=${nav} saveLabel=${saveLabel} sendLabel=${sendLabel} openSend=${() => setSheet("send")}
-      run=${shownRun && { run: shownRun, vs, count: runs.length, step: stepRun }} />
-    ${view === "review" ? html`<${Sidebar} suite=${ordered} items=${list} state=${state} current=${index} go=${go} openHelp=${() => setSheet("help")}
+      run=${shownRun && { run: shownRun, vs, count: runs.length, step: stepRun }} openNav=${view === "review" ? () => setNavOpen(!navOpen) : null} />
+    ${view === "review" ? html`<${Sidebar} suite=${ordered} items=${list} state=${state} current=${index} go=${i => { go(i); setNavOpen(false); }} openHelp=${() => setSheet("help")}
       filtered=${!!walk} clearFilters=${() => setWalk(null)} total=${items.length} />` : null}
+    ${navOpen ? html`<div class="nav-scrim" onClick=${() => setNavOpen(false)}></div>` : null}
     <main class="main">
       ${view === "runs"
         ? html`<${RunsView} suite=${suite} state=${state} runs=${runs} rows=${summary} shown=${runRows} metric=${metric} spend=${spend}

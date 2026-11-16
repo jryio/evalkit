@@ -35,9 +35,10 @@ const STEPS = {
 
 // One full-width toolbar for every view, so its controls never move when the view changes.
 // A suite with runs gets the Runs view first, in the order Esc climbs.
-export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, run }) {
+export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, run, openNav }) {
   const views = run ? [RUNS, TABLE, REVIEW] : [REVIEW, TABLE];
   return html`<div class="toolbar">
+    ${openNav ? html`<button class="icon-btn nav-toggle" aria-label="Show items" onClick=${openNav}>☰</button>` : null}
     <${Segmented} class="small view-switch" label="View">
       ${views.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
           title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === UP[view] ? html`<kbd>esc</kbd>` : null}</button>`)}
@@ -46,7 +47,7 @@ export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, ru
     ${STEPS[view] ? html`<${Stepper} ...${nav} ...${STEPS[view]} />` : null}
     <div class="spacer"></div>
     <span class="save-state" aria-live="polite">${saveLabel}</span>
-    <button class="btn-primary" onClick=${openSend}>${sendLabel} <kbd>⌘↵</kbd></button>
+    <button class="btn-primary" onClick=${openSend}><span class="send-long">${sendLabel}</span><span class="send-short">Send</span> <kbd>⌘↵</kbd></button>
   </div>`;
 }
 

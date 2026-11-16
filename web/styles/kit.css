@@ -253,3 +253,51 @@ tr.row-cursor > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .tile-sub { font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; }
 .seg.on.tentative { background: transparent; box-shadow: inset 0 0 0 1px var(--tertiary); }
 .number-field input.tentative { color: var(--secondary); border-style: dashed; }
+
+/* Narrow windows and phones. Pills wrap instead of clipping; below 600 px of content the
+   controls card stacks each label over its control; below 760 px of window the sidebar
+   becomes a drawer and the toolbar keeps only what a thumb needs. */
+body { min-width: 360px; }
+.segmented { flex-wrap: wrap; max-width: 100%; }
+.nav-toggle, .send-short { display: none; }
+.nav-scrim { position: fixed; inset: 0; background: var(--backdrop); z-index: 29; }
+
+@container main (max-width: 600px) {
+  .content { padding: 20px 16px 32px; }
+  h1 { font-size: 24px; margin-bottom: 18px; }
+  .show { grid-template-columns: minmax(0, 1fr); }
+  .card-row { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+  .card-row > :nth-child(n) { grid-column: 1; }
+}
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: fixed; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); z-index: 30; transform: translateX(-100%); transition: transform .26s ease-out; }
+  .app.nav-open .sidebar { transform: none; box-shadow: var(--shadow-sheet); }
+  .nav-toggle { display: inline-flex; }
+  .toolbar { padding: 0 12px; gap: 8px; }
+  .toolbar .position, .toolbar .save-state, .toolbar kbd, .run-name { display: none; }
+  .send-long { display: none; }
+  .send-short { display: inline; }
+  .btn-primary { padding: 0 14px; }
+}
+
+/* The toolbar's switch stays on one line; wrapped pills in the card fill their row. */
+.toolbar .segmented { flex-wrap: nowrap; }
+@container main (max-width: 600px) {
+  .card .segmented { display: flex; }
+  .card .segmented > .seg { flex: 1 0 auto; justify-content: center; }
+}
+@media (max-width: 760px) {
+  .segmented.view-switch .seg, .segmented.view-switch .seg:not(:has(kbd)) { padding: 0 12px; }
+}
+@media (max-width: 400px) {
+  .toolbar { padding: 0 8px; gap: 6px; }
+  .segmented.view-switch .seg, .segmented.view-switch .seg:not(:has(kbd)) { padding: 0 9px; }
+}
+
+/* Touch screens have no keyboard to hint at. */
+@media (hover: none) {
+  kbd, .sb-foot { display: none; }
+}
+
