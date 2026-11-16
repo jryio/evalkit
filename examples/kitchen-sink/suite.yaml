@@ -111,6 +111,42 @@ items:
           	return order, nil
           }
 
+  - id: compare
+    group: artifacts
+    title: Code side by side
+    subtitle: compare
+    badges: [{ label: compare, tone: accent }]
+    show:
+      - kind: compare
+        language: go
+        panes:
+          - label: "Deleted: TestDecodeTwice"
+            note: decode_test.go:40
+            tone: negative
+            start: 40
+            highlight: [44]
+            code: |-
+              func TestDecodeTwice(t *testing.T) {
+              	t.Parallel()
+              	req := httptest.NewRequest("POST", "/quote", strings.NewReader(`{"sku":"a-1"}`))
+              	first, _ := decodeOnce(req)
+              	require.Equal(t, first, first)
+              }
+          - label: "Keeps the proof: TestDecodeOnce"
+            note: decode_test.go:12
+            tone: positive
+            start: 12
+            highlight: [17, 18]
+            code: |-
+              func TestDecodeOnce(t *testing.T) {
+              	t.Parallel()
+              	req := httptest.NewRequest("POST", "/quote", strings.NewReader(`{"sku":"a-1"}`))
+              	order, err := decodeOnce(req)
+              	require.NoError(t, err)
+              	assert.Equal(t, "a-1", order.SKU)
+              	assert.Equal(t, 0, len(orderPool.free))
+              }
+
   - id: diff
     group: artifacts
     title: Unified diff

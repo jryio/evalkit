@@ -3,7 +3,7 @@
 // same list. Click selects, double-click or Enter opens the item for review.
 import { html, useEffect, useMemo } from "../html.js";
 import { cx, tone, Icon, Dot, runWhen } from "./bits.js";
-import { OpenIn } from "./chrome.js";
+import { OpenIn, Progress } from "./chrome.js";
 import { Histogram, ShareBar, Meter, sameBin } from "./minicharts.js";
 import { cell, profile, visible, firstDir } from "../core/table.js";
 import { isReviewed } from "../core/derive.js";
@@ -43,10 +43,7 @@ export function ItemsTable({ suite, state, cols, rows, view, setView, selected, 
       <h1>${run ? `${suite.title} · ${run.run.label}` : suite.title}</h1>
       ${suite.description ? html`<p class="tv-desc">${suite.description}</p>` : null}
       ${run ? html`<p class="tv-run">${runFacts(run, suite.items.length)}</p>` : null}
-      <div class="tv-progress">
-        <div class="progress"><span style=${{ width: `${progress.total ? (100 * progress.reviewed) / progress.total : 0}%` }}></span></div>
-        <span><strong>${progress.reviewed} of ${progress.total}</strong> ${progress.flagged ? "flagged " : ""}reviewed</span>
-      </div>
+      <${Progress} progress=${progress} />
       <${FilterBar} suite=${suite} cols=${cols} view=${view} setView=${setView} counts=${counts} shown=${rows.length} filtered=${filtered}
         openIn=${openIn} setOpenIn=${setOpenIn} />
     </div>

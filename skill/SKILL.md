@@ -25,7 +25,9 @@ If `evalkit` is not on PATH: `go install github.com/jryio/evalkit/cmd/evalkit@la
 
 - `show` is what is under review (always open), `context` is supporting material (collapsed). `questions` are asked of every item, `ask` of one item.
 - Give one choice question `primary: true`: keys 1–9 answer it, and answering it marks the item reviewed (or set `reviewed: [question ids]`).
-- Put your own judgment in `proposed: {question: {value, why}}`. The human sees your reason and only changes what they disagree with; overrides come back as `(proposed X)`.
+- Put your own judgment in `proposed: {question: {value, why}}`. The human sees your reason and only changes what they disagree with; overrides come back as `(proposed X)`. Keep `why` to one sentence; put evidence in `show`, where it has room.
+- Code read side by side (before and after, a deleted test beside the test that keeps its proof) goes in one `compare` artifact, which spans the full page width; not in two `width: half` code artifacts.
+- Put the evidence a verdict rests on first and long code after it: `below: true` shows an artifact after the questions.
 - Per-row questions (`each: <artifact id>`) put a control on every row of a `list`, `table` or `transcript`; `pick` (`from: <artifact id>`) selects one row. Rows need stable `id`s.
 - `when: {question: [values]}` asks a follow-up only when it applies (a correction only when a field is Wrong).
 - Use an `action` question for anything outward-facing; its `summary` tells the human exactly what you will do.

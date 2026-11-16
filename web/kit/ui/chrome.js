@@ -1,4 +1,4 @@
-// App chrome: toolbar, sheets, toast and banners.
+// App chrome: toolbar, suite head, sheets, toast and banners.
 import { html } from "../html.js";
 import { cx, tone, runWhen } from "./bits.js";
 import { helpRows } from "../core/keys.js";
@@ -27,23 +27,53 @@ export function OpenIn({ value, set }) {
   </div>`;
 }
 
+// What ‹ › step through in each view, with the keys that do the same.
+const STEPS = {
+  review: { noun: "item", prev: "K or ←", next: "J or →" },
+  table: { noun: "row", prev: "K or ↑", next: "J or ↓" },
+};
+
+// One full-width toolbar for every view, so its controls never move when the view changes.
 // A suite with runs gets the Runs view first, in the order Esc climbs.
-export function Toolbar({ view, setView, index, count, go, saveLabel, sendLabel, openSend, run }) {
+export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, run }) {
   const views = run ? [RUNS, TABLE, REVIEW] : [REVIEW, TABLE];
-  return html`<div class="toolbar"><div class="toolbar-inner">
+  return html`<div class="toolbar">
     <div class="segmented small view-switch" role="radiogroup" aria-label="View">
       ${views.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
           title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === UP[view] ? html`<kbd>esc</kbd>` : null}</button>`)}
     </div>
     ${run ? html`<${RunStepper} ...${run} />` : null}
-    ${view === "review" ? html`
-      <button class="icon-btn" title="Previous (K or ←)" aria-label="Previous item" disabled=${index <= 0} onClick=${() => go(index - 1)}>‹</button>
-      <button class="icon-btn" title="Next (J or →)" aria-label="Next item" disabled=${index >= count - 1} onClick=${() => go(index + 1)}>›</button>
-      <span class="position">${count ? `${index + 1} of ${count}` : ""}</span>` : null}
+    ${STEPS[view] ? html`<${Stepper} ...${nav} ...${STEPS[view]} />` : null}
     <div class="spacer"></div>
     <span class="save-state" aria-live="polite">${saveLabel}</span>
     <button class="btn-primary" onClick=${openSend}>${sendLabel} <kbd>⌘↵</kbd></button>
-  </div></div>`;
+  </div>`;
+}
+
+// Stepper is ‹ › and the position; index is -1 when no row is selected.
+function Stepper({ index, count, step, noun, prev, next }) {
+  return html`
+    <button class="icon-btn" title=${`Previous ${noun} (${prev})`} aria-label=${`Previous ${noun}`} disabled=${index <= 0} onClick=${() => step(-1)}>‹</button>
+    <button class="icon-btn" title=${`Next ${noun} (${next})`} aria-label=${`Next ${noun}`} disabled=${index >= count - 1} onClick=${() => step(1)}>›</button>
+    <span class="position">${count ? `${index >= 0 ? index + 1 : "–"} of ${count}` : ""}</span>`;
+}
+
+// SuiteHead is the suite's title, description and progress under the toolbar in review,
+// laid out as the table's head so the two views share one page grid.
+export function SuiteHead({ title, description, progress }) {
+  return html`<div class="tv-head suite-head">
+    <h1>${title}</h1>
+    ${description ? html`<p class="tv-desc">${description}</p>` : null}
+    <${Progress} progress=${progress} />
+  </div>`;
+}
+
+// Progress is the review progress bar and count, shared by the review and table heads.
+export function Progress({ progress: p }) {
+  return html`<div class="tv-progress">
+    <div class="progress"><span style=${{ width: `${p.total ? (100 * p.reviewed) / p.total : 0}%` }}></span></div>
+    <span><strong>${p.reviewed} of ${p.total}</strong> ${p.flagged ? "flagged " : ""}reviewed</span>
+  </div>`;
 }
 
 // RunStepper names the run on screen and what it is compared with, between previous and next.

@@ -1,0 +1,13 @@
+title: Compare pane with an unknown key
+items:
+  - id: a
+    title: First
+    show:
+      - kind: compare
+        panes:
+          - { label: Before, code: "x := 1" }
+          - { label: After, code: "x := 2", colour: red }
+  - id: b
+    title: Second
+    show:
+      - { kind: text, text: ok }

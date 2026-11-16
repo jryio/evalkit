@@ -85,6 +85,7 @@ type issue struct {
 	ptr     []string
 	msg     string
 	warning bool
+	echo    bool // a "false schema" left by unevaluatedProperties after another rule failed
 }
 
 // Load reads and validates the suite at path. It returns an error only when the
@@ -145,7 +146,7 @@ func Load(path string) (Result, error) {
 		if !ok {
 			return Result{}, err
 		}
-		issues = append(issues, schemaIssues(ve)...)
+		issues = append(issues, dropEchoes(schemaIssues(ve))...)
 	}
 
 	var typed Suite
@@ -642,13 +643,32 @@ func schemaIssues(ve *jsonschema.ValidationError) []issue {
 		if k, ok := ve.ErrorKind.(*kind.AdditionalProperties); ok && len(k.Properties) > 0 {
 			ptr = append(slices.Clone(ptr), k.Properties[0])
 		}
-		return []issue{{ptr: ptr, msg: friendly(ve.ErrorKind.LocalizedString(printer))}}
+		_, echo := ve.ErrorKind.(*kind.FalseSchema)
+		return []issue{{ptr: ptr, msg: friendly(ve.ErrorKind.LocalizedString(printer)), echo: echo}}
 	}
 	var out []issue
 	for _, c := range ve.Causes {
 		out = append(out, schemaIssues(c)...)
 	}
 	return out
+}
+
+// dropEchoes removes the "false schema" a failed kind rule leaves on its own keys: when a
+// kind's rule fails, unevaluatedProperties also rejects every key that rule declares, the
+// failing key's siblings included. The real error inside the same object is the one worth
+// reading.
+func dropEchoes(issues []issue) []issue {
+	var kept []issue
+	for _, is := range issues {
+		parent := is.ptr[:max(0, len(is.ptr)-1)]
+		shadowed := is.echo && slices.ContainsFunc(issues, func(o issue) bool {
+			return !o.echo && len(o.ptr) >= len(parent) && slices.Equal(o.ptr[:len(parent)], parent)
+		})
+		if !shadowed {
+			kept = append(kept, is)
+		}
+	}
+	return kept
 }
 
 // friendly rewrites the library's wording for the common cases.

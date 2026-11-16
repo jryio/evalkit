@@ -1,0 +1,20 @@
+/* compare renderer: one sticky row of pane headers over equal panes side by side; the panes
+   stack when the page is narrow. */
+.compare-heads, .compare-panes { display: grid; grid-template-columns: repeat(var(--panes, 2), minmax(0, 1fr)); gap: 0 16px; }
+.compare-heads { position: sticky; top: -1px; z-index: 2; padding: 11px 0 8px; background: var(--surface); border-bottom: 1px solid transparent; transition: border-color .15s, box-shadow .15s; }
+.compare-heads.stuck { border-bottom-color: var(--separator); box-shadow: 0 6px 8px -8px rgba(0, 0, 0, .35); }
+.compare-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.compare-head .dot { align-self: center; }
+.compare-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.compare-pane { min-width: 0; }
+.compare-tools { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; }
+.compare-wrap { font: 500 12px var(--font); color: var(--secondary); background: var(--surface); border: 1px solid var(--separator); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.compare-wrap.on { color: var(--accent); border-color: var(--accent); }
+
+/* A pane's tone colors its emphasized lines: red for what goes, green for what stays. */
+.compare-pane.tone-negative .code-hl > td { background: var(--negative-tint); }
+.compare-pane.tone-positive .code-hl > td { background: var(--positive-tint); }
+
+@container main (max-width: 900px) {
+  .compare-panes { grid-template-columns: minmax(0, 1fr); }
+}

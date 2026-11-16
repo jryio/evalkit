@@ -1,0 +1,12 @@
+title: Compare with one pane
+items:
+  - id: a
+    title: First
+    show:
+      - kind: compare
+        panes:
+          - { label: Only, code: "x := 1" }
+  - id: b
+    title: Second
+    show:
+      - { kind: text, text: ok }

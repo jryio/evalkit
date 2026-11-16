@@ -1,7 +1,8 @@
 // Unified diff: one header row per file, hunk headers, old and new line numbers.
-import { html, useMemo } from "../html.js";
+import { html, useMemo, useState } from "../html.js";
 import { cx } from "../ui/bits.js";
-import { highlight, normalize } from "./code.js";
+import { highlight, normalize, capStyle } from "./code.js";
+import { PierreDiff, ViewToggle } from "./pierre.js";
 
 const HUNK = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
 const SIGNS = { ctx: "", add: "+", del: "−" };
@@ -79,10 +80,16 @@ export function parseDiff(text) {
 }
 
 export default function DiffArtifact({ a }) {
+  const [view, setView] = useState(a.split ? "split" : "unified");
+  return html`<div class="diff-bar"><${ViewToggle} options=${[["unified", "Unified"], ["split", "Split"]]} value=${view} set=${setView} /></div>
+    ${view === "split" ? html`<${PierreDiff} patch=${a.diff} maxLines=${a.max_lines} />` : html`<${Unified} a=${a} />`}`;
+}
+
+function Unified({ a }) {
   const files = useMemo(() => parseDiff(a.diff), [a.diff]);
   const marked = new Set(a.highlight ?? []);
   const rowId = n => `diff-${a.id ?? "d"}-${n}`;
-  return html`<div class="code-panel"><table class="code-table diff-table">
+  return html`<div class="code-panel" style=${capStyle(a.max_lines)}><table class="code-table diff-table">
     ${files.map((f, i) => html`<tbody key=${i}>
       ${f.path ? html`<tr class="diff-file"><td colspan="4">${f.path}</td></tr>` : null}
       ${f.rows.map((r, j) => html`<${DiffRow} key=${j} r=${r} lang=${a.language}
@@ -102,6 +109,9 @@ function DiffRow({ r, lang, hl, rowId }) {
     <td class="code-text" dangerouslySetInnerHTML=${{ __html: highlight(r.text, lang) }}></td>
   </tr>`;
 }
+
+// A split view needs both halves wide enough to read, so diffs span the page like compare.
+DiffArtifact.wide = true;
 
 DiffArtifact.head = ({ a }) => {
   const rows = parseDiff(a.diff).flatMap(f => f.rows);
