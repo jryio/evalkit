@@ -55,7 +55,7 @@ kbd { font: 500 12px/1 var(--font); color: var(--secondary); background: var(--s
 .btn-primary:disabled { opacity: .35; cursor: default; }
 .btn-primary kbd { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .3); color: #fff; }
 .btn-secondary { height: 36px; padding: 0 16px; border: 1px solid var(--separator); border-radius: 9px; background: var(--surface); font-size: 15px; font-weight: 500; cursor: pointer; }
-.scroll { flex: 1; overflow-y: auto; }
+.scroll { flex: 1; overflow-y: auto; container: main / inline-size; }
 .content { max-width: 980px; margin: 0 auto; padding: 32px 40px 48px; }
 
 /* Item header */
@@ -67,6 +67,8 @@ h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em
 .show { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .show > * { grid-column: 1 / -1; min-width: 0; }
 .show > .half { grid-column: auto; }
+/* A wide artifact (compare) leaves the reading column and spans the scroll area, keeping the gutters. */
+.show > .wide { --wide: max(100%, 100cqw - 80px); width: var(--wide); margin-left: calc((100% - var(--wide)) / 2); }
 .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; min-height: 22px; }
 .panel-title { font-size: 15px; font-weight: 600; }
 .count { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tone-text); }
@@ -92,6 +94,8 @@ textarea.reading { font-size: 17px; line-height: 1.55; padding: 16px 18px; borde
 .card-row + .card-row { border-top: 1px solid var(--separator); }
 .row-label { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
 .row-note { font-size: 14px; color: var(--secondary); }
+.row-note .clamped { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.link-btn { font: inherit; font-weight: 500; color: var(--accent); background: none; border: 0; padding: 2px 0 0; cursor: pointer; }
 .row-extra { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-self: start; }
 
 .segmented { display: inline-flex; justify-self: start; background: var(--fill); border-radius: var(--radius-control); padding: 3px; gap: 2px; }

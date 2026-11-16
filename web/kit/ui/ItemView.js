@@ -1,6 +1,6 @@
 // One item: header, the artifacts under review, the controls card, text questions,
 // then collapsed context. The layout is fixed; the suite only supplies content.
-import { html } from "../html.js";
+import { html, useState } from "../html.js";
 import { controlFor, rendererFor } from "../registry.js";
 import { cx, tone, Key, StatusTag, Boundary, Icon } from "./bits.js";
 import { cell } from "../core/table.js";
@@ -37,7 +37,8 @@ export function ItemView({ suite, cols, item, state, act, cursor, across }) {
   // rowControls(row) -> { lead, below, cells }: per-row controls for a row renderer. below is
   // labeled for stacked layouts; cells are unlabeled, compact controls for table columns.
   const rowControls = a => {
-    const qs = questions.filter(q => q.each === a.id || q.from === a.id);
+    // Only an artifact with an id has rows a question can target.
+    const qs = a.id === undefined ? [] : questions.filter(q => q.each === a.id || q.from === a.id);
     return row => {
       if (!qs.length || row.ask === false) return { lead: null, below: null, cells: null };
       const live = q => asked(state, item, questions, q, row.id);
@@ -130,7 +131,19 @@ function CardRow({ q, control, attached, note }) {
   return html`<div class="card-row">
     <div class="row-label">${q.label}${controlFor(q.kind)?.labelKey && q.key ? html`<${Key} k=${q.key} />` : null}</div>
     ${control(q)}
-    ${attached.length ? html`<div class="row-extra">${attached.map(o => control(o, { inline: true, key: o.id }))}</div>` : note ? html`<div class="row-note">${note}</div>` : null}
+    ${attached.length ? html`<div class="row-extra">${attached.map(o => control(o, { inline: true, key: o.id }))}</div>` : note ? html`<${RowNote} text=${note} />` : null}
+  </div>`;
+}
+
+// RowNote shows the agent's reason. A reason should be one sentence; a longer one shows
+// two lines until the reviewer opens it, so it never pushes the controls apart.
+const LONG_NOTE = 160;
+function RowNote({ text }) {
+  const [open, setOpen] = useState(false);
+  const long = typeof text === "string" && text.length > LONG_NOTE;
+  return html`<div class="row-note">
+    <div class=${cx(long && !open && "clamped")}>${text}</div>
+    ${long ? html`<button class="link-btn" onClick=${() => setOpen(!open)}>${open ? "Less" : "More"}</button>` : null}
   </div>`;
 }
 
@@ -138,13 +151,14 @@ function CardRow({ q, control, attached, note }) {
 // registered renderer. In context the disclosure summary is the header.
 function Artifact({ a, item, edit, setEdit, rowControls, cursor, inContext, answers, questions }) {
   const R = rendererFor(a.kind);
+  const width = R?.wide ? "wide" : a.width === "half" ? "half" : "";
   if (!R) return html`<div class="artifact-error">No renderer for kind "${a.kind}".</div>`;
   const body = html`<${Boundary} label=${a.label ?? a.kind}>
     <${R} a=${a} item=${item} edit=${edit} setEdit=${setEdit} rowControls=${rowControls} cursor=${cursor} inContext=${inContext}
       answers=${answers} questions=${questions} />
   </${Boundary}>`;
   if (inContext) return html`<div data-artifact=${a.id}>${body}</div>`;
-  return html`<div class=${a.width === "half" ? "half" : ""} data-artifact=${a.id}>
+  return html`<div class=${width} data-artifact=${a.id}>
     ${a.label || a.note || a.status ? html`<div class="panel-head">
       ${a.label ? html`<span class="panel-title">${a.label}</span>` : null}
       ${R.head?.({ a, edit }) ?? null}

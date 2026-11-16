@@ -29,6 +29,8 @@
 .code-num { box-sizing: content-box; min-width: 3ch; padding: 0 16px 0 0; text-align: right; color: var(--tertiary); white-space: nowrap; user-select: none; -webkit-user-select: none; font-variant-numeric: tabular-nums; }
 .code-num:first-child { padding-left: 16px; }
 .code-text { width: 100%; white-space: pre; padding: 0 16px 0 0; }
+/* Wrap folds long lines at the panel edge instead of scrolling sideways. */
+.code-panel.wrap .code-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .code-sign { padding: 0 8px 0 0; white-space: pre; user-select: none; -webkit-user-select: none; }
 
 .code-hl > td { background: var(--warning-tint); }

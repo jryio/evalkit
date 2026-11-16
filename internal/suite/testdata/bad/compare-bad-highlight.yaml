@@ -1,0 +1,15 @@
+title: Compare pane with a bad highlight
+items:
+  - id: a
+    title: First
+    show:
+      - kind: compare
+        language: go
+        wrap: true
+        panes:
+          - { label: Before, code: "x := 1" }
+          - { label: After, code: "x := 2", highlight: one }
+  - id: b
+    title: Second
+    show:
+      - { kind: text, text: ok }

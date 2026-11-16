@@ -107,7 +107,7 @@ type Proposal struct {
 }
 
 // BuiltinKinds are the artifact kinds the web UI renders without a plugin.
-var BuiltinKinds = []string{"text", "list", "table", "code", "diff", "tests", "metrics", "chart", "markdown", "json", "transcript", "image", "tally"}
+var BuiltinKinds = []string{"text", "list", "table", "code", "compare", "diff", "tests", "metrics", "chart", "markdown", "json", "transcript", "image", "tally"}
 
 // ReservedKeys are bound by the kit itself.
 var ReservedKeys = map[string]string{

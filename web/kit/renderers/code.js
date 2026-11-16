@@ -35,11 +35,12 @@ export function splitLines(src) {
 
 export const normalize = text => (text ?? "").replace(/\r\n?/g, "\n").replace(/\n$/, "");
 
-export default function CodeArtifact({ a }) {
-  const lines = useMemo(() => splitLines(highlight(normalize(a.code), a.language)), [a.code, a.language]);
-  const start = a.start ?? 1;
-  const marked = new Set(a.highlight ?? []);
-  return html`<div class="code-panel"><table class="code-table"><tbody>
+// CodeLines is one numbered, highlighted code panel; wrap folds long lines instead of
+// scrolling sideways. The code and compare renderers share it.
+export function CodeLines({ code, language, start = 1, highlight: marks, wrap }) {
+  const lines = useMemo(() => splitLines(highlight(normalize(code), language)), [code, language]);
+  const marked = new Set(marks ?? []);
+  return html`<div class=${cx("code-panel", wrap && "wrap")}><table class="code-table"><tbody>
     ${lines.map((line, i) => {
       const n = start + i;
       return html`<tr key=${n} class=${cx(marked.has(n) && "code-hl")} data-line=${n}>
@@ -48,6 +49,10 @@ export default function CodeArtifact({ a }) {
       </tr>`;
     })}
   </tbody></table></div>`;
+}
+
+export default function CodeArtifact({ a }) {
+  return html`<${CodeLines} code=${a.code} language=${a.language} start=${a.start} highlight=${a.highlight} />`;
 }
 
 CodeArtifact.head = ({ a }) => (a.language ? html`<span class="muted">${a.language}</span>` : null);

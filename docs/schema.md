@@ -26,7 +26,7 @@ items:
     show: [ …artifacts ]               # what is under review; always open
     ask: [ …questions ]                # questions for this item only
     context: [ …artifacts ]            # supporting material; collapsed
-    proposed: { review: { value: changes, why: "2 valid findings" } }   # the agent's answers
+    proposed: { review: { value: changes, why: "2 valid findings" } }   # the agent's answers; why is one sentence
     values: { cost_usd: { value: 0.21, baseline: 0.24 } }   # measured values for the columns
     flag: Judge confidence 0.52           # the agent wants a human on this item
     done: { post: { at: …, url: … } }  # results of actions (usually recorded with `evalkit done`)
@@ -75,6 +75,7 @@ Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` 
 | `text` | `text`, `editable`, `limit: {target: [lo, hi], max}`, `key` (edit key, default `e`) |
 | `markdown` | `text` (raw HTML is shown as text) |
 | `code` | `code`, `language`, `start`, `highlight: [lines]` |
+| `compare` | `panes: [{label, note, code, language, start, highlight, tone}]` (2 or 3, left to right), `language` (for every pane), `wrap`. Spans the full page width |
 | `diff` | `diff` (unified), `language`, `highlight: [new-side lines]` |
 | `list` | `rows: [{id, title, detail, badge, links: [{label, url}], at: {artifact, line, label}, ask: false}]` |
 | `table` | `columns: [{key, label, align, muted}]`, `rows` (a cell is a value or `{value, tone}`; rows with `id` take per-row questions) |
@@ -85,6 +86,10 @@ Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` 
 | `json` | `data`, `open` (levels expanded) |
 | `image` | `src` (relative to the suite, or a URL), `alt`, `caption` |
 | `tally` | `question` (a per-row question), `stats: [{label, count: [values], of: [values] or "rows"}]` |
+
+Put code that is read side by side (before and after, a deleted test beside the test that keeps its proof) in one `compare`, not in two `width: half` code artifacts: `compare` leaves the reading column and gives each pane half the page. A pane's `tone` colors its dot and its `highlight` lines. Wrap folds long lines.
+
+A proposal's `why` is one sentence; the page shows two lines of a longer one until the reviewer opens it. Evidence belongs in `show` or `context`, where it has room.
 
 Rows of `list`, `table` and `transcript` share one vocabulary: a stable `id` makes a row answerable by `each` and `pick`.
 

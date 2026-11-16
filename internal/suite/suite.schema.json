@@ -942,6 +942,42 @@
             ],
             "properties": {
               "kind": {
+                "const": "compare"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "panes"
+            ],
+            "properties": {
+              "panes": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "items": {
+                  "$ref": "#/$defs/pane"
+                },
+                "description": "Code panes side by side, left to right. A compare artifact always spans the full page width."
+              },
+              "language": {
+                "type": "string",
+                "description": "Prism language id for every pane that sets none."
+              },
+              "wrap": {
+                "type": "boolean",
+                "description": "Start with long lines folded; the reviewer can toggle Wrap."
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
                 "const": "diff"
               }
             }
@@ -1387,6 +1423,7 @@
                     "list",
                     "table",
                     "code",
+                    "compare",
                     "diff",
                     "tests",
                     "metrics",
@@ -1407,6 +1444,45 @@
         }
       ],
       "unevaluatedProperties": false
+    },
+    "pane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string",
+          "description": "Secondary text beside the label, e.g. file:line."
+        },
+        "code": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string",
+          "description": "Prism language id. Default: the artifact's language."
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "First line number. Default 1."
+        },
+        "highlight": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Line numbers to emphasize, tinted by the pane's tone."
+        },
+        "tone": {
+          "$ref": "#/$defs/tone",
+          "description": "A dot beside the label; it also tints the emphasized lines (negative: what goes, positive: what stays)."
+        }
+      }
     },
     "testNode": {
       "type": "object",

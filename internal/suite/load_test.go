@@ -185,6 +185,21 @@ func TestLoad_InvalidSuites(t *testing.T) {
 			item: "a", kept: []string{"Second"},
 		},
 		{
+			name: "compare with one pane", file: "compare-one-pane.yaml",
+			contains: []string{"minItems"}, line: 8, path: "items[0].show[0].panes",
+			item: "a", kept: []string{"Second"},
+		},
+		{
+			name: "compare pane with an unknown key", file: "compare-unknown-pane-key.yaml",
+			contains: []string{"unknown key 'colour'"}, line: 9, path: "items[0].show[0].panes[1].colour",
+			item: "a", kept: []string{"Second"},
+		},
+		{
+			name: "compare pane error reported once, not on its siblings", file: "compare-bad-highlight.yaml",
+			contains: []string{"want array"}, line: 11, path: "items[0].show[0].panes[1].highlight",
+			item: "a", kept: []string{"Second"},
+		},
+		{
 			name: "duplicate item id", file: "duplicate-item.yaml",
 			contains: []string{`duplicate item id "a"`}, line: 7, path: "items[1].id",
 			item: "a", kept: []string{"First", "Third"},
