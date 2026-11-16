@@ -184,3 +184,21 @@ button.across-row:hover { background: var(--hover); }
   .tv-bar .toolbar-label { display: none; }
   .tv-search { width: 180px; }
 }
+
+/* Bottom sheet: the review panel on a narrow window. It slides up over a dimmed table,
+   follows a drag on its tab, and slides back down to close. */
+.rp.tray { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-height: 88dvh; height: 88dvh;
+  border-top: 1px solid var(--separator); border-radius: 16px 16px 0 0; box-shadow: var(--shadow-sheet); overflow: hidden;
+  animation: sheet-in .32s cubic-bezier(.32, 1.12, .5, 1); transition: transform .26s ease-in; }
+.rp.tray.dragging { transition: none; }
+.rp.tray.closing { transform: translateY(100%); }
+.rp-scrim { position: fixed; inset: 0; z-index: 40; background: var(--backdrop); animation: scrim-in .26s ease-out; transition: opacity .26s; }
+.rp-scrim.closing { opacity: 0; }
+.rp-grab { flex: none; display: flex; justify-content: center; padding: 8px 0 4px; cursor: grab; touch-action: none; background: var(--surface); }
+.rp-grab span { width: 40px; height: 5px; border-radius: 3px; background: var(--separator); }
+.rp.tray .rp-bar { padding: 0 16px; }
+.rp.tray .rp-body .content { padding: 16px 16px 40px; }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@keyframes scrim-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rp.tray, .rp-scrim { animation: none; transition: none; } }
+

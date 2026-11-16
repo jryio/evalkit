@@ -43,7 +43,7 @@ This: `Another test already checks that whole numbers work as range limits, so d
 - Per-row questions (`each: <artifact id>`) put a control on every row of a `list`, `table` or `transcript`; `pick` (`from: <artifact id>`) selects one row. Rows need stable `id`s.
 - `when: {question: [values]}` asks a follow-up only when it applies (a correction only when a field is Wrong).
 - Use an `action` question for anything outward-facing; its `summary` tells the human exactly what you will do.
-- Keys `j k ? ↑ ↓ 1–9 e` belong to the kit; give other questions single-letter `key`s. The validator reports conflicts.
+- Keys `j k ? ↑ ↓ 1–9 e m f /` and Tab belong to the kit (M and E edit the editable text; F and / filter the table); give other questions single-letter `key`s. The validator reports conflicts.
 
 ## Automated judges
 

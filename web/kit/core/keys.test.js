@@ -149,6 +149,21 @@ test("runsBindings move the run selection, open it in the table and filter runs"
   assert.equal(rows.find(r => r.keys[0] === "Esc").label, "Stop typing or close a sheet");
 });
 
+test("M edits the message, unless a question already uses M", () => {
+  assert.deepEqual(actionFor(bindings({}, item, questions), "m"), { type: "focus", target: "a:draft" });
+  const list = bindings({}, item, [{ id: "mood", kind: "text", label: "Mood", key: "m" }]);
+  assert.equal(list.filter(b => b.keys.includes("m")).length, 1);
+  assert.deepEqual(actionFor(list, "e"), { type: "focus", target: "a:draft" });
+});
+
+test("the table opens a row with Space and filters with F, showing only /", () => {
+  const list = tableBindings([verdict]);
+  assert.deepEqual(match(list, { key: " " }).action, { type: "open" });
+  assert.deepEqual(match(list, { key: "f" }).action, { type: "focus", target: "table-search" });
+  const shown = helpRows(list, "Send").flatMap(r => [...r.keys, ...r.also]);
+  assert.ok(shown.includes("/") && !shown.includes("F"));
+});
+
 test("Esc help climbs review → table → runs", () => {
   const esc = (view, runs) => helpRows([], "Send", view, runs).find(r => r.keys[0] === "Esc").label;
   assert.equal(esc("review", 3), "Stop typing or close a sheet; then back to the table");

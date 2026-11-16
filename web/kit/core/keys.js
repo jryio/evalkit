@@ -34,11 +34,26 @@ export function bindings(suite, item, questions, rows = 0, runs = 0) {
       if (o.key) add([o.key], label(o.label), { type: "option", qid: q.id, value: o.value, perRow });
     }
   }
-  for (const a of [...(item.show || []), ...(item.context || [])]) {
-    if (a.editable) add([a.key || "e"], `Edit ${a.label || "text"}`, { type: "focus", target: `a:${a.id ?? "edit"}` });
-  }
+  const a = editableOf(item);
+  if (a) add(editKeys(a, questions), `Edit ${a.label || "text"}`, { type: "focus", target: `a:${a.id ?? "edit"}` });
   add(["?"], "Keyboard shortcuts", { type: "help" });
   return out;
+}
+
+// The item's one editable artifact, if any.
+const editableOf = item => [...(item.show || []), ...(item.context || [])].find(a => a.editable);
+
+// editKeys are the keys that edit an artifact: its own key, else M (for message) and E,
+// or only E when a question already uses M.
+export function editKeys(a, questions) {
+  if (a.key) return [a.key];
+  return questions.some(q => q.key === "m") ? ["e"] : ["m", "e"];
+}
+
+// filterKeys focus a filter field: / is shown, F is a quiet second key.
+function filterKeys(add, label, target) {
+  add(["/"], label, { type: "focus", target });
+  add(["f"], label, { type: "focus", target }, null, true);
 }
 
 // primaryKeys binds 1–9 to the primary question's options, when it is on screen.
@@ -59,13 +74,13 @@ function runKeys(add, runs) {
 // primary question, filter. questions are those on screen for the selected row.
 export function tableBindings(questions, runs = 0) {
   const out = [];
-  const add = (keys, label, action, row) => out.push({ keys, label, action, row });
+  const add = (keys, label, action, row, hide) => out.push({ keys, label, action, row, hide });
   add(["ArrowDown", "j"], "Next row", { type: "select", by: 1 }, { id: "rows", label: "Next / previous row" });
   add(["ArrowUp", "k"], "Previous row", { type: "select", by: -1 }, { id: "rows" });
   runKeys(add, runs);
-  add(["Enter"], "Open the row for review", { type: "open" });
+  add(["Enter", " "], "Open the row for review", { type: "open" });
   primaryKeys(add, questions.find(q => q.primary), " of the selected row");
-  add(["/"], "Filter items", { type: "focus", target: "table-search" });
+  filterKeys(add, "Filter items", "table-search");
   add(["?"], "Keyboard shortcuts", { type: "help" });
   return out;
 }
@@ -74,12 +89,12 @@ export function tableBindings(questions, runs = 0) {
 // open the selected run in the table, filter.
 export function runsBindings(runs = 0) {
   const out = [];
-  const add = (keys, label, action, row) => out.push({ keys, label, action, row });
+  const add = (keys, label, action, row, hide) => out.push({ keys, label, action, row, hide });
   add(["ArrowDown", "j"], "Select the run below", { type: "selectRun", by: 1 }, { id: "rows", label: "Select the run below / above" });
   add(["ArrowUp", "k"], "Select the run above", { type: "selectRun", by: -1 }, { id: "rows" });
   runKeys(add, runs);
   add(["Enter"], "Open the selected run in the table", { type: "openRun" });
-  add(["/"], "Filter runs", { type: "focus", target: "runs-search" });
+  filterKeys(add, "Filter runs", "runs-search");
   add(["?"], "Keyboard shortcuts", { type: "help" });
   return out;
 }
@@ -98,7 +113,7 @@ export function panelBindings(suite, item, questions, rows = 0, runs = 0) {
     out.push({ keys: ["ArrowDown"], label: "Next row", action: { type: "select", by: 1 }, row: { id: "nav" } });
     out.push({ keys: ["ArrowUp"], label: "Previous row", action: { type: "select", by: -1 }, row: { id: "nav" } });
   }
-  out.push({ keys: ["/"], label: "Filter items", action: { type: "focus", target: "table-search" } });
+  filterKeys((keys, label, action, row, hide) => out.push({ keys, label, action, row, hide }), "Filter items", "table-search");
   return out;
 }
 
@@ -119,7 +134,7 @@ export function conflicts(list) {
   return out;
 }
 
-const NAMES = { ArrowRight: "→", ArrowLeft: "←", ArrowUp: "↑", ArrowDown: "↓", Escape: "Esc", Enter: "↵" };
+const NAMES = { ArrowRight: "→", ArrowLeft: "←", ArrowUp: "↑", ArrowDown: "↓", Escape: "Esc", Enter: "↵", " ": "Space" };
 export const keyName = k => NAMES[k] || (k.length === 1 ? k.toUpperCase() : k);
 
 // helpRows merges bindings that share a row (number keys of one question, J/K) and
@@ -129,6 +144,7 @@ export function helpRows(list, sendLabel, view = "review", runs = 0) {
   const rows = [];
   const byId = new Map();
   for (const b of list) {
+    if (b.hide) continue;
     const [first, ...also] = b.keys.map(keyName);
     const existing = b.row && byId.get(b.row.id);
     if (existing) {

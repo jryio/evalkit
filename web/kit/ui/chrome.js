@@ -1,6 +1,6 @@
 // App chrome: toolbar, suite head, sheets, toast and banners.
 import { html } from "../html.js";
-import { cx, tone, runWhen } from "./bits.js";
+import { cx, tone, runWhen, Segmented } from "./bits.js";
 import { helpRows } from "../core/keys.js";
 import { progressLabel } from "../core/derive.js";
 
@@ -21,10 +21,10 @@ const OPEN_MODES = [
 ];
 
 export function OpenIn({ value, set }) {
-  return html`<div class="segmented small icons open-in" role="radiogroup" aria-label="Open rows in">
+  return html`<${Segmented} class="small icons open-in" label="Open rows in">
     ${OPEN_MODES.map(m => html`<button class=${cx("seg", value === m.value && "on")} role="radio" aria-checked=${value === m.value}
         aria-label=${m.label} data-tip=${m.tip} onClick=${() => set(m.value)}>${m.icon}</button>`)}
-  </div>`;
+  </${Segmented}>`;
 }
 
 // What ‹ › step through in each view, with the keys that do the same.
@@ -35,18 +35,19 @@ const STEPS = {
 
 // One full-width toolbar for every view, so its controls never move when the view changes.
 // A suite with runs gets the Runs view first, in the order Esc climbs.
-export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, run }) {
+export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, run, openNav }) {
   const views = run ? [RUNS, TABLE, REVIEW] : [REVIEW, TABLE];
   return html`<div class="toolbar">
-    <div class="segmented small view-switch" role="radiogroup" aria-label="View">
+    ${openNav ? html`<button class="icon-btn nav-toggle" aria-label="Show items" onClick=${openNav}>☰</button>` : null}
+    <${Segmented} class="small view-switch" label="View">
       ${views.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
           title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === UP[view] ? html`<kbd>esc</kbd>` : null}</button>`)}
-    </div>
+    </${Segmented}>
     ${run ? html`<${RunStepper} ...${run} />` : null}
     ${STEPS[view] ? html`<${Stepper} ...${nav} ...${STEPS[view]} />` : null}
     <div class="spacer"></div>
     <span class="save-state" aria-live="polite">${saveLabel}</span>
-    <button class="btn-primary" onClick=${openSend}>${sendLabel} <kbd>⌘↵</kbd></button>
+    <button class="btn-primary" onClick=${openSend}><span class="send-long">${sendLabel}</span><span class="send-short">Send</span> <kbd>⌘↵</kbd></button>
   </div>`;
 }
 
