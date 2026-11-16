@@ -5,13 +5,14 @@
 import { html, useState, useRef, useEffect } from "../html.js";
 import { cx, tone, Dot } from "../ui/bits.js";
 import { CodeLines } from "./code.js";
-import { PierreDiff, ViewToggle, grammarOf } from "./pierre.js";
+import { PierreDiff, ViewToggle } from "./pierre.js";
 
 export default function Compare({ a }) {
   const [wrap, setWrap] = useState(Boolean(a.wrap));
   const two = a.panes.length === 2;
   const [mode, setMode] = useState(two && a.diff ? "diff" : "panes");
-  const file = p => ({ name: p.label ?? "", contents: p.code ?? "", lang: grammarOf(p.language ?? a.language) });
+  // Pane code rarely ends in a newline; add one so the diff does not flag "No newline at end of file".
+  const file = p => ({ name: p.label ?? "", contents: (p.code ?? "").replace(/\n?$/, "\n"), lang: p.language ?? a.language });
   return html`<div class="compare" style=${`--panes: ${a.panes.length}`}>
     <${StickyRow}>
       ${a.panes.map((p, i) => html`<div class=${cx("compare-head", tone(p.tone))} key=${i}>

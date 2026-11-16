@@ -8,7 +8,7 @@ const load = () => (lib ??= import("/vendor/diffs.esm.js"));
 
 // The bundle carries one grammar per family; map the ids the code renderer accepts to it.
 const GRAMMAR = { js: "typescript", javascript: "typescript", ts: "typescript", bash: "shellscript", sh: "shellscript", py: "python", yml: "yaml" };
-export const grammarOf = lang => (lang ? GRAMMAR[lang.toLowerCase()] ?? lang.toLowerCase() : undefined);
+const grammarOf = lang => (lang ? GRAMMAR[lang.toLowerCase()] ?? lang.toLowerCase() : undefined);
 
 const OPTIONS = { themeType: "system", theme: { dark: "pierre-dark", light: "pierre-light" }, lineDiffType: "word", diffIndicators: "bars" };
 
@@ -18,10 +18,15 @@ export function PierreDiff({ oldFile, newFile, patch, split = true, wrap = false
   useEffect(() => {
     let views = [];
     let gone = false;
-    load().then(({ FileDiff, parsePatchFiles }) => {
+    load().then(({ FileDiff, getFiletypeFromFileName, parsePatchFiles, languageNames }) => {
       if (gone) return;
+      // A language the bundle carries no grammar for draws as plain text.
+      const known = new Set(languageNames);
+      const langOf = id => (known.has(grammarOf(id)) ? grammarOf(id) : "text");
       const options = { ...OPTIONS, diffStyle: split ? "split" : "unified", overflow: wrap ? "wrap" : "scroll", disableFileHeader: !patch };
-      const inputs = patch ? parsePatchFiles(patch).flatMap(p => p.files).map(fileDiff => ({ fileDiff })) : [{ oldFile, newFile }];
+      const inputs = patch
+        ? parsePatchFiles(patch).flatMap(p => p.files).map(fd => ({ fileDiff: { ...fd, lang: langOf(fd.lang ?? getFiletypeFromFileName(fd.name)) } }))
+        : [{ oldFile: { ...oldFile, lang: langOf(oldFile.lang) }, newFile: { ...newFile, lang: langOf(newFile.lang) } }];
       views = inputs.map(input => {
         const view = new FileDiff(options);
         view.render({ ...input, containerWrapper: host.current });

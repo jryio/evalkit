@@ -2,7 +2,7 @@
 // light and dark themes and the languages evalkit highlights. Everything else is stubbed
 // out in build.mjs. Bundled by scripts/vendor-diffs.sh into web/vendor/diffs.esm.js.
 // The TypeScript grammar also serves JavaScript; evalkit maps the language ids.
-import { FileDiff, parsePatchFiles, registerCustomLanguage, registerCustomTheme } from "@pierre/diffs";
+import { FileDiff, getFiletypeFromFileName, parsePatchFiles, registerCustomLanguage, registerCustomTheme } from "@pierre/diffs";
 
 const languages = {
   go: () => import("@shikijs/langs/go"),
@@ -19,4 +19,6 @@ for (const [name, load] of Object.entries(languages)) registerCustomLanguage(nam
 registerCustomTheme("pierre-dark", () => import("@pierre/theme/pierre-dark"));
 registerCustomTheme("pierre-light", () => import("@pierre/theme/pierre-light"));
 
-export { FileDiff, parsePatchFiles };
+// The page draws any other language as plain text instead of failing to load it.
+export const languageNames = Object.keys(languages);
+export { FileDiff, getFiletypeFromFileName, parsePatchFiles };
