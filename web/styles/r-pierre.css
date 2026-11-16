@@ -1,8 +1,26 @@
 /* @pierre/diffs views take evalkit's code font, size and line height, and the line cap of
-   every code panel. The Pierre themes supply the colors. */
+   every code panel. The theme in pierre.js colors the code. */
 .pierre { --diffs-font-family: var(--mono); --diffs-font-size: 13px; --diffs-line-height: 1.6; --diffs-tab-size: 4;
   --diffs-header-font-family: var(--font); border-radius: var(--radius); overflow: auto;
   max-height: calc(var(--max-lines, 250) * 13px * 1.6 + 24px); }
+/* The chrome of a code panel: one flat panel color, muted line numbers, and light line tints.
+   Set on the host element, these beat the theme's :host rules. Pierre blends the addition and
+   deletion colors into the panel (12% light, 20% dark), close to the unified diff's tints. */
+.pierre diffs-container {
+  --diffs-bg-context-override: var(--panel);
+  --diffs-bg-context-gutter-override: var(--panel);
+  --diffs-fg-number-override: var(--tertiary);
+  --diffs-fg-number-addition-override: var(--tertiary);
+  --diffs-fg-number-deletion-override: var(--tertiary);
+  --diffs-bg-addition-override: var(--positive);
+  --diffs-bg-addition-number-override: var(--positive);
+  --diffs-bg-addition-emphasis-override: var(--positive-tint);
+  --diffs-bg-deletion-override: var(--negative);
+  --diffs-bg-deletion-number-override: var(--negative);
+  --diffs-bg-deletion-emphasis-override: var(--negative-tint);
+  --diffs-bg-buffer-override: var(--hover);
+  --diffs-bg-separator-override: var(--fill);
+}
 .pierre > * + * { margin-top: 12px; }
 
 /* Two-button switch a renderer shows in its own bar: Unified | Split, Panes | Diff. */

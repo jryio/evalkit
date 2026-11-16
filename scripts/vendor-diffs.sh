@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Vendors the parts of @pierre/diffs evalkit uses (scripts/vendor-diffs/entry.js) as one
 # self-contained ES module at web/vendor/diffs.esm.js. build.mjs stubs out what evalkit
-# never runs, so only the diff view, the Pierre themes and evalkit's languages ship.
+# never runs, so only the diff view and evalkit's languages ship.
 # Usage: scripts/vendor-diffs.sh 1.6.4
 set -euo pipefail
 

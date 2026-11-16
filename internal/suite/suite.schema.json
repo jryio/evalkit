@@ -984,7 +984,7 @@
               },
               "diff": {
                 "type": "boolean",
-                "description": "With two panes, start as a split diff of the left pane against the right; the reviewer can switch back to Panes."
+                "description": "With two panes the compare opens as a split diff of the left pane against the right; false opens it as plain panes. The reviewer can switch either way."
               }
             }
           }

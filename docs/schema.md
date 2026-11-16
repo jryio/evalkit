@@ -75,7 +75,7 @@ Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` 
 | `text` | `text`, `editable`, `limit: {target: [lo, hi], max}`, `key` (edit key, default `e`) |
 | `markdown` | `text` (raw HTML is shown as text) |
 | `code` | `code`, `language`, `start`, `highlight: [lines]`, `max_lines` (default 250; longer code scrolls inside its panel) |
-| `compare` | `panes: [{label, note, code, language, start, highlight, tone}]` (2 or 3, left to right), `language` (for every pane), `wrap`, `max_lines`, `diff` (with two panes, start as a split diff of left against right; a Panes / Diff switch toggles it). Spans the full page width; pane headers pin under the toolbar while the panes scroll by |
+| `compare` | `panes: [{label, note, code, language, start, highlight, tone}]` (2 or 3, left to right), `language` (for every pane), `wrap`, `max_lines`, `diff` (two panes open as a split diff of left against right; `false` opens them as plain panes; a Panes / Diff switch toggles it). Spans the full page width; pane headers pin under the toolbar while the panes scroll by |
 | `diff` | `diff` (unified), `language`, `highlight: [new-side lines]`, `max_lines`, `split` (start side by side). A Unified / Split switch draws Split with @pierre/diffs. Spans the full page width |
 | `list` | `rows: [{id, title, detail, badge, links: [{label, url}], at: {artifact, line, label}, ask: false}]` |
 | `table` | `columns: [{key, label, align, muted}]`, `rows` (a cell is a value or `{value, tone}`; rows with `id` take per-row questions) |

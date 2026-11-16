@@ -1,7 +1,7 @@
 // Code side by side across the whole width of the page: a deleted test beside the test
 // that keeps its proof, a before beside an after. The pane headers form one row that pins
 // under the toolbar while the code scrolls by, so the reviewer always knows which side is
-// which. With two panes, Diff aligns them as a split diff of left against right.
+// which. Two panes open as a split diff of left against right; Panes shows them side by side.
 import { html, useState, useRef, useEffect } from "../html.js";
 import { cx, tone, Dot } from "../ui/bits.js";
 import { CodeLines } from "./code.js";
@@ -10,7 +10,7 @@ import { PierreDiff, ViewToggle } from "./pierre.js";
 export default function Compare({ a }) {
   const [wrap, setWrap] = useState(Boolean(a.wrap));
   const two = a.panes.length === 2;
-  const [mode, setMode] = useState(two && a.diff ? "diff" : "panes");
+  const [mode, setMode] = useState(two && a.diff !== false ? "diff" : "panes");
   // Pane code rarely ends in a newline; add one so the diff does not flag "No newline at end of file".
   const file = p => ({ name: p.label ?? "", contents: (p.code ?? "").replace(/\n?$/, "\n"), lang: p.language ?? a.language });
   return html`<div class="compare" style=${`--panes: ${a.panes.length}`}>
