@@ -1,32 +1,44 @@
 # evalkit
 
-A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. Every suite also opens as a table: one row per item, a column per judged or measured value, with histograms and Δ-from-baseline in the headers, so a judge loop's hundreds of rows can be explored and spot-checked. A suite can also hold many runs of the same eval (rounds, models, weekly samples) and compare them on a Runs page. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
+evalkit is a review system for building evals with your agent. You describe an eval in a short YAML file, and evalkit turns it into a review page: the work to check, the questions to answer and the scores to keep.
+
+Use it on anything you want to get better at: writing, code, performance benchmarks, a judge's grades, or data pulled out of documents. Grade by hand, let an automated grader suggest answers for you to confirm, or combine the two.
+
+- **Score what matters to you.** Pass or fail, a category such as tone, confidence or slop, a rating from 1 to 10, or a measurement such as CPU time, latency or error count.
+- **Track every round.** Run the same eval again and again, and evalkit shows whether each score is trending up or down and which cases regressed, so you can hill-climb on the score you care about.
+- **Stay on the keyboard.** Moving between items, answering and sending all have shortcuts. evalkit is a single Go binary with the page built in.
+
+Most importantly, your feedback from every round goes back to your agent, so its next attempt starts from what you said.
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: an edited draft, a verdict with flags, notes and answered questions"></a>
-      <br><sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit the draft against a length target, pick a verdict and flags, answer the agent's questions.</sub>
+      <sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit a draft against a length target, pick a verdict and flags, and answer open questions.</sub><br>
+      <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: a proposed health with its reason, a verdict with flags, a posting gate and the draft against its length target"></a>
     </td>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: each finding triaged with a severity, proposed severities outlined"></a>
-      <br><sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding and accept or change the proposed severity before anything posts.</sub>
+      <sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding, then read the change as a split diff before any comment posts.</sub><br>
+      <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: findings triaged with proposed severities above a split diff of the change"></a>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: metric tiles with deltas and canary-versus-fleet time series"></a>
-      <br><sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: metric tiles and canary-versus-fleet charts behind a promote, hold or roll back verdict.</sub>
+      <sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: promote, hold or roll back a change, with its metrics and charts against the fleet.</sub><br>
+      <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: a proposed roll back with its reason, metric tiles with deltas and canary-versus-fleet charts"></a>
     </td>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: wrong fields corrected, live precision and recall"></a>
-      <br><sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub>
+      <sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and watch precision and recall update.</sub><br>
+      <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: two wrong fields with typed corrections beside the source document, and live precision and recall"></a>
     </td>
   </tr>
   <tr>
-    <td colspan="2" valign="top">
+    <td width="50%" valign="top">
+      <sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: see every row a judge graded in one table, with a histogram and the change from the last round in each column.</sub><br>
       <a href="docs/screenshots/judge-round.png"><img src="docs/screenshots/judge-round.png" alt="Table view of an LLM judge's round: verdicts, criteria and scores per row, histograms and baseline deltas in the headers, flagged rows"></a>
-      <br><sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view. Every row a judge graded, with histograms and the change from the baseline in each header; click a bar to filter, open a flagged row to override the judge.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <sub><b><a href="demos/12-hill-climb">Hill climb</a></b>: follow six rounds of prompt changes on the same questions: the score round by round, and what each round fixed or broke.</sub><br>
+      <a href="docs/screenshots/hill-climb.png"><img src="docs/screenshots/hill-climb.png" alt="Runs view of a hill climb: six rounds, the pass rate round by round for all, train and held-out questions, pass rate against cost, and each round against the baseline item by item"></a>
     </td>
   </tr>
 </table>
@@ -34,17 +46,44 @@ A keyboard-first review page for agent output, driven by a YAML schema. An agent
 ```sh
 go install github.com/jryio/evalkit/cmd/evalkit@latest   # or: make install, from a checkout
 
-evalkit init           # ./suite.yaml, a starter to edit
-evalkit serve          # review page at http://127.0.0.1:8790, opens the browser
-evalkit wait           # (the agent) blocks until the human sends, prints what changed
-evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit/SKILL.md
+evalkit init           # writes ./suite.yaml, a starter to edit
+evalkit serve          # opens the review page at http://127.0.0.1:8790
+evalkit wait           # waits for you to press Send, then prints what changed
+evalkit skill --install   # teaches Claude Code the whole loop
 ```
 
 `evalkit help` lists every command; `evalkit help <command>` shows flags and examples. `make release` builds static binaries for macOS, Linux and Windows into `dist/`.
 
 - **Schema:** [docs/schema.md](docs/schema.md) (also `evalkit docs`). How the demos shaped it: [docs/schema-changelog.md](docs/schema-changelog.md). Prior art: [docs/research/prior-art.md](docs/research/prior-art.md). Decisions: `adr list`.
-- **Agent protocol:** [skill/SKILL.md](skill/SKILL.md).
+- **Claude Code skill:** [skill/SKILL.md](skill/SKILL.md).
 - **Catalog:** `examples/kitchen-sink/suite.yaml` renders every artifact and question kind once.
+
+## What an eval looks like
+
+An eval is one YAML file. Each item shows something to check and asks the same questions, and `proposed` holds a suggested answer that you keep or change. Your agent can write the file for you, and `evalkit serve` turns it into the review page.
+
+```yaml
+title: Release notes drafts
+description: Approve each draft, or tell Claude what to change before it goes out.
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: ship, label: Ship it, tone: positive }
+      - { value: fix, label: Needs work, tone: warning }
+  - { id: note, kind: text, label: Note to Claude, key: n }
+items:
+  - id: v2-4
+    title: Release notes for version 2.4
+    show:
+      - kind: markdown
+        label: Draft
+        text: Exports now finish in half the time, and failed uploads retry on their own.
+    proposed:
+      verdict: { value: ship, why: Both changes are in the changelog and the wording is plain. }
+```
 
 ## Demos
 
@@ -61,6 +100,7 @@ evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit
 | 9 | [Model sweep](demos/09-model-sweep) | Runs: twelve model × effort configurations over the same cases and reps, two ordinal dimensions, a baseline run (what ships today), cost against pass rate with a dominated configuration |
 | 10 | [Weekly samples](demos/10-weekly-samples) | Runs over time: six weekly runs of fresh production tickets with no pairing, a date dimension, a dip and recovery in the pass rate, run notes |
 | 11 | [Judge change](demos/11-judge-change) | Two runs of the same drafts graded by an old and a new rubric, identical `show`, different proposals, flagged verdict flips; opens in the default view |
+| 12 | [Hill climb](demos/12-hill-climb) | Six sequential rounds of prompt changes on the same questions, a round dimension, train and held-out groups, a round that overfits, regressions flagged, and a split diff of each query that changed (`python3 build.py`) |
 
 Run one: `bin/evalkit serve demos/NN-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
 
@@ -74,7 +114,8 @@ Every question kind and artifact kind appears in the kitchen sink. Across the de
 | action | 1, 2, 3, 7 · multi 1, 6 · scale 3, 4 · toggle 1, 7 · number 7 · pick 6 |
 | list | 1, 2, 3, 4 · table 1, 3, 5, 6, 7 · markdown 2–7 · json 5, 6 · metrics 3, 7 · chart 3, 7 |
 | text 1 · diff 2 · tests 2 · transcript 6 · tally 5 | single-domain kinds: each matches one workflow's evidence |
-| code, image | kitchen sink; `image` also carries the screenshots in the dogfood review suite |
+| code, compare | 12 · kitchen sink |
+| image | kitchen sink; it also carries the screenshots in the dogfood review suite |
 
 ## Layout
 
@@ -89,7 +130,7 @@ web/kit/ui/         layout: App, Sidebar, ItemView, ItemsTable, RunsView and its
 web/kit/controls/   one module per question kind
 web/kit/renderers/  one module per artifact kind
 web/styles/         tokens (light and dark) and component CSS
-web/vendor/         Preact, htm, marked, uPlot and Observable Plot (scripts/vendor-plot.sh)
+web/vendor/         Preact, htm, marked, Prism, uPlot, Observable Plot and @pierre/diffs (scripts/vendor-*.sh)
 ```
 
 Adding a kind: write the module, register it in `web/kit/builtins.js`, add its branch to `internal/suite/suite.schema.json`, and add an item to the kitchen sink.
