@@ -67,6 +67,7 @@ h1 { font-size: 30px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em
 .show { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .show > * { grid-column: 1 / -1; min-width: 0; }
 .show > .half { grid-column: auto; }
+.show-below { margin-top: 28px; }
 /* A wide artifact (compare) leaves the reading column and spans the scroll area, keeping the gutters. */
 .show > .wide { --wide: max(100%, 100cqw - 80px); width: var(--wide); margin-left: calc((100% - var(--wide)) / 2); }
 .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; min-height: 22px; }

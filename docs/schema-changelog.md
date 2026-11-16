@@ -97,6 +97,9 @@ An eval loop runs the same cases again and again: a new model, a new prompt, a n
 Reviewing a test-pruning run meant reading a deleted test beside the test that keeps its proof. Two `width: half` code artifacts gave each about 470 px of the 980 px reading column, and a long final-review finding filled the verdict row.
 
 - **`compare`**: two or three code panes side by side that span the full page width, each with a label, a note, a tone and highlighted lines, and a Wrap toggle. Renderers can opt in to full width the same way (`Renderer.wide = true`).
+- **Pane headers pin under the toolbar** while a `compare` scrolls past, and show a separator once pinned, so the reviewer always knows which side is which.
+- **`max_lines`** on `code`, `compare` and `diff` (default 250): longer code scrolls inside its panel instead of filling the page.
+- **`below: true`** on any artifact shows it after the questions, so the verdict and its evidence come first and the code follows.
 - **A proposal's reason clamps to two lines** with More and Less. `why` is meant to be one sentence; evidence goes in `show`.
 - **Fix:** an artifact without an `id` no longer takes every question without `each` as a per-row question. A `list` without an `id` showed a Verdict and a Note on each row.
 - **Clearer schema errors:** when a kind's own rule fails (a `compare` with one pane, an action without `states`), the loader no longer adds a "false schema" error for each of that kind's keys.

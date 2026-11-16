@@ -55,6 +55,10 @@ export function ItemView({ suite, cols, item, state, act, cursor, across }) {
     answers=${answers} questions=${questions}
     cursor=${cursor && a.id !== undefined && cursor.artifact === a.id ? cursor.row : undefined} />`;
 
+  // below: true moves an artifact after the questions, so a judgment comes before long material.
+  const shown = (item.show || []).map((a, i) => [a, i]);
+  const top = shown.filter(([a]) => !a.below);
+  const under = shown.filter(([a]) => a.below);
   const own = questions.filter(q => !q.each && asked(state, item, questions, q));
   const rows = own.filter(q => !isSection(q) && !q.with);
   const notes = own.filter(q => isSection(q) && q.scope === "suite");
@@ -63,7 +67,7 @@ export function ItemView({ suite, cols, item, state, act, cursor, across }) {
   return html`
     <${ItemHeader} item=${item} suite=${suite} cols=${cols} />
     ${across ? html`<${AcrossRuns} ...${across} suite=${suite} cols=${cols} state=${state} />` : null}
-    ${item.show?.length ? html`<div class="show">${item.show.map((a, i) => artifact(a, i, false))}</div>` : null}
+    ${top.length ? html`<div class="show">${top.map(([a, i]) => artifact(a, i, false))}</div>` : null}
     ${rows.length ? html`<div class="card">${rows.map(q => html`<${CardRow} q=${q} control=${control}
         attached=${own.filter(o => o.with === q.id)} note=${controlFor(q.kind)?.note?.(props(q))} />`)}</div>` : null}
     ${notes.map(q => html`<div class="section" key=${q.id}>
@@ -74,6 +78,7 @@ export function ItemView({ suite, cols, item, state, act, cursor, across }) {
       <div class="section-title">Questions</div>
       ${itemTexts.map(q => html`<div class="question" key=${q.id}><p>${q.label}</p>${control(q, { compact: true })}</div>`)}
     </div>` : null}
+    ${under.length ? html`<div class="show show-below">${under.map(([a, i]) => artifact(a, i, false))}</div>` : null}
     ${item.context?.length ? html`<div class="disclosures">${item.context.map((a, i) => html`<details key=${a.id ?? i}>
       <summary>${a.label ?? a.kind}${a.note ? html`<span class="muted">${a.note}</span>` : null}</summary>
       <div class="details-body">${artifact(a, i, true)}</div>

@@ -37,10 +37,10 @@ export const normalize = text => (text ?? "").replace(/\r\n?/g, "\n").replace(/\
 
 // CodeLines is one numbered, highlighted code panel; wrap folds long lines instead of
 // scrolling sideways. The code and compare renderers share it.
-export function CodeLines({ code, language, start = 1, highlight: marks, wrap }) {
+export function CodeLines({ code, language, start = 1, highlight: marks, wrap, maxLines }) {
   const lines = useMemo(() => splitLines(highlight(normalize(code), language)), [code, language]);
   const marked = new Set(marks ?? []);
-  return html`<div class=${cx("code-panel", wrap && "wrap")}><table class="code-table"><tbody>
+  return html`<div class=${cx("code-panel", wrap && "wrap")} style=${capStyle(maxLines)}><table class="code-table"><tbody>
     ${lines.map((line, i) => {
       const n = start + i;
       return html`<tr key=${n} class=${cx(marked.has(n) && "code-hl")} data-line=${n}>
@@ -51,8 +51,11 @@ export function CodeLines({ code, language, start = 1, highlight: marks, wrap })
   </tbody></table></div>`;
 }
 
+// capStyle sets how many lines a code panel shows before it scrolls inside itself.
+export const capStyle = maxLines => (maxLines ? `--max-lines: ${maxLines}` : undefined);
+
 export default function CodeArtifact({ a }) {
-  return html`<${CodeLines} code=${a.code} language=${a.language} start=${a.start} highlight=${a.highlight} />`;
+  return html`<${CodeLines} code=${a.code} language=${a.language} start=${a.start} highlight=${a.highlight} maxLines=${a.max_lines} />`;
 }
 
 CodeArtifact.head = ({ a }) => (a.language ? html`<span class="muted">${a.language}</span>` : null);

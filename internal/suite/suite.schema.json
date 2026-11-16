@@ -720,6 +720,10 @@
             "half"
           ],
           "description": "half pairs two artifacts side by side."
+        },
+        "below": {
+          "type": "boolean",
+          "description": "Show after the questions instead of before them: long material, such as code, that the reviewer checks after a first judgment."
         }
       },
       "allOf": [
@@ -931,6 +935,11 @@
                   "type": "integer"
                 },
                 "description": "Line numbers to emphasize."
+              },
+              "max_lines": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Lines shown before the panel scrolls inside itself. Default 250."
               }
             }
           }
@@ -967,6 +976,11 @@
               "wrap": {
                 "type": "boolean",
                 "description": "Start with long lines folded; the reviewer can toggle Wrap."
+              },
+              "max_lines": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Lines shown before the panel scrolls inside itself. Default 250."
               }
             }
           }
@@ -1000,6 +1014,11 @@
                   "type": "integer"
                 },
                 "description": "New-side line numbers to emphasize."
+              },
+              "max_lines": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Lines shown before the panel scrolls inside itself. Default 250."
               }
             }
           }

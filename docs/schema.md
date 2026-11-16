@@ -68,14 +68,14 @@ An option is `{value, label, tone?, icon?, key?}`; icons: `check`, `approx`, `cr
 
 ### Artifacts
 
-Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` and edits), `label`, `note` (secondary text), `status: {label, tone}` (a dot and label) and `width: half` (two halves sit side by side; they stack below 1240 px).
+Every artifact has `kind`, and optionally `id` (needed for `each`, `pick`, `at` and edits), `label`, `note` (secondary text), `status: {label, tone}` (a dot and label), `width: half` (two halves sit side by side; they stack below 1240 px) and `below: true` (shown after the questions, for long material such as code that the reviewer checks after a first judgment).
 
 | Kind | Keys |
 |---|---|
 | `text` | `text`, `editable`, `limit: {target: [lo, hi], max}`, `key` (edit key, default `e`) |
 | `markdown` | `text` (raw HTML is shown as text) |
-| `code` | `code`, `language`, `start`, `highlight: [lines]` |
-| `compare` | `panes: [{label, note, code, language, start, highlight, tone}]` (2 or 3, left to right), `language` (for every pane), `wrap`. Spans the full page width |
+| `code` | `code`, `language`, `start`, `highlight: [lines]`, `max_lines` (default 250; longer code scrolls inside its panel) |
+| `compare` | `panes: [{label, note, code, language, start, highlight, tone}]` (2 or 3, left to right), `language` (for every pane), `wrap`, `max_lines`. Spans the full page width; pane headers pin under the toolbar while the panes scroll by |
 | `diff` | `diff` (unified), `language`, `highlight: [new-side lines]` |
 | `list` | `rows: [{id, title, detail, badge, links: [{label, url}], at: {artifact, line, label}, ask: false}]` |
 | `table` | `columns: [{key, label, align, muted}]`, `rows` (a cell is a value or `{value, tone}`; rows with `id` take per-row questions) |

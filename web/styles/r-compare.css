@@ -1,7 +1,10 @@
-/* compare renderer: equal panes side by side; they stack when the page is narrow. */
-.compare-panes { display: grid; grid-template-columns: repeat(var(--panes, 2), minmax(0, 1fr)); gap: 16px; align-items: start; }
+/* compare renderer: equal panes side by side; they stack when the page is narrow.
+   Panes stretch to one height so both headers stay pinned for the whole row. */
+.compare-panes { display: grid; grid-template-columns: repeat(var(--panes, 2), minmax(0, 1fr)); gap: 0 16px; align-items: stretch; }
 .compare-pane { min-width: 0; }
-.compare-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; min-width: 0; }
+.compare-head { position: sticky; top: -1px; z-index: 2; display: flex; align-items: baseline; gap: 8px; min-width: 0;
+  padding: 11px 0 8px; background: var(--surface); border-bottom: 1px solid transparent; transition: border-color .15s, box-shadow .15s; }
+.compare-head.stuck { border-bottom-color: var(--separator); box-shadow: 0 6px 8px -8px rgba(0, 0, 0, .35); }
 .compare-head .dot { align-self: center; }
 .compare-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .compare-wrap { margin-left: auto; font: 500 12px var(--font); color: var(--secondary); background: var(--surface); border: 1px solid var(--separator); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
