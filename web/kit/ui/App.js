@@ -28,6 +28,19 @@ const DIRECTION_TONES = { up: "positive", same: "neutral", down: "negative" };
 const OPEN_IN = ["sidebar", "floating", "full"];
 const savedOpenIn = () => OPEN_IN.find(m => m === localStorage.getItem("evalkit.openIn")) ?? "sidebar";
 
+// Below this window width the table's review panel opens as a bottom sheet.
+const SHEET_AT = "(max-width: 1000px)";
+function useNarrow() {
+  const [narrow, setNarrow] = useState(() => matchMedia(SHEET_AT).matches);
+  useEffect(() => {
+    const mq = matchMedia(SHEET_AT);
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
+
 // runSuite is the suite as the table and review show it: one run's items, when it has runs, in sidebar order.
 function runSuite(suite, state, runs, run) {
   const s = run ? withBaselines(suite, state, run.id, vsOf(suite, runs, run)?.id ?? null) : suite;
@@ -52,6 +65,7 @@ function animated(update) {
 export function App() {
   const [loaded, setLoaded] = useState(null); // { suite, problems, version, fatal, done }
   const [navOpen, setNavOpen] = useState(false); // the sidebar drawer, on narrow screens
+  const narrow = useNarrow(); // below SHEET_AT the review panel is a bottom sheet
   const [state, setState] = useState(null);
   const [currentId, setCurrentId] = useState(hashId); // the item on screen, by id so suite edits never move it
   const [sheet, setSheet] = useState(null); // "send" | "help" | null
@@ -510,11 +524,11 @@ export function App() {
         ? html`<${RunsView} suite=${suite} state=${state} runs=${runs} rows=${summary} shown=${runRows} metric=${metric} spend=${spend}
             filters=${runFilters} setFilters=${setRunFilters} selected=${shownRun.id} vs=${vs} select=${id => setRun(id)} open=${openRun} banners=${banners} />`
         : view === "table"
-        ? html`<div class=${panelOpen && openIn === "sidebar" ? "tv-layout with-sidebar" : "tv-layout"}>
+        ? html`<div class=${panelOpen && openIn === "sidebar" && !narrow ? "tv-layout with-sidebar" : "tv-layout"}>
             <${ItemsTable} suite=${ordered} state=${state} cols=${cols} rows=${rows} view=${filters} setView=${setTableFilters}
               selected=${currentId} select=${show} open=${openRow} openIn=${openIn} setOpenIn=${setOpenIn} counts=${scopeCounts(items, state)} progress=${progress(ordered, state)} banners=${banners}
               run=${shownRun && { run: shownRun, vs, paired }} />
-            ${panelOpen ? html`<${ReviewPanel} mode=${openIn} setMode=${setOpenIn} item=${item} close=${() => setPanel(false)}
+            ${panelOpen ? html`<${ReviewPanel} mode=${narrow ? "tray" : openIn} setMode=${setOpenIn} item=${item} close=${() => setPanel(false)}
                 position=${{ index: rows.findIndex(r => r.id === currentId), count: rows.length }} go=${selectRow}
                 suite=${ordered} cols=${cols} state=${state} act=${act} cursor=${cursor} across=${acrossView} />` : null}
           </div>`
