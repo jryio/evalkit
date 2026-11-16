@@ -1,6 +1,15 @@
 # evalkit
 
-A keyboard-first review page for agent output, driven by a YAML schema. An agent writes a suite, the human reviews it in the browser and presses ⌘↵ whenever they like, and the agent gets back only what changed. Every suite also opens as a table: one row per item, a column per judged or measured value, with histograms and Δ-from-baseline in the headers, so a judge loop's hundreds of rows can be explored and spot-checked. A suite can also hold many runs of the same eval (rounds, models, weekly samples) and compare them on a Runs page. One static Go binary with the UI embedded (Preact + htm, no build step); two dependencies.
+evalkit is a review page for work an agent did. The agent lists what it wants you to check, each with its own proposed answer. You go through them in the browser, mostly by keyboard, and change only what you disagree with. When you press ⌘↵ the agent gets back just your changes and carries on, and you can keep reviewing.
+
+Use it to:
+
+- **Approve before anything goes out:** a draft, code review comments, a deploy or a price change waits for your OK.
+- **Correct a batch:** fix extracted fields, find the first wrong step in an agent's run, or rate two responses side by side.
+- **Spot-check a judge:** see every row an LLM judge graded in one table, with the change from the last run, and open only the ones that look wrong.
+- **Compare runs:** see the same eval across models, settings or weeks on one page.
+
+The agent writes the review as YAML. evalkit is one static Go binary with the page built in (Preact + htm, no build step).
 
 <table>
   <tr>
@@ -89,7 +98,7 @@ web/kit/ui/         layout: App, Sidebar, ItemView, ItemsTable, RunsView and its
 web/kit/controls/   one module per question kind
 web/kit/renderers/  one module per artifact kind
 web/styles/         tokens (light and dark) and component CSS
-web/vendor/         Preact, htm, marked, uPlot and Observable Plot (scripts/vendor-plot.sh)
+web/vendor/         Preact, htm, marked, Prism, uPlot, Observable Plot and @pierre/diffs (scripts/vendor-*.sh)
 ```
 
 Adding a kind: write the module, register it in `web/kit/builtins.js`, add its branch to `internal/suite/suite.schema.json`, and add an item to the kitchen sink.
