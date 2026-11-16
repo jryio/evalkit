@@ -14,32 +14,32 @@ The agent writes the review as YAML. evalkit is one static Go binary with the pa
 <table>
   <tr>
     <td width="50%" valign="top">
+      <sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit the draft against a length target, pick a verdict and flags, answer the agent's questions.</sub><br>
       <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: a proposed health with its reason, a verdict with flags, a posting gate and the draft against its length target"></a>
-      <br><sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit the draft against a length target, pick a verdict and flags, answer the agent's questions.</sub>
     </td>
     <td width="50%" valign="top">
+      <sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding, then read the change as a split diff before anything posts.</sub><br>
       <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: findings triaged with proposed severities above a split diff of the change"></a>
-      <br><sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding, then read the change as a split diff before anything posts.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
+      <sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: metric tiles and canary-versus-fleet charts behind a promote, hold or roll back verdict.</sub><br>
       <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: a proposed roll back with its reason, metric tiles with deltas and canary-versus-fleet charts"></a>
-      <br><sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: metric tiles and canary-versus-fleet charts behind a promote, hold or roll back verdict.</sub>
     </td>
     <td width="50%" valign="top">
+      <sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub><br>
       <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: two wrong fields with typed corrections beside the source document, and live precision and recall"></a>
-      <br><sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
+      <sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view: every row a judge graded, with a histogram and the change from the baseline in each header.</sub><br>
       <a href="docs/screenshots/judge-round.png"><img src="docs/screenshots/judge-round.png" alt="Table view of an LLM judge's round: verdicts, criteria and scores per row, histograms and baseline deltas in the headers, flagged rows"></a>
-      <br><sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view: every row a judge graded, with a histogram and the change from the baseline in each header.</sub>
     </td>
     <td width="50%" valign="top">
+      <sub><b><a href="demos/12-hill-climb">Hill climb</a></b>: the Runs view: six rounds of prompt changes on the same questions, and what each round fixed or broke.</sub><br>
       <a href="docs/screenshots/hill-climb.png"><img src="docs/screenshots/hill-climb.png" alt="Runs view of a hill climb: six rounds, the pass rate round by round for all, train and held-out questions, pass rate against cost, and each round against the baseline item by item"></a>
-      <br><sub><b><a href="demos/12-hill-climb">Hill climb</a></b>: the Runs view: six rounds of prompt changes on the same questions, and what each round fixed or broke.</sub>
     </td>
   </tr>
 </table>
@@ -58,6 +58,33 @@ evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit
 - **Schema:** [docs/schema.md](docs/schema.md) (also `evalkit docs`). How the demos shaped it: [docs/schema-changelog.md](docs/schema-changelog.md). Prior art: [docs/research/prior-art.md](docs/research/prior-art.md). Decisions: `adr list`.
 - **Agent protocol:** [skill/SKILL.md](skill/SKILL.md).
 - **Catalog:** `examples/kitchen-sink/suite.yaml` renders every artifact and question kind once.
+
+## What the agent writes
+
+Your agent writes a suite like this one, and `evalkit serve` turns it into the review page. Each item shows something to check and asks the same questions; `proposed` is the agent's own answer, which you keep or change.
+
+```yaml
+title: Release notes drafts
+description: Approve each draft, or tell Claude what to change before it goes out.
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    options:
+      - { value: ship, label: Ship it, tone: positive }
+      - { value: fix, label: Needs work, tone: warning }
+  - { id: note, kind: text, label: Note to Claude, key: n }
+items:
+  - id: v2-4
+    title: Release notes for version 2.4
+    show:
+      - kind: markdown
+        label: Draft
+        text: Exports now finish in half the time, and failed uploads retry on their own.
+    proposed:
+      verdict: { value: ship, why: Both changes are in the changelog and the wording is plain. }
+```
 
 ## Demos
 
