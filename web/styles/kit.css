@@ -117,6 +117,16 @@ textarea.reading { font-size: 17px; line-height: 1.55; padding: 16px 18px; borde
 .seg { height: 34px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; font-size: 15px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; color: var(--text); white-space: nowrap; }
 .seg:hover { background: color-mix(in srgb, var(--seg-on) 55%, transparent); }
 .seg.on { background: var(--seg-on); box-shadow: var(--shadow-seg); }
+/* A sliding segmented control draws one thumb under the selected button instead. The
+   ease overshoots a little and settles, so the thumb snaps into place. */
+.segmented.sliding { position: relative; }
+.segmented.sliding > .seg { position: relative; }
+.segmented.sliding > .seg.on { background: transparent; box-shadow: none; }
+.segmented.sliding > .seg.on:not(.tentative):hover { background: transparent; }
+.seg-thumb { position: absolute; left: 0; top: 0; background: var(--seg-on); box-shadow: var(--shadow-seg); opacity: 0; pointer-events: none; }
+.seg-thumb.shown { opacity: 1; }
+.seg-thumb.ready { transition: transform .34s cubic-bezier(.32, 1.12, .5, 1), width .34s cubic-bezier(.32, 1.12, .5, 1), opacity .15s; }
+@media (prefers-reduced-motion: reduce) { .seg-thumb.ready { transition: none; } }
 .seg.on.has-icon { color: var(--tone-text, var(--text)); }
 .seg kbd { padding: 2px 5px; min-width: 18px; }
 .glyph { font-weight: 700; }

@@ -17,6 +17,35 @@ export const StatusTag = ({ tag }) => html`<span class="status-tag"><${Dot} tone
 
 export { withUnit } from "../core/format.js";
 
+// Segmented is a row of .seg buttons with one thumb that slides to the button marked .on.
+// The thumb has no transition until it has a place, so the page never opens mid-slide.
+export function Segmented({ class: cls, label, children }) {
+  const box = useRef();
+  const thumb = useRef();
+  useLayoutEffect(() => {
+    const place = () => {
+      const on = box.current?.querySelector(":scope > .seg.on:not(.tentative)");
+      const t = thumb.current;
+      if (!t) return;
+      t.classList.toggle("shown", Boolean(on));
+      if (!on) return;
+      t.style.width = `${on.offsetWidth}px`;
+      t.style.height = `${on.offsetHeight}px`;
+      t.style.transform = `translate(${on.offsetLeft}px, ${on.offsetTop}px)`;
+      t.style.borderRadius = getComputedStyle(on).borderRadius;
+      requestAnimationFrame(() => t.classList.add("ready"));
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(box.current);
+    return () => ro.disconnect();
+  });
+  return html`<div ref=${box} class=${cx("segmented", "sliding", cls)} role="radiogroup" aria-label=${label}>
+    <span ref=${thumb} class="seg-thumb" aria-hidden="true"></span>
+    ${children}
+  </div>`;
+}
+
 export const fmtDate = iso => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 // runWhen is a run's date ("Nov 10"), else its round ("round 3"), when its dims have one.
 export function runWhen(run) {

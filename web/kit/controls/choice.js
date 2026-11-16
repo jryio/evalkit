@@ -1,7 +1,7 @@
 // Single choice as a segmented control. Options show their icon, else a tone dot.
 // The primary question shows number keys; clicking the selected option clears it.
 import { html } from "../html.js";
-import { cx, tone, Key, Dot, Icon } from "../ui/bits.js";
+import { cx, tone, Key, Dot, Icon, Segmented } from "../ui/bits.js";
 import { optionOf, proposalNote } from "../core/derive.js";
 
 // compact (set by dense renderers such as tables) shows icons only when every option has one.
@@ -9,7 +9,7 @@ import { optionOf, proposalNote } from "../core/derive.js";
 export default function Choice({ q, value, answer, set, compact, row }) {
   const iconsOnly = compact && q.options.every(o => o.icon);
   const tentative = row !== undefined && answer === undefined;
-  return html`<div class=${cx("segmented", iconsOnly && "icons-only")} role="radiogroup" aria-label=${q.label}>
+  return html`<${Segmented} class=${iconsOnly && "icons-only"} label=${q.label}>
     ${q.options.map((o, i) => {
       const on = value === o.value;
       return html`<button class=${cx("seg", on && "on", on && tentative && "tentative", o.icon && "has-icon", tone(o.tone))} role="radio" aria-checked=${on}
@@ -19,7 +19,7 @@ export default function Choice({ q, value, answer, set, compact, row }) {
         ${q.primary ? html`<${Key} k=${String(i + 1)} />` : o.key ? html`<${Key} k=${o.key} />` : null}
       </button>`;
     })}
-  </div>`;
+  </${Segmented}>`;
 }
 
 Choice.note = ({ q, proposed }) => proposalNote(optionOf(q, proposed?.value)?.label ?? proposed?.value, proposed);

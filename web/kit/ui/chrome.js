@@ -1,6 +1,6 @@
 // App chrome: toolbar, suite head, sheets, toast and banners.
 import { html } from "../html.js";
-import { cx, tone, runWhen } from "./bits.js";
+import { cx, tone, runWhen, Segmented } from "./bits.js";
 import { helpRows } from "../core/keys.js";
 import { progressLabel } from "../core/derive.js";
 
@@ -21,10 +21,10 @@ const OPEN_MODES = [
 ];
 
 export function OpenIn({ value, set }) {
-  return html`<div class="segmented small icons open-in" role="radiogroup" aria-label="Open rows in">
+  return html`<${Segmented} class="small icons open-in" label="Open rows in">
     ${OPEN_MODES.map(m => html`<button class=${cx("seg", value === m.value && "on")} role="radio" aria-checked=${value === m.value}
         aria-label=${m.label} data-tip=${m.tip} onClick=${() => set(m.value)}>${m.icon}</button>`)}
-  </div>`;
+  </${Segmented}>`;
 }
 
 // What ‹ › step through in each view, with the keys that do the same.
@@ -38,10 +38,10 @@ const STEPS = {
 export function Toolbar({ view, setView, nav, saveLabel, sendLabel, openSend, run }) {
   const views = run ? [RUNS, TABLE, REVIEW] : [REVIEW, TABLE];
   return html`<div class="toolbar">
-    <div class="segmented small view-switch" role="radiogroup" aria-label="View">
+    <${Segmented} class="small view-switch" label="View">
       ${views.map(v => html`<button class=${cx("seg", view === v.value && "on")} role="radio" aria-checked=${view === v.value}
           title=${v.tip} onClick=${() => setView(v.value)}>${v.label}${v.value === UP[view] ? html`<kbd>esc</kbd>` : null}</button>`)}
-    </div>
+    </${Segmented}>
     ${run ? html`<${RunStepper} ...${run} />` : null}
     ${STEPS[view] ? html`<${Stepper} ...${nav} ...${STEPS[view]} />` : null}
     <div class="spacer"></div>

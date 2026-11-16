@@ -2,7 +2,7 @@
 // a profile in its header. Filters and sort live in App, so review mode follows the
 // same list. Click selects, double-click or Enter opens the item for review.
 import { html, useEffect, useMemo } from "../html.js";
-import { cx, tone, Icon, Dot, runWhen } from "./bits.js";
+import { cx, tone, Icon, Dot, runWhen, Segmented } from "./bits.js";
 import { OpenIn, Progress } from "./chrome.js";
 import { Histogram, ShareBar, Meter, sameBin } from "./minicharts.js";
 import { cell, profile, visible, firstDir } from "../core/table.js";
@@ -117,10 +117,10 @@ export function SearchField({ placeholder, focus, value, set }) {
 }
 
 export function Segments({ label, value, set, options }) {
-  return html`<div class="segmented small" role="radiogroup" aria-label=${label}>
+  return html`<${Segmented} class="small" label=${label}>
     ${options.map(o => html`<button class=${cx("seg", value === o.value && "on")} role="radio" aria-checked=${value === o.value}
         title=${o.tip} onClick=${() => set(o.value)}>${o.label}${o.count !== undefined ? html`<span class="seg-count">${o.count}</span>` : null}</button>`)}
-  </div>`;
+  </${Segmented}>`;
 }
 
 function filterLabel(col, f) {
