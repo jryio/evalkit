@@ -14,28 +14,32 @@ The agent writes the review as YAML. evalkit is one static Go binary with the pa
 <table>
   <tr>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: an edited draft, a verdict with flags, notes and answered questions"></a>
+      <a href="docs/screenshots/status-updates.png"><img src="docs/screenshots/status-updates.png" alt="Status updates demo: a proposed health with its reason, a verdict with flags, a posting gate and the draft against its length target"></a>
       <br><sub><b><a href="demos/01-status-updates">Status updates</a></b>: edit the draft against a length target, pick a verdict and flags, answer the agent's questions.</sub>
     </td>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: each finding triaged with a severity, proposed severities outlined"></a>
-      <br><sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding and accept or change the proposed severity before anything posts.</sub>
+      <a href="docs/screenshots/code-review.png"><img src="docs/screenshots/code-review.png" alt="Code review demo: findings triaged with proposed severities above a split diff of the change"></a>
+      <br><sub><b><a href="demos/02-code-review">Code review</a></b>: triage each finding, then read the change as a split diff before anything posts.</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: metric tiles with deltas and canary-versus-fleet time series"></a>
+      <a href="docs/screenshots/perf-canary.png"><img src="docs/screenshots/perf-canary.png" alt="Perf canary demo: a proposed roll back with its reason, metric tiles with deltas and canary-versus-fleet charts"></a>
       <br><sub><b><a href="demos/03-perf-canary">Perf canary</a></b>: metric tiles and canary-versus-fleet charts behind a promote, hold or roll back verdict.</sub>
     </td>
     <td width="50%" valign="top">
-      <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: wrong fields corrected, live precision and recall"></a>
+      <a href="docs/screenshots/extraction.png"><img src="docs/screenshots/extraction.png" alt="Invoice extraction demo: two wrong fields with typed corrections beside the source document, and live precision and recall"></a>
       <br><sub><b><a href="demos/05-extraction">Invoice extraction</a></b>: mark a field wrong, type the fix, and precision and recall update as you go.</sub>
     </td>
   </tr>
   <tr>
-    <td colspan="2" valign="top">
+    <td width="50%" valign="top">
       <a href="docs/screenshots/judge-round.png"><img src="docs/screenshots/judge-round.png" alt="Table view of an LLM judge's round: verdicts, criteria and scores per row, histograms and baseline deltas in the headers, flagged rows"></a>
-      <br><sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view. Every row a judge graded, with histograms and the change from the baseline in each header; click a bar to filter, open a flagged row to override the judge.</sub>
+      <br><sub><b><a href="demos/08-judge-round">LLM judge round</a></b>: the table view: every row a judge graded, with a histogram and the change from the baseline in each header.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/hill-climb.png"><img src="docs/screenshots/hill-climb.png" alt="Runs view of a hill climb: six rounds, the pass rate round by round for all, train and held-out questions, pass rate against cost, and each round against the baseline item by item"></a>
+      <br><sub><b><a href="demos/12-hill-climb">Hill climb</a></b>: the Runs view: six rounds of prompt changes on the same questions, and what each round fixed or broke.</sub>
     </td>
   </tr>
 </table>
@@ -70,6 +74,7 @@ evalkit skill --install   # teach Claude Code the loop: ~/.claude/skills/evalkit
 | 9 | [Model sweep](demos/09-model-sweep) | Runs: twelve model × effort configurations over the same cases and reps, two ordinal dimensions, a baseline run (what ships today), cost against pass rate with a dominated configuration |
 | 10 | [Weekly samples](demos/10-weekly-samples) | Runs over time: six weekly runs of fresh production tickets with no pairing, a date dimension, a dip and recovery in the pass rate, run notes |
 | 11 | [Judge change](demos/11-judge-change) | Two runs of the same drafts graded by an old and a new rubric, identical `show`, different proposals, flagged verdict flips; opens in the default view |
+| 12 | [Hill climb](demos/12-hill-climb) | Six sequential rounds of an agent's instructions on the same questions, a round dimension, train and held-out groups, a round that overfits, regressions flagged, and a split diff of each query that changed (`python3 build.py`) |
 
 Run one: `bin/evalkit serve demos/NN-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
 
@@ -83,7 +88,8 @@ Every question kind and artifact kind appears in the kitchen sink. Across the de
 | action | 1, 2, 3, 7 · multi 1, 6 · scale 3, 4 · toggle 1, 7 · number 7 · pick 6 |
 | list | 1, 2, 3, 4 · table 1, 3, 5, 6, 7 · markdown 2–7 · json 5, 6 · metrics 3, 7 · chart 3, 7 |
 | text 1 · diff 2 · tests 2 · transcript 6 · tally 5 | single-domain kinds: each matches one workflow's evidence |
-| code, image | kitchen sink; `image` also carries the screenshots in the dogfood review suite |
+| code, compare | 12 · kitchen sink |
+| image | kitchen sink; it also carries the screenshots in the dogfood review suite |
 
 ## Layout
 

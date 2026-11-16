@@ -1,0 +1,37 @@
+# A hill climb: six rounds of changes to an agent that writes SQL for analytics
+# questions, each run on the same 12 questions twice. A grader runs every query and
+# compares the result with the expected answer. One JSONL per round in runs/; this file
+# declares the rounds, the questions and the columns. Regenerate the rows with: python3 build.py
+title: text-to-SQL · hill climb
+description: Each round changed the agent's instructions once and ran it on the same 12 questions twice. Check the queries that stopped passing, and tell Claude which change to keep.
+send: Send to Claude
+view: runs
+groups:
+  - { id: train, label: Train }
+  - { id: test, label: Held-out }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: Why did this query break? What should the next round change?
+columns:
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower, noise: 0.001 }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower, noise: 0.5 }
+dimensions:
+  - { id: round, label: Round }
+runs:
+  - { id: baseline, items_from: runs/baseline.jsonl, dims: { round: 1 }, baseline: true, note: "What ships today: the table names and the question" }
+  - { id: column-docs, items_from: runs/column-docs.jsonl, dims: { round: 2 }, note: "Describes every column; times are in UTC" }
+  - { id: examples, items_from: runs/examples.jsonl, dims: { round: 3 }, note: "Adds six worked examples" }
+  - { id: copied-answers, items_from: runs/copied-answers.jsonl, dims: { round: 4 }, note: "Copies the training answers in as examples" }
+  - { id: no-copies, items_from: runs/no-copies.jsonl, dims: { round: 5 }, note: "Drops the copied answers; explains refunds, first orders and weeks" }
+  - { id: row-check, items_from: runs/row-check.jsonl, dims: { round: 6 }, note: "Checks the row count before answering" }
