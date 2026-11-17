@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -43,6 +44,7 @@ type Request struct {
 	Dir    string   // working directory
 	Env    []string // the whole environment; nil: this process's
 	Stdin  []byte   // adapter command: what it reads instead of the prompt
+	Wrap   []string // a command line put in front of the agent's, such as a sandbox
 }
 
 // Turn is one row of the transcript, in the shape of a transcript artifact row.
@@ -113,45 +115,19 @@ func Run(ctx context.Context, req Request) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	cmd := exec.Command(inv.name, inv.args...)
-	cmd.Dir = req.Dir
-	cmd.Env = environ(req.Env)
-	cmd.Stdin = bytes.NewReader(inv.stdin)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	ownGroup(cmd)
-	// A child that outlives the agent and holds its output open must not hang the attempt.
-	cmd.WaitDelay = 5 * time.Second
-
-	start := time.Now()
-	if err := cmd.Start(); err != nil {
-		return Result{}, fail(Harness, "start %s: %v", inv.name, err)
+	argv := append(append(slices.Clone(req.Wrap), inv.name), inv.args...)
+	stdout, stderr, seconds, runErr := execute(ctx, argv, inv.stdin, req.Dir, req.Env)
+	res, parseErr := inv.parse(stdout, req)
+	res.Seconds = seconds
+	// A timeout or a cancelled run wins over whatever the cut-off output parses to.
+	if f, ok := errors.AsType[*Failure](runErr); runErr != nil && (!ok || f.Class != AgentError) {
+		return res, runErr
 	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	var waitErr error
-	select {
-	case waitErr = <-done:
-	case <-ctx.Done():
-		killGroup(cmd)
-		<-done
-		res, _ := inv.parse(stdout.Bytes(), req)
-		res.Seconds = time.Since(start).Seconds()
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return res, fail(Timeout, "no result after %.0fs", res.Seconds)
-		}
-		return res, ctx.Err()
+	if parseErr != nil {
+		return res, parseErr
 	}
-	// Children the agent left running (a dev server, a watcher) end with it.
-	killGroup(cmd)
-
-	res, err := inv.parse(stdout.Bytes(), req)
-	res.Seconds = time.Since(start).Seconds()
-	if err != nil {
-		return res, err
-	}
-	if waitErr != nil && !errors.Is(waitErr, exec.ErrWaitDelay) {
-		return res, fail(AgentError, "%s: %v: %s", inv.name, waitErr, tail(stderr.String(), 400))
+	if runErr != nil {
+		return res, fail(AgentError, "%s: %s", inv.name, tail(string(stderr), 400))
 	}
 	if len(req.Schema) > 0 && res.Structured == nil {
 		if res.Structured = extractJSON(res.Output); res.Structured == nil {
@@ -159,6 +135,56 @@ func Run(ctx context.Context, req Request) (Result, error) {
 		}
 	}
 	return res, nil
+}
+
+// Exec runs a shell command the way an agent runs: in its own process group,
+// killed whole at ctx's deadline. It returns what the command printed.
+func Exec(ctx context.Context, command string, stdin []byte, dir string, env []string) (string, error) {
+	stdout, stderr, _, err := execute(ctx, []string{"sh", "-c", command}, stdin, dir, env)
+	if f, ok := errors.AsType[*Failure](err); ok && f.Class == AgentError {
+		return string(stdout), fail(Harness, "%s: %s: %s", command, f.Msg, tail(string(stderr)+string(stdout), 400))
+	}
+	return string(stdout), err
+}
+
+// execute runs argv to the end or to ctx's deadline. A non-zero exit is an
+// AgentError failure, a deadline a Timeout failure.
+func execute(ctx context.Context, argv []string, stdin []byte, dir string, env []string) (stdout, stderr []byte, seconds float64, err error) {
+	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd.Dir = dir
+	cmd.Env = environ(env)
+	cmd.Stdin = bytes.NewReader(stdin)
+	var out, errOut bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errOut
+	ownGroup(cmd)
+	// A child that outlives the command and holds its output open must not hang the attempt.
+	cmd.WaitDelay = 5 * time.Second
+
+	start := time.Now()
+	if err := cmd.Start(); err != nil {
+		return nil, nil, 0, fail(Harness, "start %s: %v", argv[0], err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err = <-done:
+		// Children left running (a dev server, a watcher) end with the command.
+		killGroup(cmd)
+	case <-ctx.Done():
+		killGroup(cmd)
+		<-done
+		err = ctx.Err()
+	}
+	seconds = time.Since(start).Seconds()
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		err = fail(Timeout, "no result after %.0fs", seconds)
+	case err != nil && ctx.Err() == nil && !errors.Is(err, exec.ErrWaitDelay):
+		err = fail(AgentError, "%v", err)
+	case errors.Is(err, exec.ErrWaitDelay):
+		err = nil
+	}
+	return out.Bytes(), errOut.Bytes(), seconds, err
 }
 
 func build(req Request) (invocation, error) {

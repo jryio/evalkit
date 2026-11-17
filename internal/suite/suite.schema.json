@@ -90,6 +90,9 @@
     "runs_from": {
       "$ref": "#/$defs/itemsFrom",
       "description": "JSON files (paths or globs relative to the suite), each one run as under runs. They are appended to runs in started_at order. evalkit run writes one per run."
+    },
+    "bench": {
+      "$ref": "#/$defs/bench"
     }
   },
   "$defs": {
@@ -1632,6 +1635,374 @@
         "boolean",
         "null"
       ]
+    },
+    "benchAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "adapter": {
+          "enum": [
+            "claude",
+            "codex",
+            "pi",
+            "command"
+          ],
+          "description": "Which agent CLI runs: claude -p, codex exec, pi -p, or any shell command."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model id passed to the CLI."
+        },
+        "effort": {
+          "type": "string",
+          "description": "Reasoning effort passed to the CLI."
+        },
+        "command": {
+          "type": "string",
+          "description": "Adapter command: a shell command. It reads the attempt as JSON on stdin and prints the answer, or a JSON result {output, cost_usd, transcript}."
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra arguments for the CLI."
+        },
+        "tools": {
+          "enum": [
+            "none"
+          ],
+          "description": "none: the agent gets no tools."
+        },
+        "budget_usd": {
+          "type": "number",
+          "description": "Spend limit for one attempt, where the CLI has one.",
+          "minimum": 0
+        },
+        "isolate": {
+          "enum": [
+            "agent",
+            "none"
+          ],
+          "description": "agent (default): the CLI ignores your own settings, skills and MCP servers and uses its own sandbox. none: it runs as you run it."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Template over the case, in Go text/template form. Default: {{.prompt}}."
+        },
+        "system": {
+          "type": "string",
+          "description": "A suite file added to the agent's system prompt."
+        },
+        "require_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Skills the agent must have loaded (claude). An attempt without them is a harness error, not a fail."
+        }
+      },
+      "required": [
+        "adapter"
+      ]
+    },
+    "bench": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cases": {
+          "type": "string",
+          "description": "JSONL file, one case per line: {id, prompt, group, title, expect, pin, …}. The agent never sees expect."
+        },
+        "reps": {
+          "type": "integer",
+          "description": "Attempts per case. Default 1.",
+          "minimum": 1
+        },
+        "concurrency": {
+          "type": "integer",
+          "description": "Attempts at once, each in its own workspace slot. Default 4.",
+          "minimum": 1
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Seconds an agent or a stage may take. Default 600.",
+          "exclusiveMinimum": 0
+        },
+        "budget_usd": {
+          "type": "number",
+          "description": "Stop starting attempts once the run has spent this.",
+          "minimum": 0
+        },
+        "retries": {
+          "type": "integer",
+          "description": "Extra tries after a harness failure or a timeout. Default 0.",
+          "minimum": 0
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Environment variables passed through beside the defaults (PATH, HOME, locale, the agent CLIs' own). \"*\" passes everything."
+        },
+        "home": {
+          "enum": [
+            "inherit",
+            "private"
+          ],
+          "description": "private: every attempt gets an empty HOME. Agent CLIs that log in through HOME need inherit (default)."
+        },
+        "sandbox": {
+          "type": "boolean",
+          "description": "Run the agent under the macOS sandbox: it writes only in its workspace and cannot read the suite, the runs or other slots."
+        },
+        "workspace": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sources": {
+              "type": "array",
+              "description": "Directories copied into every slot.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Relative to the suite, absolute, or ~/…"
+                  },
+                  "as": {
+                    "type": "string",
+                    "description": "Directory name in the slot. Default: the path's base name."
+                  },
+                  "pin": {
+                    "type": "string",
+                    "description": "Git ref the slot starts at. Default HEAD. A case's pin overrides it."
+                  },
+                  "method": {
+                    "enum": [
+                      "auto",
+                      "clone",
+                      "copy"
+                    ],
+                    "description": "auto (default): a git repository is cloned with shared objects, anything else is copied."
+                  },
+                  "include": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Untracked paths a clone also brings along, such as installed dependencies."
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            },
+            "setup": {
+              "type": "string",
+              "description": "Shell command run once per slot after it is made."
+            },
+            "keep": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Slot-relative paths a reset leaves alone."
+            },
+            "reset": {
+              "enum": [
+                "attempt",
+                "run",
+                "never"
+              ],
+              "description": "When a slot goes back to its first state: before every attempt (default), once per run, or never."
+            },
+            "provision": {
+              "type": "string",
+              "description": "Shell command that fills an empty slot ($EVALKIT_SLOT) instead of sources."
+            },
+            "wipe": {
+              "type": "string",
+              "description": "Shell command that resets a slot instead of the built-in reset."
+            }
+          },
+          "description": "The code under test. Without it, every attempt gets an empty scratch directory."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "The agent's directory inside the slot. Default: the only source, else the slot."
+        },
+        "overlay": {
+          "type": "array",
+          "description": "Suite files copied into the slot before each attempt: the thing under test.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": "Relative to the suite."
+              },
+              "to": {
+                "type": "string",
+                "description": "Relative to the slot."
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ]
+          }
+        },
+        "prepare": {
+          "type": "string",
+          "description": "Shell stage before the agent."
+        },
+        "agent": {
+          "$ref": "#/$defs/benchAgent",
+          "description": "The agent under test."
+        },
+        "collect": {
+          "type": "string",
+          "description": "Shell stage after the agent: prints the row's show and context."
+        },
+        "score": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Shell stages after collect: print values, proposed and flag."
+        },
+        "judge": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "adapter": {
+              "enum": [
+                "claude",
+                "codex",
+                "pi",
+                "command"
+              ],
+              "description": "Which agent CLI runs: claude -p, codex exec, pi -p, or any shell command."
+            },
+            "model": {
+              "type": "string",
+              "description": "Model id passed to the CLI."
+            },
+            "effort": {
+              "type": "string",
+              "description": "Reasoning effort passed to the CLI."
+            },
+            "command": {
+              "type": "string",
+              "description": "Adapter command: a shell command. It reads the attempt as JSON on stdin and prints the answer, or a JSON result {output, cost_usd, transcript}."
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Extra arguments for the CLI."
+            },
+            "tools": {
+              "enum": [
+                "none"
+              ],
+              "description": "none: the agent gets no tools."
+            },
+            "budget_usd": {
+              "type": "number",
+              "description": "Spend limit for one attempt, where the CLI has one.",
+              "minimum": 0
+            },
+            "isolate": {
+              "enum": [
+                "agent",
+                "none"
+              ],
+              "description": "agent (default): the CLI ignores your own settings, skills and MCP servers and uses its own sandbox. none: it runs as you run it."
+            },
+            "rubric": {
+              "type": "string",
+              "description": "A suite file: the judge's instructions."
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Suite question ids the judge answers. Default: every choice, number, scale and toggle."
+            }
+          },
+          "required": [
+            "adapter",
+            "rubric"
+          ],
+          "description": "A model that grades each attempt. Its answers become proposals."
+        },
+        "oracle": {
+          "type": "string",
+          "description": "Shell agent that must score every case as a pass; evalkit check runs it."
+        },
+        "null": {
+          "type": "string",
+          "description": "Shell agent that must score every case as a fail; evalkit check runs it."
+        },
+        "climb": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "targets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Suite files a round may edit: a prompt, a skill, a config."
+            },
+            "train": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Groups the proposer sees and a round is accepted on."
+            },
+            "test": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Held-out groups: scored every round, never shown to the proposer."
+            },
+            "propose": {
+              "$ref": "#/$defs/benchAgent",
+              "description": "The agent that edits the targets each round."
+            },
+            "rounds": {
+              "type": "integer",
+              "description": "Rounds to try. Default 3.",
+              "minimum": 1
+            },
+            "target": {
+              "type": "number",
+              "description": "Stop once the train score reaches this."
+            }
+          },
+          "required": [
+            "targets",
+            "propose"
+          ],
+          "description": "Hill climbing: evalkit climb changes the targets round by round."
+        }
+      },
+      "required": [
+        "cases",
+        "agent"
+      ],
+      "description": "A benchmark evalkit run can execute: cases, a workspace, an agent, and stages that grade it."
     }
   }
 }
