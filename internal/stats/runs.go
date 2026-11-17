@@ -202,6 +202,20 @@ func (m Metric) value(it Item, runs map[string]Run) (float64, bool) {
 	return 0, false
 }
 
+// ItemScore is one item's value under the suite's metric; ok is false when
+// the item does not count or nothing scores the suite.
+func ItemScore(s Suite, it Item) (float64, bool) {
+	m, ok := MetricOf(s)
+	if !ok {
+		return 0, false
+	}
+	runs := map[string]Run{}
+	for _, r := range s.Runs {
+		runs[r.ID] = r
+	}
+	return m.value(it, runs)
+}
+
 // Versus is a run paired, case by case, with the run it is compared with.
 type Versus struct {
 	Run       string   `json:"run"`

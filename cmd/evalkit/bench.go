@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/jryio/evalkit/internal/bench"
+	"github.com/jryio/evalkit/internal/stats"
 	"github.com/jryio/evalkit/internal/workspace"
 )
 
@@ -78,6 +80,20 @@ case as a pass and bench.null as a fail. Nothing it runs is kept or billed.
 run again. The agent does not run. Each regraded row replaces the earlier one.
 
   evalkit grade --run v2 --judge`},
+	{name: "climb", args: "[SUITE]", summary: "hill-climb: change the targets round by round and keep what helps", run: runClimb,
+		flags: func(fs *flag.FlagSet) {
+			fs.Int("rounds", 0, "rounds to try (default: bench.climb.rounds, else 3)")
+			fs.String("prefix", "round", "runs are named <prefix>0, <prefix>1, …")
+			fs.String("slots", "", "where workspaces live (default: the user cache)")
+		},
+		help: `Runs the baseline if there is none. Then, each round, the bench.climb.propose
+agent edits the bench.climb.targets files, shown only the training cases the
+best version still fails. The benchmark runs again, and the change is kept when
+the train score rises and reverted when it does not. Held-out cases
+(bench.climb.test) are scored every round and never shown to the proposer.
+climb.json beside the suite records every round, so a climb can continue.
+
+  evalkit climb --rounds 3`},
 }
 
 func signalContext() (context.Context, context.CancelFunc) {
@@ -272,4 +288,35 @@ func bytesText(n int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGT"[exp])
+}
+
+func runClimb(f *flag.FlagSet, pos []string) error {
+	path, pos, err := suiteArg(pos)
+	if err != nil {
+		return err
+	}
+	if err := want("climb", pos, 0); err != nil {
+		return err
+	}
+	ctx, stop := signalContext()
+	defer stop()
+	rounds, err := bench.Climb(ctx, path, bench.ClimbOptions{Prefix: str(f, "prefix"), Rounds: integer(f, "rounds"), SlotsRoot: str(f, "slots"), Log: os.Stdout})
+	fmt.Println()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "RUN\tKEPT\tTRAIN\tHELD-OUT\tCOST\tCHANGE")
+	score := func(iv *stats.Interval) string {
+		if iv == nil {
+			return "–"
+		}
+		return fmt.Sprintf("%.3f", iv.Value)
+	}
+	for _, r := range rounds {
+		kept := "no"
+		if r.Kept {
+			kept = "yes"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t$%.4f\t%s\n", r.Run, kept, score(r.Train), score(r.Test), r.CostUSD, r.Change)
+	}
+	w.Flush()
+	return err
 }
