@@ -14,6 +14,7 @@ type Suite struct {
 	Columns    []Column          `json:"columns"`
 	Dimensions []Dimension       `json:"dimensions"`
 	Runs       []Run             `json:"runs"`
+	RunsFrom   any               `json:"runs_from"`
 	Items      []Item            `json:"items"`
 	ItemsFrom  any               `json:"items_from"`
 }

@@ -86,6 +86,10 @@
         "$ref": "#/$defs/run"
       },
       "description": "The runs of a multi-run suite, in order. Items pair across runs by id and rep."
+    },
+    "runs_from": {
+      "$ref": "#/$defs/itemsFrom",
+      "description": "JSON files (paths or globs relative to the suite), each one run as under runs. They are appended to runs in started_at order. evalkit run writes one per run."
     }
   },
   "$defs": {
@@ -168,6 +172,14 @@
             "$ref": "#/$defs/scalar"
           },
           "description": "column id -> value, used when an item lacks the column."
+        },
+        "started_at": {
+          "type": "string",
+          "description": "When the run started (RFC 3339). Orders the runs read by runs_from."
+        },
+        "meta": {
+          "type": "object",
+          "description": "Provenance the page does not interpret: commit, harness hash, agent, model, spend."
         }
       }
     },
