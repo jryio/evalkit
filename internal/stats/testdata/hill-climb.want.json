@@ -1,0 +1,281 @@
+{
+ "metric": "verdict",
+ "all": [
+  {
+   "run": "baseline",
+   "items": 24,
+   "n": 24,
+   "score": {
+    "value": 0.2916666666666667,
+    "lo": 0.08333333333333333,
+    "hi": 0.5
+   },
+   "spend": 0.005316666666666667,
+   "versus": null
+  },
+  {
+   "run": "column-docs",
+   "items": 24,
+   "n": 24,
+   "score": {
+    "value": 0.5416666666666666,
+    "lo": 0.25,
+    "hi": 0.8333333333333334
+   },
+   "spend": 0.007394583333333334,
+   "versus": {
+    "run": "baseline",
+    "paired": 24,
+    "n": 24,
+    "delta": {
+     "value": 0.25,
+     "lo": 0.08333333333333333,
+     "hi": 0.4583333333333333
+    },
+    "up": 6,
+    "same": 18,
+    "down": 0,
+    "p": 0.031250000000000014
+   }
+  },
+  {
+   "run": "examples",
+   "items": 24,
+   "n": 24,
+   "score": {
+    "value": 0.7083333333333334,
+    "lo": 0.4583333333333333,
+    "hi": 0.9166666666666666
+   },
+   "spend": 0.010535833333333333,
+   "versus": {
+    "run": "baseline",
+    "paired": 24,
+    "n": 24,
+    "delta": {
+     "value": 0.4166666666666667,
+     "lo": 0.20833333333333334,
+     "hi": 0.6666666666666666
+    },
+    "up": 10,
+    "same": 14,
+    "down": 0,
+    "p": 0.001953125
+   }
+  },
+  {
+   "run": "copied-answers",
+   "items": 24,
+   "n": 24,
+   "score": {
+    "value": 0.6666666666666666,
+    "lo": 0.4166666666666667,
+    "hi": 0.9166666666666666
+   },
+   "spend": 0.01790375,
+   "versus": {
+    "run": "baseline",
+    "paired": 24,
+    "n": 24,
+    "delta": {
+     "value": 0.375,
+     "lo": 0.08333333333333333,
+     "hi": 0.6666666666666666
+    },
+    "up": 10,
+    "same": 13,
+    "down": 1,
+    "p": 0.01171875
+   }
+  },
+  {
+   "run": "no-copies",
+   "items": 24,
+   "n": 24,
+   "score": {
+    "value": 0.8333333333333334,
+    "lo": 0.5833333333333334,
+    "hi": 1
+   },
+   "spend": 0.01153625,
+   "versus": {
+    "run": "baseline",
+    "paired": 24,
+    "n": 24,
+    "delta": {
+     "value": 0.5416666666666666,
+     "lo": 0.2916666666666667,
+     "hi": 0.7916666666666666
+    },
+    "up": 13,
+    "same": 11,
+    "down": 0,
+    "p": 0.00024414062500000016
+   }
+  },
+  {
+   "run": "row-check",
+   "items": 24,
+   "n": 24,
+   "score": {
+    "value": 0.9166666666666666,
+    "lo": 0.75,
+    "hi": 1
+   },
+   "spend": 0.013749999999999997,
+   "versus": {
+    "run": "baseline",
+    "paired": 24,
+    "n": 24,
+    "delta": {
+     "value": 0.625,
+     "lo": 0.375,
+     "hi": 0.875
+    },
+    "up": 15,
+    "same": 9,
+    "down": 0,
+    "p": 0.00006103515625000003
+   }
+  }
+ ],
+ "test": [
+  {
+   "run": "baseline",
+   "items": 8,
+   "n": 8,
+   "score": {
+    "value": 0.125,
+    "lo": 0,
+    "hi": 0.375
+   },
+   "spend": 0.0051775,
+   "versus": null
+  },
+  {
+   "run": "column-docs",
+   "items": 8,
+   "n": 8,
+   "score": {
+    "value": 0.25,
+    "lo": 0,
+    "hi": 0.75
+   },
+   "spend": 0.00744875,
+   "versus": {
+    "run": "baseline",
+    "paired": 8,
+    "n": 8,
+    "delta": {
+     "value": 0.125,
+     "lo": 0,
+     "hi": 0.375
+    },
+    "up": 1,
+    "same": 7,
+    "down": 0,
+    "p": 1
+   }
+  },
+  {
+   "run": "examples",
+   "items": 8,
+   "n": 8,
+   "score": {
+    "value": 0.5,
+    "lo": 0,
+    "hi": 1
+   },
+   "spend": 0.010539999999999999,
+   "versus": {
+    "run": "baseline",
+    "paired": 8,
+    "n": 8,
+    "delta": {
+     "value": 0.375,
+     "lo": 0,
+     "hi": 0.75
+    },
+    "up": 3,
+    "same": 5,
+    "down": 0,
+    "p": 0.25000000000000006
+   }
+  },
+  {
+   "run": "copied-answers",
+   "items": 8,
+   "n": 8,
+   "score": {
+    "value": 0,
+    "lo": 0,
+    "hi": 0
+   },
+   "spend": 0.01787,
+   "versus": {
+    "run": "baseline",
+    "paired": 8,
+    "n": 8,
+    "delta": {
+     "value": -0.125,
+     "lo": -0.375,
+     "hi": 0
+    },
+    "up": 0,
+    "same": 7,
+    "down": 1,
+    "p": 1
+   }
+  },
+  {
+   "run": "no-copies",
+   "items": 8,
+   "n": 8,
+   "score": {
+    "value": 0.5,
+    "lo": 0,
+    "hi": 1
+   },
+   "spend": 0.011505000000000001,
+   "versus": {
+    "run": "baseline",
+    "paired": 8,
+    "n": 8,
+    "delta": {
+     "value": 0.375,
+     "lo": 0,
+     "hi": 0.75
+    },
+    "up": 3,
+    "same": 5,
+    "down": 0,
+    "p": 0.25000000000000006
+   }
+  },
+  {
+   "run": "row-check",
+   "items": 8,
+   "n": 8,
+   "score": {
+    "value": 0.75,
+    "lo": 0.25,
+    "hi": 1
+   },
+   "spend": 0.012923750000000001,
+   "versus": {
+    "run": "baseline",
+    "paired": 8,
+    "n": 8,
+    "delta": {
+     "value": 0.625,
+     "lo": 0.25,
+     "hi": 1
+    },
+    "up": 5,
+    "same": 3,
+    "down": 0,
+    "p": 0.0625
+   }
+  }
+ ]
+}
