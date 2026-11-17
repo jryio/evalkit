@@ -1,0 +1,27 @@
+{
+  "id": "round0",
+  "baseline": true,
+  "started_at": "2026-11-17T23:17:59Z",
+  "items_from": "runs/round0/rows.jsonl",
+  "dims": {
+    "round": 0
+  },
+  "meta": {
+    "agent": "codex",
+    "agent_version": "codex-cli 0.167.1",
+    "cases": 10,
+    "commit": "ee5f3ad",
+    "concurrency": 5,
+    "cost_usd": 0,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:18:21Z",
+    "harness": "fc23b377e2",
+    "model": "gpt-6-luna",
+    "parent": "",
+    "reps": 1,
+    "rows": 10,
+    "seconds": 21.9,
+    "variant": "7fa2c8949c"
+  }
+}

@@ -1,0 +1,8 @@
+diff -ruN /Users/CASE/code/personal/evalkit/.claude/worktrees/jryio+bench-run/benchmarks/15-skill-climb/runs/round1/variant/skill/SKILL.md /var/folders/7y/6lby868949d1lkmsld22brq00000gn/T/evalkit-propose-2024307252/targets/skill/SKILL.md
+--- /Users/CASE/code/personal/evalkit/.claude/worktrees/jryio+bench-run/benchmarks/15-skill-climb/runs/round1/variant/skill/SKILL.md	2026-11-17 18:12:48
++++ /var/folders/7y/6lby868949d1lkmsld22brq00000gn/T/evalkit-propose-2024307252/targets/skill/SKILL.md	2026-11-17 18:12:59
+@@ -17,3 +17,4 @@
+ - Use the bullet format already used in CHANGELOG.md, with a bracketed kind tag such as `[added]`, `[changed]`, `[fixed]` or `[removed]`, followed by the change description.
+ - Choose the tag that matches the kind of change: a new capability is `[added]`, a bug fix is `[fixed]`, a behaviour change is `[changed]`, and a removal is `[removed]`.
+ - Check the existing entries for the tag vocabulary in use before writing a new tag.
++- Keep each entry to one line of at most 90 characters, counting the leading `- `, the tag and the description together. If the description runs longer, shorten it (drop filler words, keep the what and the effect) rather than wrapping it onto a second line. Count the characters before finishing.

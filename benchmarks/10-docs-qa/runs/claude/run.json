@@ -1,0 +1,27 @@
+{
+  "id": "claude",
+  "baseline": true,
+  "started_at": "2026-11-17T23:12:13Z",
+  "items_from": "runs/claude/rows.jsonl",
+  "dims": {
+    "agent": "claude",
+    "model": "claude-haiku-5-5"
+  },
+  "meta": {
+    "agent": "claude",
+    "agent_version": "2.1.326 (Claude Code)",
+    "cases": 5,
+    "commit": "68e8600",
+    "concurrency": 5,
+    "cost_usd": 0.0078,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:12:22Z",
+    "harness": "f6e9f1d629",
+    "model": "claude-haiku-5-5",
+    "reps": 1,
+    "rows": 5,
+    "seconds": 8.5,
+    "variant": "708174cf83"
+  }
+}

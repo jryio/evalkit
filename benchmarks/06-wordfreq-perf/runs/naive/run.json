@@ -1,0 +1,23 @@
+{
+  "id": "naive",
+  "baseline": true,
+  "started_at": "2026-11-17T23:15:51Z",
+  "items_from": "runs/naive/rows.jsonl",
+  "dims": {
+    "impl": "naive"
+  },
+  "meta": {
+    "agent": "command",
+    "cases": 5,
+    "commit": "79c6ddb",
+    "concurrency": 2,
+    "cost_usd": 0,
+    "failed": 0,
+    "finished_at": "2026-11-17T23:15:52Z",
+    "harness": "0942a7ba59",
+    "reps": 3,
+    "rows": 15,
+    "seconds": 1.1,
+    "variant": "e3b0c44298"
+  }
+}

@@ -1,0 +1,11 @@
+{"at":"2026-11-17T23:09:28Z","class":"agent_error","cost_usd":0,"error":"agent_error: sh: segmentation fault (simulated)","id":"crashes","rep":0,"seconds":0.1,"try":0}
+{"at":"2026-11-17T23:09:28Z","class":"harness","cost_usd":0,"error":"score[0] printed something that is not one JSON object: Traceback (most recent call last): KeyError","id":"breaks-scorer","rep":0,"seconds":0.1,"try":0}
+{"at":"2026-11-17T23:09:28Z","class":"harness","cost_usd":0,"error":"score[0] printed something that is not one JSON object: Traceback (most recent call last): KeyError","id":"breaks-scorer","rep":0,"seconds":0,"try":1}
+{"at":"2026-11-17T23:09:31Z","class":"timeout","cost_usd":0,"error":"timeout: no result after 3s","id":"hangs","rep":0,"seconds":3,"try":0}
+{"at":"2026-11-17T23:09:31Z","class":"timeout","cost_usd":0,"error":"timeout: no result after 3s","id":"hangs-once","rep":0,"seconds":3,"try":0}
+{"at":"2026-11-17T23:09:34Z","class":"timeout","cost_usd":0,"error":"timeout: no result after 3s","id":"hangs","rep":0,"seconds":3,"try":1}
+{"at":"2026-11-17T23:09:34Z","class":"agent_error","cost_usd":0,"error":"agent_error: sh: segmentation fault (simulated)","id":"crashes","rep":0,"seconds":0,"try":0}
+{"at":"2026-11-17T23:09:34Z","class":"harness","cost_usd":0,"error":"score[0] printed something that is not one JSON object: Traceback (most recent call last): KeyError","id":"breaks-scorer","rep":0,"seconds":0,"try":0}
+{"at":"2026-11-17T23:09:34Z","class":"harness","cost_usd":0,"error":"score[0] printed something that is not one JSON object: Traceback (most recent call last): KeyError","id":"breaks-scorer","rep":0,"seconds":0,"try":1}
+{"at":"2026-11-17T23:09:37Z","class":"timeout","cost_usd":0,"error":"timeout: no result after 3s","id":"hangs","rep":0,"seconds":3,"try":0}
+{"at":"2026-11-17T23:09:40Z","class":"timeout","cost_usd":0,"error":"timeout: no result after 3s","id":"hangs","rep":0,"seconds":3,"try":1}

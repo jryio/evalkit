@@ -1,0 +1,19 @@
+{
+  "id": "first",
+  "started_at": "2026-11-17T23:09:28Z",
+  "items_from": "runs/first/rows.jsonl",
+  "meta": {
+    "agent": "command",
+    "cases": 6,
+    "commit": "48d8af0",
+    "concurrency": 5,
+    "cost_usd": 0,
+    "failed": 3,
+    "finished_at": "2026-11-17T23:09:40Z",
+    "harness": "93e9dfbd70",
+    "reps": 1,
+    "rows": 3,
+    "seconds": 6,
+    "variant": "e3b0c44298"
+  }
+}

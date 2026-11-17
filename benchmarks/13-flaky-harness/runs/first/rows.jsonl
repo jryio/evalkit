@@ -1,0 +1,3 @@
+{"group":"finishes","id":"quick","proposed":{"verdict":{"value":"pass","why":"The agent finished."}},"show":[{"kind":"markdown","label":"Answer","text":"done after 1 try\n"}],"title":"Finishes at once","values":{"latency_s":0.1,"tries":1}}
+{"group":"finishes","id":"slow","proposed":{"verdict":{"value":"pass","why":"The agent finished."}},"show":[{"kind":"markdown","label":"Answer","text":"done after 1 try\n"}],"title":"Finishes within the limit","values":{"latency_s":1.1,"tries":1}}
+{"group":"recovers","id":"hangs-once","proposed":{"verdict":{"value":"pass","why":"The agent finished."}},"show":[{"kind":"markdown","label":"Answer","text":"done after 2 try\n"}],"title":"Hangs, then finishes on the retry","values":{"latency_s":0,"tries":2}}

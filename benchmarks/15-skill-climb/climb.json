@@ -1,0 +1,55 @@
+{
+  "best": "round2",
+  "rounds": [
+    {
+      "run": "round0",
+      "train": {
+        "value": 0,
+        "lo": 8.049549662795179e-18,
+        "hi": 0.5615060804490177
+      },
+      "test": {
+        "value": 0,
+        "lo": 3.926680338807079e-17,
+        "hi": 0.6576280471103808
+      },
+      "kept": true,
+      "reason": "baseline",
+      "cost_usd": 0.01592027
+    },
+    {
+      "run": "round1",
+      "change": "I changed `targets/skill/SKILL.md` to add explicit rules that a new changelog entry goes as the first bullet under `## Unreleased` and that its tag should matc…",
+      "train": {
+        "value": 0.3333333333333333,
+        "lo": 0.06149031527616049,
+        "hi": 0.7923450448735121
+      },
+      "test": {
+        "value": 0,
+        "lo": 3.926680338807079e-17,
+        "hi": 0.6576280471103808
+      },
+      "kept": true,
+      "reason": "train rose from 0.000 to 0.333",
+      "cost_usd": 0.014862365
+    },
+    {
+      "run": "round2",
+      "change": "I added a rule to `targets/skill/SKILL.md` capping each changelog entry at 90 characters on one line, because the `drop-py38` failure was a 95-character entry …",
+      "train": {
+        "value": 0.6666666666666666,
+        "lo": 0.20765495512648788,
+        "hi": 0.9385096847238394
+      },
+      "test": {
+        "value": 1,
+        "lo": 0.34237195288961925,
+        "hi": 1
+      },
+      "kept": true,
+      "reason": "train rose from 0.333 to 0.667",
+      "cost_usd": 0.013071840000000001
+    }
+  ]
+}

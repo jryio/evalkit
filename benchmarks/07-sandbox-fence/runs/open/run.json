@@ -1,0 +1,23 @@
+{
+  "id": "open",
+  "baseline": true,
+  "started_at": "2026-11-17T23:15:54Z",
+  "items_from": "runs/open/rows.jsonl",
+  "dims": {
+    "sandbox": "off"
+  },
+  "meta": {
+    "agent": "command",
+    "cases": 7,
+    "commit": "79c6ddb",
+    "concurrency": 5,
+    "cost_usd": 0,
+    "failed": 0,
+    "finished_at": "2026-11-17T23:15:54Z",
+    "harness": "a3779af4a6",
+    "reps": 1,
+    "rows": 7,
+    "seconds": 0.2,
+    "variant": "e3b0c44298"
+  }
+}

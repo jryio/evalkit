@@ -1,0 +1,55 @@
+# An agent writes a commit message for a diff. A script measures the format
+# and a second model, the judge, grades whether the message says what changed.
+# No workspace: the diff is in the prompt.
+#   evalkit run --run pi-low --baseline && evalkit run --run pi-high --effort high
+#   evalkit grade --run pi-low --judge        # after editing rubric.md
+title: Commit messages · scripted format checks and a judge
+description: Each row is a commit message an agent wrote for a diff. The judge's verdict is a proposal; change it where the judge misread the diff.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: fix, label: Bug fixes }
+  - { id: change, label: Changes }
+questions:
+  - id: verdict
+    kind: choice
+    label: Says what changed
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Accurate, tone: positive, icon: check }
+      - { value: partial, label: Partly, tone: warning, icon: approx }
+      - { value: fail, label: Wrong, tone: negative, icon: cross }
+  - { id: quality, kind: number, label: Quality, min: 0, max: 10, step: 1 }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: Where did the judge misread the diff?
+columns:
+  - { id: subject_len, label: Subject length, better: lower }
+  - { id: format_errors, label: Format errors, better: lower }
+  - { id: judge_cost_usd, label: Judge cost, unit: $, decimals: 4, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: agent, label: Agent }
+  - { id: effort, label: Effort, order: [low, medium, high] }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 240
+  agent:
+    adapter: pi
+    model: claude-haiku-5-5
+    effort: low
+    tools: none
+    prompt: |
+      Write the git commit message for this change. Reply with only the message.
+
+      {{.diff}}
+  score: [format.py]
+  judge: { adapter: codex, model: gpt-6-luna, effort: low, rubric: rubric.md, questions: [verdict, quality] }

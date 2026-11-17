@@ -1,0 +1,28 @@
+{
+  "id": "luna-low",
+  "baseline": true,
+  "started_at": "2026-11-17T23:10:42Z",
+  "items_from": "runs/luna-low/rows.jsonl",
+  "dims": {
+    "agent": "codex",
+    "effort": "low",
+    "model": "gpt-6-luna"
+  },
+  "meta": {
+    "agent": "codex",
+    "agent_version": "codex-cli 0.167.1",
+    "cases": 5,
+    "commit": "68e8600",
+    "concurrency": 5,
+    "cost_usd": 0,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:11:01Z",
+    "harness": "389ab26edd",
+    "model": "gpt-6-luna",
+    "reps": 1,
+    "rows": 5,
+    "seconds": 18.7,
+    "variant": "e3b0c44298"
+  }
+}

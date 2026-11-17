@@ -56,6 +56,22 @@ When a script or an LLM judge already scored the outputs (an eval run, a hill-cl
 - Add a `text` question (e.g. "Note to Claude") so the reviewer can say what the judge missed.
 - Many rounds or configurations of the same eval: give each its own JSONL and list them under `runs:`, with `baseline: true` on the reference run and `dims` such as `round`, `date` or `model`. The page pairs each case across runs, adds a Runs view, and needs no inline `baseline`. If a measured value is the score (not the verdict), mark that column `primary: true`.
 
+## Benchmarks
+
+When the eval should be run, not only reviewed, give the suite a `bench` block and let evalkit run it. `evalkit docs` has the reference under Benchmarks.
+
+1. **Cases.** Write `cases.jsonl`, one JSON object per line with an `id` and a `prompt`. Put the answers under `expect`: graders see it, the agent never does. Give cases a `group` to split train from held-out.
+2. **Stages.** Each is a script in `bin/` beside the suite that reads the attempt as JSON on stdin and prints a fragment of the row. A `score` script prints measured `values` and its verdict under `proposed`, with one plain sentence of `why`. Keep answers out of the agent's workspace: copy a hidden test in only inside the scorer.
+3. **The suite.** Add `runs_from: runs/*/run.json`, the `bench` block (cases, workspace, agent, score) and the columns the scorers fill. Declare `dimensions` named `agent`, `model`, `effort` and the run fills them in.
+4. **Prove the grader before spending:** give `bench.oracle` a command that solves every case and `bench.null` one that solves none, then `evalkit check`. Fix the scorers until the oracle scores 1 and the null scores 0.
+5. **Run:** `evalkit run --run baseline --baseline`, then a run per change: `evalkit run --run v2 --note "what changed"`. For a sweep, override the agent: `--adapter`, `--model`, `--effort`. Serve the suite first and the page fills in live.
+6. **Read the result:** `evalkit stats --json` gives each run's score, interval, paired change and the cases that regressed. Failed attempts are in `runs/<run>/errors.jsonl`, never in the score; run the same `--run` again to retry them.
+7. **Hill-climb:** name the files a round may edit under `bench.climb.targets`, the train and held-out groups, and a proposer, then `evalkit climb --rounds 3`. Report the held-out score, not the train score.
+
+`evalkit clean` removes the suite's workspace slots when they should be made from scratch, and `evalkit clean --run ID` deletes a run.
+
+Start with the cheapest model and a handful of cases until the loop works end to end; an agent run costs money on every attempt. Agents run isolated from the user's own settings by default; add `sandbox: true` when an agent must not be able to read the cases or the rest of the machine.
+
 ## Good to know
 
 - Feedback lives in `feedback/` beside the suite (`state.json`, `sent-NN.json`, `done/` with one file per action result). Do not edit it; keep it out of git.

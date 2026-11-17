@@ -1,0 +1,47 @@
+# Does a benchmark agent see your personal setup? Each case asks the agent what
+# it can see; a case fails when something of yours shows up in its answer.
+# Run it per agent CLI, isolated and not, to see what isolation buys:
+# (the cheapest model of each CLI is enough: this measures the harness, not the model)
+#   export EVALKIT_CANARY=zebra-4417
+#   evalkit run --run codex-open     --adapter codex --model gpt-6-luna --isolate none  --dim isolate=none
+#   evalkit run --run codex-isolated --adapter codex --model gpt-6-luna --isolate agent --dim isolate=agent
+#   evalkit run --run codex-sandbox  --adapter codex --model gpt-6-luna --sandbox       --dim isolate=sandbox
+#   … and the same with --adapter claude --model claude-haiku-5-5, and --adapter pi --model claude-haiku-5-5
+title: Config leak · what an agent under test can see of yours
+description: Each row asked an agent what it can see of your own setup. A fail means something personal reached the agent; check that the leak is real.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: config, label: Loaded config }
+  - { id: machine, label: Files and environment }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: leaks, label: Leaked items, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: agent, label: Agent }
+  - { id: isolate, label: Isolation, order: [none, agent, sandbox] }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 240
+  # No workspace: every attempt gets an empty scratch directory.
+  agent: { adapter: codex, model: gpt-6-luna, effort: low }
+  score: [score.py]

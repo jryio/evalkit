@@ -1,0 +1,41 @@
+# A benchmark with no model in it: three implementations of "the ten most
+# common words" are timed on the same files. The score is the time, so lower
+# is better, and each run is one implementation.
+#   IMPL=naive   evalkit run --run naive --baseline
+#   IMPL=dict    evalkit run --run dict
+#   IMPL=counter evalkit run --run counter
+title: Word frequency · three implementations timed
+description: Each row is one implementation counting words in one file, three times. Check any row where the answer is wrong, and compare the times across runs.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: small, label: Small files }
+  - { id: large, label: Large files }
+questions:
+  - id: verdict
+    kind: choice
+    label: Answer
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Right, tone: positive, icon: check }
+      - { value: fail, label: Wrong, tone: negative, icon: cross }
+columns:
+  - { id: ms, label: Time, unit: ms, decimals: 1, better: lower, noise: 1, primary: true }
+  - { id: words, label: Words }
+dimensions:
+  - { id: impl, label: Implementation }
+bench:
+  cases: cases.jsonl
+  reps: 3
+  concurrency: 2
+  timeout: 120
+  env: [IMPL]            # which implementation this run times; it also fills the impl dimension
+  workspace:
+    # No sources: setup writes the corpus into each slot once. The files are
+    # only read, so the slots are never reset.
+    setup: python3 "$EVALKIT_SUITE_DIR/bin/make_corpus.py"
+    reset: never
+  agent: { adapter: command, command: run_impl.py }
+  score: [score.py]

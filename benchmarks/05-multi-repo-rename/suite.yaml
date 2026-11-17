@@ -1,0 +1,49 @@
+# One change that spans two repositories: an API and the client that reads it.
+# Every slot holds a clone of both, side by side, and the agent starts in the
+# slot's root. The check runs the API's output through the client.
+#   ../fixtures.sh && evalkit check && evalkit run --run codex --baseline
+title: Cross-repository rename · API and client
+description: Each row is a field an agent renamed in two repositories at once. Check the rows where the API and the client no longer agree.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: files_changed, label: Files changed, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: agent, label: Agent }
+  - { id: model, label: Model }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 300
+  workspace:
+    sources:
+      - { path: .work/api }
+      - { path: .work/web }
+  # Two sources, so the agent's directory is the slot itself: it sees api/ and web/.
+  agent:
+    adapter: codex
+    model: gpt-6-luna
+    effort: low
+    prompt: "The API in api/ returns a JSON field named `{{.old}}`. Rename it to `{{.new}}` in the API and in the client in web/ that reads it, so the two still work together. Change nothing else."
+  score: [score.py]
+  oracle: oracle.py
+  "null": 'true'

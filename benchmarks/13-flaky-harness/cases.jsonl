@@ -1,0 +1,6 @@
+{"id": "quick", "group": "finishes", "title": "Finishes at once", "behaviour": "ok"}
+{"id": "slow", "group": "finishes", "title": "Finishes within the limit", "behaviour": "slow"}
+{"id": "hangs-once", "group": "recovers", "title": "Hangs, then finishes on the retry", "behaviour": "hang-once"}
+{"id": "crashes", "group": "lost", "title": "Exits with an error", "behaviour": "crash"}
+{"id": "hangs", "group": "lost", "title": "Never answers", "behaviour": "hang"}
+{"id": "breaks-scorer", "group": "lost", "title": "Answers, but the scorer prints nonsense", "behaviour": "bad-score"}

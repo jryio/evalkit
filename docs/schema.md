@@ -184,7 +184,10 @@ runs:
     items_from: baseline.jsonl          # as the top-level items_from
     dims: {round: 0, date: "2026-10-14", model: opus-5.5}
     values: {cost_usd: 0.79}            # run-level column values, used when an item lacks the column
+runs_from: runs/*/run.json  # JSON files, each one run as above; appended to runs in started_at order
 ```
+
+`runs_from` lets a runner add a run without editing the suite: `evalkit run` writes one such file per run (see Benchmarks). A run may also carry `started_at` and `meta`, provenance the page does not interpret.
 
 Items gain two optional keys:
 
@@ -217,6 +220,141 @@ A run's `dims` should name `dimensions` (a warning otherwise, when `dimensions` 
 - **Item by item:** the selected run against the compared run, as a scatter for a mean or a bar per run of improved, same and regressed for a rate.
 
 The bar above filters runs by id, label or note, recomputes everything for one group, and switches between your answers and the judge's only. Click a run, a dot or a count to open the table on it; with Judge only on, counts are not links, since the table shows your answers. Keys: `↑`/`↓` or `J`/`K` select a run, `↵` opens it, `[`/`]` step runs, `/` filters and `?` shows help.
+
+## Benchmarks
+
+A suite with a `bench` block can be run, not only reviewed. `evalkit run` puts every case through an agent, each attempt in its own workspace, then through the stages that grade it, and writes the result as one run of rows.
+
+```yaml
+runs_from: runs/*/run.json     # each run registers itself here; no edit to this file
+dimensions: [{ id: model }, { id: effort }]
+bench:
+  cases: cases.jsonl           # one case per line: {id, prompt, group, title, expect, pin, …}
+  reps: 1                      # attempts per case
+  concurrency: 4               # attempts at once, each in its own slot
+  timeout: 600                 # seconds an agent or a stage may take
+  budget_usd: 5                # stop starting attempts once the run has spent this
+  retries: 0                   # extra tries after a timeout or a harness failure
+  workspace:
+    sources: [{ path: ../my-repo, pin: HEAD }]
+  agent: { adapter: claude, model: claude-haiku-5-5, effort: low }
+  score: [score.py]            # bin/ beside the suite is on PATH
+```
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `evalkit check` | Makes one slot and times it, estimates the disk every slot needs, then runs `bench.oracle` (must score every case as a pass) and `bench.null` (must score every case as a fail). Run it before paying for a run. |
+| `evalkit run --run ID` | Makes or resumes one run. `--baseline`, `--label`, `--note`, `--dim k=v` describe it; `--adapter`, `--model`, `--effort`, `--isolate`, `--sandbox` override the agent for a sweep; `--only`, `--limit`, `--reps`, `--concurrency` narrow it. |
+| `evalkit grade --run ID --score --judge` | Grades a finished run's stored attempts again, without the agent, after a scorer or the rubric changed. |
+| `evalkit climb --rounds N` | Hill-climbs `bench.climb.targets`. |
+| `evalkit stats [--json] [--group g]` | Each run's score, 95% interval and paired change, the same numbers as the Runs view. |
+| `evalkit clean [--run ID]` | Deletes the suite's workspace slots, so the next run provisions them again; with `--run`, deletes that run too. Slots a running evalkit holds are left. |
+
+### What a run writes
+
+```
+runs/<run>/run.json        the run as runs_from reads it, with provenance under meta
+runs/<run>/rows.jsonl      one row per finished attempt, appended as it finishes
+runs/<run>/errors.jsonl    one line per failed try: id, rep, class, error, cost
+runs/<run>/attempts/       each attempt's full payload, for grade and climb
+```
+
+An attempt that fails before it has an answer never becomes a row, so it never counts as a fail. Its class says why: `timeout` (the wall-clock limit), `agent_error` (the agent ran and reported an error) or `harness` (a stage or the workspace broke). Timeouts and harness failures are retried `retries` times; an agent error is not. Running the same `--run` again makes only the attempts with no row.
+
+`meta` records the commit, the agent, model, effort and CLI version, the spend, and two hashes: `harness` changes when the cases, the stage scripts or the rubric change, and `variant` changes when the thing under test changes. Compare runs only when their `harness` is the same.
+
+A run fills the dimensions the suite declares under a name it knows: `agent`, `model`, `effort`, `isolate`, `sandbox`, `reps`. A dimension named after a variable in `env` takes that variable's value: with `env: [IMPL]` and a dimension `impl`, `IMPL=fast evalkit run` is the run where `impl` is `fast`.
+
+### Cases
+
+A case is a JSON object with an `id`. `title`, `short`, `subtitle` and `group` go on the row. `prompt` is what the agent is asked, unless `bench.agent.prompt` is a template over the case (`"Rename {{.old}} to {{.new}}"`, Go text/template). `expect` holds the answers: stages after the agent see it, and the agent never does. `pin: {source: ref}` starts a git source at another commit for this case.
+
+### Stages
+
+A stage is a shell command. It reads the attempt as JSON on stdin and may print one JSON object, a fragment of the row.
+
+| Stage | Runs | Prints |
+|---|---|---|
+| `prepare` | before the agent, in its directory | nothing |
+| `agent` | the agent under test | its answer |
+| `collect` | after the agent | `show` and `context`: what the reviewer sees |
+| `score` (a list) | after collect | `values`, `proposed`, `flag`, more `show` |
+| `judge` | last | a proposal per question |
+
+The payload on stdin:
+
+```json
+{ "case": {…}, "run": "v2", "rep": 0, "suite_dir": "…", "workspace": "…/slots/3", "cwd": "…/slots/3/repo",
+  "sources": {"repo": "…/slots/3/repo"}, "out": "…/attempts/auth.r0", "prompt": "…",
+  "agent": {"output": "…", "transcript": […], "cost_usd": 0.01, "seconds": 12.3, "turns": 4, "tokens": {…}},
+  "diff": {"repo": "diff --git …"}, "row": {…} }
+```
+
+The same values are in the environment as `EVALKIT_SUITE_DIR`, `EVALKIT_WORKSPACE`, `EVALKIT_CWD`, `EVALKIT_OUT`, `EVALKIT_RUN`, `EVALKIT_CASE` and `EVALKIT_REP`. A fragment may set `title`, `short`, `subtitle`, `group`, `badges`, `meta`, `show`, `context`, `values`, `proposed` and `flag`. `show` and `context` append; `values` and `proposed` merge by key.
+
+With no `collect` and no `show` from a scorer, the row shows the agent's answer and each git source's diff. Every row gets the transcript and the prompt as context, and the columns the suite declares among `cost_usd`, `latency_s`, `turns`, `tokens_in`, `tokens_out` and `judge_cost_usd`.
+
+### Agents
+
+| `adapter` | Runs | Notes |
+|---|---|---|
+| `claude` | `claude -p` | reports cost, turns and loaded skills |
+| `codex` | `codex exec` | reports tokens, not dollars |
+| `pi` | `pi -p` | reports cost per message |
+| `command` | any shell command | reads the payload on stdin; prints the answer, or `{output, cost_usd, transcript}` |
+
+Each takes `model`, `effort`, `args` (extra CLI arguments), `tools: none`, `budget_usd` (claude) and `system` (a suite file added to the system prompt). `require_skills` makes an attempt where claude did not load a skill a harness error. evalkit holds no API key: each CLI uses its own login.
+
+### Workspaces
+
+Every attempt gets a slot of its own. Slots live in the user cache, outside the suite, so an agent that walks up from its directory never finds the cases.
+
+| Key | Meaning |
+|---|---|
+| `sources` | Directories copied into every slot, each under `as` (default: its base name). A git repository becomes a clone that shares the source's objects, at `pin` (default HEAD), with no remote and no other refs. Anything else is copied, copy-on-write where the file system has it. `method: clone` or `copy` forces one. `include` brings untracked paths of a git source along. |
+| `setup` | Shell command run once per slot after it is made, such as a dependency install |
+| `keep` | Slot-relative paths a reset leaves alone, such as `repo/node_modules` |
+| `reset` | `attempt` (default): before every attempt. `run`: once, when a run first uses the slot. `never` |
+| `provision`, `wipe` | Shell commands that fill and reset a slot (`$EVALKIT_SLOT`) in place of the above |
+
+A reset puts a git source back on its commit with a clean tree and re-syncs a copied one, so it costs in proportion to what the attempt changed. Only committed files of a git source reach a slot. Slots are reused by later runs while the workspace config is unchanged, and a file lock gives two runs at once different slots. With no `workspace`, an attempt gets an empty directory.
+
+`overlay: [{from, to}]` copies suite files into the slot before each attempt: the thing under test, such as a skill or a config. The agent starts in `cwd`, else the only source, else the slot.
+
+### Isolation
+
+Each attempt gets its own `TMPDIR`, its own git config (no signing, hooks or credential helper of yours) and only the environment variables agents need: `PATH`, `HOME`, the locale and the agent CLIs' own. `env: [NAME]` passes more, and `home: private` gives an empty `HOME` (agent CLIs that log in through `HOME` cannot use it).
+
+| `isolate` | claude | codex | pi |
+|---|---|---|---|
+| `agent` (default) | safe mode: no settings, skills, memory files or MCP servers | your config and rules ignored, an empty `HOME`, account features off | no extensions, skills, prompt templates, context files or MCP |
+| `project` | the workspace's own skills and CLAUDE.md load; so does your `~/.claude/CLAUDE.md` | as `agent` | as `agent` |
+| `none` | as you run it | as you run it | as you run it |
+
+`sandbox: true` (macOS) runs the agent under an OS sandbox: it writes only in its slot and temp directory, and cannot read the suite, the runs, other slots, or your keys and personal skills. A stage is not sandboxed, and a scripted `command` agent must then be inline or outside the suite.
+
+Without the sandbox, claude and pi can still read your home directory, and codex still loads skills stored in its own home. `benchmarks/02-config-leak` measures all of this on your machine.
+
+### Judges
+
+`judge: {adapter, model, rubric: rubric.md, questions: […]}` asks a model to grade each attempt. It sees the case with its `expect`, the answer, the diffs and the measured values, in an empty directory with no tools, and must answer every listed question (default: every choice, number, scale and toggle question) with a value and a one-sentence reason. Its answers are proposals, so a reviewer's overrides are the judge's calibration data. A judge that fails leaves the row with no verdict and a flag; `evalkit grade --judge` asks again.
+
+### Hill climbing
+
+```yaml
+bench:
+  climb:
+    targets: [prompt/system.md]            # suite files a round may edit
+    train: [train]                         # groups the proposer sees; a round is accepted on these
+    test: [test]                           # held-out: scored every round, never shown to the proposer
+    propose: { adapter: claude, model: claude-haiku-5-5 }
+    rounds: 3
+    target: 0.9                            # stop once the train score reaches this
+```
+
+`evalkit climb` runs the baseline, then each round: the proposer works in a scratch directory holding the targets, `failures.json` (the train cases the best version still gets wrong, with the grader's reasons), `passing.json` and `history.md`; the benchmark runs again; the change is kept when the train score rises and reverted when it does not. `climb.json` beside the suite records every round, so a climb continues where it stopped. Each run keeps its targets, the round's patch (`change.patch`) and what the proposer said and did (`proposer.json`) under `runs/<run>/`. A proposer that changes nothing ends the climb, and its closing sentence is printed.
 
 ## What comes back
 

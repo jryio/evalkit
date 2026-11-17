@@ -1,0 +1,13 @@
+package dedupe
+
+import (
+	"slices"
+	"testing"
+)
+
+func TestDedupe(t *testing.T) {
+	got := Dedupe([]string{"a", "b", "a", "a", "c", "b", "a"})
+	if !slices.Equal(got, []string{"a", "b", "c"}) {
+		t.Errorf("Dedupe = %v, want [a b c]", got)
+	}
+}

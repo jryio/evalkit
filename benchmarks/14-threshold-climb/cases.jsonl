@@ -1,0 +1,12 @@
+{"id": "t-prize", "group": "train", "title": "You are a winner! Click to claim your free prize", "text": "You are a winner! Click to claim your free prize", "expect": {"label": "spam"}}
+{"id": "t-offer", "group": "train", "title": "Urgent offer: click now", "text": "Urgent offer: click now", "expect": {"label": "spam"}}
+{"id": "t-free-click", "group": "train", "title": "Free gift, click here", "text": "Free gift, click here", "expect": {"label": "spam"}}
+{"id": "t-winner-offer", "group": "train", "title": "Winner offer inside", "text": "Winner offer inside", "expect": {"label": "spam"}}
+{"id": "t-lunch", "group": "train", "title": "Free lunch on Friday for the team", "text": "Free lunch on Friday for the team", "expect": {"label": "ham"}}
+{"id": "t-outage", "group": "train", "title": "Urgent: the build server is down", "text": "Urgent: the build server is down", "expect": {"label": "ham"}}
+{"id": "t-minutes", "group": "train", "title": "Meeting minutes attached", "text": "Meeting minutes attached", "expect": {"label": "ham"}}
+{"id": "t-invoice", "group": "train", "title": "Your invoice for March", "text": "Your invoice for March", "expect": {"label": "ham"}}
+{"id": "h-prize", "group": "test", "title": "Claim your prize: urgent", "text": "Claim your prize: urgent", "expect": {"label": "spam"}}
+{"id": "h-click", "group": "test", "title": "Click for a free offer", "text": "Click for a free offer", "expect": {"label": "spam"}}
+{"id": "h-offer-letter", "group": "test", "title": "Your offer letter is attached", "text": "Your offer letter is attached", "expect": {"label": "ham"}}
+{"id": "h-free-slot", "group": "test", "title": "I am free at 3pm, click accept on the invite", "text": "I am free at 3pm, click accept on the invite", "expect": {"label": "ham"}}

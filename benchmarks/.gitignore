@@ -1,0 +1,8 @@
+# Generated fixture repositories, per-attempt payloads and local review state.
+.work/
+feedback/
+__pycache__/
+**/runs/*/attempts/
+**/runs/*/variant/
+# These runs quote the machine owner's own settings, skills and connectors.
+02-config-leak/runs/

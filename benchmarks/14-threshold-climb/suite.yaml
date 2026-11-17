@@ -1,0 +1,41 @@
+# A hill climb with no model anywhere: the thing under test is a keyword spam
+# filter, the target is its config file, and the proposer is a script that
+# moves one number. It shows the loop itself: a round that helps is kept, a
+# round that overshoots is reverted, and the held-out messages are scored
+# but never shown to the proposer.
+#   evalkit climb --rounds 4
+title: Spam threshold · a hill climb with a scripted proposer
+description: Each row is one message the filter labelled. Check the rows it got wrong, and compare the rounds to see which change was kept.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: train, label: Train }
+  - { id: test, label: Held-out }
+questions:
+  - id: verdict
+    kind: choice
+    label: Label
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Right, tone: positive, icon: check }
+      - { value: fail, label: Wrong, tone: negative, icon: cross }
+columns:
+  - { id: spam_score, label: Spam score }
+  - { id: threshold, label: Threshold }
+dimensions:
+  - { id: round, label: Round }
+bench:
+  cases: cases.jsonl
+  concurrency: 4
+  timeout: 30
+  overlay: [{ from: config/filter.json, to: filter.json }]   # the config under test, copied into every slot
+  agent: { adapter: command, command: classify.py }
+  score: [score.py]
+  climb:
+    targets: [config/filter.json]
+    train: [train]
+    test: [test]
+    target: 1
+    propose: { adapter: command, command: propose.py }

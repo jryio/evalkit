@@ -1,0 +1,28 @@
+{
+  "id": "round1",
+  "note": "I changed `targets/skill/SKILL.md` to add explicit rules that a new changelog entry goes as the first bullet under `## Unreleased` and that its tag should matc…",
+  "started_at": "2026-11-17T23:12:48Z",
+  "items_from": "runs/round1/rows.jsonl",
+  "dims": {
+    "round": 1
+  },
+  "meta": {
+    "agent": "claude",
+    "agent_version": "2.1.326 (Claude Code)",
+    "cases": 5,
+    "commit": "68e8600",
+    "concurrency": 5,
+    "cost_usd": 0.0123,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:12:53Z",
+    "harness": "18d9a47ff1",
+    "isolate": "project",
+    "model": "claude-haiku-5-5",
+    "parent": "round0",
+    "reps": 1,
+    "rows": 5,
+    "seconds": 5.3,
+    "variant": "0e3dddbdc5"
+  }
+}

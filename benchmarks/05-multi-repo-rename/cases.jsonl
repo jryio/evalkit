@@ -1,0 +1,5 @@
+{"id": "user-name", "title": "Rename user_name to display_name", "old": "user_name", "new": "display_name"}
+{"id": "created", "title": "Rename created to created_at", "old": "created", "new": "created_at"}
+{"id": "total", "title": "Rename total to total_cents", "old": "total", "new": "total_cents"}
+{"id": "is-admin", "title": "Rename is_admin to admin", "old": "is_admin", "new": "admin"}
+{"id": "addr", "title": "Rename addr to address", "old": "addr", "new": "address"}

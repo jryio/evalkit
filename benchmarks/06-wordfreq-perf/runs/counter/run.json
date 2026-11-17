@@ -1,0 +1,22 @@
+{
+  "id": "counter",
+  "started_at": "2026-11-17T23:15:53Z",
+  "items_from": "runs/counter/rows.jsonl",
+  "dims": {
+    "impl": "counter"
+  },
+  "meta": {
+    "agent": "command",
+    "cases": 5,
+    "commit": "79c6ddb",
+    "concurrency": 2,
+    "cost_usd": 0,
+    "failed": 0,
+    "finished_at": "2026-11-17T23:15:54Z",
+    "harness": "0942a7ba59",
+    "reps": 3,
+    "rows": 15,
+    "seconds": 0.7,
+    "variant": "e3b0c44298"
+  }
+}

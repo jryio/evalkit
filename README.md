@@ -5,6 +5,7 @@ evalkit is a review system for building evals with your agent. You describe an e
 Use it on anything you want to get better at: writing, code, performance benchmarks, a judge's grades, or data pulled out of documents. Grade by hand, let an automated grader suggest answers for you to confirm, or combine the two.
 
 - **Score what matters to you.** Pass or fail, a category such as tone, confidence or slop, a rating from 1 to 10, or a measurement such as CPU time, latency or error count.
+- **Run the eval, too.** Give a suite a `bench` block and `evalkit run` puts every case through an agent (`claude`, `codex`, `pi` or any command), each attempt isolated in its own workspace, then through your scorers and a judge. `evalkit climb` hill-climbs a prompt or a skill against it.
 - **Track every round.** Run the same eval again and again, and evalkit shows whether each score is trending up or down and which cases regressed, so you can hill-climb on the score you care about.
 - **Stay on the keyboard.** Moving between items, answering and sending all have shortcuts. evalkit is a single Go binary with the page built in.
 
@@ -104,6 +105,37 @@ items:
 
 Run one: `bin/evalkit serve demos/NN-*/suite.yaml`. Feedback lands in `feedback/` beside the suite (git-ignored).
 
+## Benchmarks
+
+The demos above are hand-built results. The suites under [benchmarks/](benchmarks) are run by evalkit itself: each has a `bench` block, cases, and the scripts that grade it. Their `runs/` hold real runs.
+
+```sh
+benchmarks/fixtures.sh                                   # build the fixture repositories once
+bin/evalkit check benchmarks/01-go-bugfix/suite.yaml     # prove the grader: a known-good agent scores 1, a do-nothing one 0
+bin/evalkit run   benchmarks/01-go-bugfix/suite.yaml --run mine
+bin/evalkit serve benchmarks/01-go-bugfix/suite.yaml     # review the runs
+```
+
+| # | Benchmark | Agent | What it exercises |
+|---|---|---|---|
+| 1 | [Go bug fixes](benchmarks/01-go-bugfix) | codex | A git workspace cloned per slot, hidden tests copied in only by the scorer, `check` with an oracle and a null agent, an effort sweep |
+| 2 | [Config leak](benchmarks/02-config-leak) | claude, codex, pi | What each agent CLI sees of your own setup with isolation off, on, and under the sandbox |
+| 3 | [Text-to-SQL climb](benchmarks/03-sql-climb) | codex | A hill climb on a system prompt with a model proposer, train and held-out groups, a workspace built by a `provision` command |
+| 4 | [Commit messages](benchmarks/04-commit-message-judge) | pi, codex judge | No workspace, a prompt template, a scripted format check beside a judge model, `grade --judge` |
+| 5 | [Cross-repository rename](benchmarks/05-multi-repo-rename) | codex, claude | Two repositories in one slot, a check that runs one's output through the other, an agent sweep |
+| 6 | [Word frequency](benchmarks/06-wordfreq-perf) | none | Plain programs timed: a column as the score, lower is better, three reps, `setup` and `reset: never` |
+| 7 | [Sandbox fence](benchmarks/07-sandbox-fence) | none | Scripted agents that try to get out, with the sandbox off and on |
+| 8 | [JavaScript fixes](benchmarks/08-node-deps-keep) | codex | Dependencies installed once per slot with `setup` and kept across resets with `keep`, two reps |
+| 9 | [Pinned commits](benchmarks/09-pinned-commits) | codex | Each case at its own commit, later commits out of reach |
+| 10 | [Document Q&A](benchmarks/10-docs-qa) | claude, pi, codex judge | A copied (non-git) workspace, `reset: run`, a judge against a reference answer |
+| 11 | [CSV clean-up](benchmarks/11-csv-cleanup) | pi, codex | An output file compared with a reference, a spending limit, retries |
+| 12 | [Shell filters](benchmarks/12-shell-golf) | codex | An empty workspace, hidden inputs, a measured column beside the verdict, two reps |
+| 13 | [Failure handling](benchmarks/13-flaky-harness) | none | Crashes, hangs and a broken scorer: error classes, retries, resume |
+| 14 | [Spam threshold climb](benchmarks/14-threshold-climb) | none | A hill climb with a scripted proposer: a round kept, a round reverted |
+| 15 | [Changelog skill climb](benchmarks/15-skill-climb) | claude | A Claude Code skill overlaid into the workspace, `require_skills`, a hill climb on the skill |
+
+The real-agent runs here use the cheapest model of each CLI: they test the harness, not the models.
+
 ### Coverage
 
 Every question kind and artifact kind appears in the kitchen sink. Across the demos:
@@ -120,7 +152,12 @@ Every question kind and artifact kind appears in the kitchen sink. Across the de
 ## Layout
 
 ```
-cmd/evalkit/        CLI: validate, serve, wait, summarize, done, schema
+cmd/evalkit/        CLI: validate, serve, wait, summarize, done, schema; run, check, grade, climb, stats
+internal/bench/     the benchmark engine: attempts, stages, judge, climb
+internal/workspace/ slots: shared clones or copies, reset in place
+internal/agent/     adapters over the claude, codex and pi CLIs
+internal/stats/     run scores, as the page computes them
+internal/proc/      child processes in their own group, killed whole
 internal/suite/     load YAML, JSON Schema validation with line numbers, semantic checks
 internal/feedback/  state, numbered snapshots, action results
 internal/server/    HTTP API and static files

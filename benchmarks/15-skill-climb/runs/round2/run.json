@@ -1,0 +1,28 @@
+{
+  "id": "round2",
+  "note": "I added a rule to `targets/skill/SKILL.md` capping each changelog entry at 90 characters on one line, because the `drop-py38` failure was a 95-character entry …",
+  "started_at": "2026-11-17T23:13:00Z",
+  "items_from": "runs/round2/rows.jsonl",
+  "dims": {
+    "round": 2
+  },
+  "meta": {
+    "agent": "claude",
+    "agent_version": "2.1.326 (Claude Code)",
+    "cases": 5,
+    "commit": "68e8600",
+    "concurrency": 5,
+    "cost_usd": 0.0107,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:13:07Z",
+    "harness": "18d9a47ff1",
+    "isolate": "project",
+    "model": "claude-haiku-5-5",
+    "parent": "round1",
+    "reps": 1,
+    "rows": 5,
+    "seconds": 7.9,
+    "variant": "443e567700"
+  }
+}

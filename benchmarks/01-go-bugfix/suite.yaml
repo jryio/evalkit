@@ -1,0 +1,48 @@
+# An agent fixes one bug per case in a small Go module. Hidden tests, kept in
+# the suite and never in the agent's workspace, decide pass or fail. The Go
+# files under hidden/ and solutions/ end in .txt so this repository's own Go
+# tooling does not build them.
+#   ../fixtures.sh && evalkit check && evalkit run --run luna-low --baseline && evalkit run --run luna-medium --effort medium
+title: Go bug fixes · hidden tests
+description: Each row is one bug an agent was asked to fix. Check the fixes the hidden tests rejected, and tell Claude what the agent misread.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: logic, label: Logic bugs }
+  - { id: edge, label: Edge cases }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: test_s, label: Test time, unit: s, decimals: 2, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: agent, label: Agent }
+  - { id: model, label: Model }
+  - { id: effort, label: Effort, order: [low, medium, high] }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 300
+  workspace:
+    sources: [{ path: .work/repo }]   # a git repository: each slot is a shared clone
+    reset: attempt
+  agent: { adapter: codex, model: gpt-6-luna, effort: low }
+  score: [score.py]
+  oracle: 'cp "$EVALKIT_SUITE_DIR/solutions/$EVALKIT_CASE.go.txt" "$EVALKIT_CASE/$EVALKIT_CASE.go"'
+  "null": 'true'

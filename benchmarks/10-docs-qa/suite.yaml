@@ -1,0 +1,48 @@
+# Questions about a small set of documents. The documents are a plain
+# directory, so each slot is a copy; nothing writes to them, so the slots are
+# reset once per run. A second model judges each answer against the reference.
+#   evalkit run --run claude --baseline
+#   evalkit run --run pi --adapter pi
+title: Document Q&A · answers judged against a reference
+description: Each row is a question an agent answered from four documents. The judge's verdict is a proposal; change it where the judge was too strict or too loose.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+questions:
+  - id: verdict
+    kind: choice
+    label: Answer
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Right, tone: positive, icon: check }
+      - { value: partial, label: Partly, tone: warning, icon: approx }
+      - { value: fail, label: Wrong, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: Where was the judge wrong?
+columns:
+  - { id: words, label: Words, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: agent, label: Agent }
+  - { id: model, label: Model }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 240
+  workspace:
+    sources: [{ path: docs }]   # not a git repository: copied into each slot
+    reset: run
+  agent:
+    adapter: claude
+    model: claude-haiku-5-5
+    effort: low
+    prompt: "{{.prompt}} Answer in at most two sentences, using only the files in this directory."
+  score: [words.py]
+  judge: { adapter: codex, model: gpt-6-luna, effort: low, rubric: rubric.md, questions: [verdict] }

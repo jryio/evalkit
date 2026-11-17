@@ -1,0 +1,39 @@
+# What happens when attempts go wrong. Scripted agents finish, crash, hang,
+# or trip a broken scorer. An attempt that fails before it has an answer goes
+# to runs/<run>/errors.jsonl with a class and never into the score; a timeout
+# or a harness failure is retried once, a crash is not.
+#   evalkit run --run first         (exits 1: some attempts have no row)
+#   evalkit run --run first         (again: only the attempts with no row are made)
+title: Failure handling · scripted agents that crash, hang and recover
+description: Each row is a scripted agent that finished. The ones that crashed or hung are not rows at all; they are in the run's errors file.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: finishes, label: Finishes }
+  - { id: recovers, label: Finishes on the second try }
+  - { id: lost, label: Never finishes }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: tries, label: Tries, better: lower }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 3            # seconds: short, so a hung agent is cut off quickly
+  retries: 1
+  agent: { adapter: command, command: agent.sh }
+  score: [score.sh]
