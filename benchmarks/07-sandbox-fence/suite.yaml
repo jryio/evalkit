@@ -1,0 +1,41 @@
+# Does the fence hold? Each case is a scripted agent that tries one thing an
+# agent under test must not be able to do, plus one control it must be able to
+# do. Run it without the sandbox and with it:
+#   evalkit run --run open --baseline
+#   evalkit run --run fenced --sandbox
+title: Sandbox fence · scripted agents that try to get out
+description: Each row is a scripted agent that tried to reach something outside its workspace. A fail means it got there; check that the fenced run has none.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: control, label: Must work }
+  - { id: escape, label: Must be stopped }
+questions:
+  - id: verdict
+    kind: choice
+    label: Contained
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Contained, tone: positive, icon: check }
+      - { value: fail, label: Got out, tone: negative, icon: cross }
+columns:
+  - { id: exit_code, label: Exit code }
+dimensions:
+  - { id: sandbox, label: Sandbox, order: ["off", "on"] }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 60
+  # The scripted agent is inline, not a file in bin/: under the sandbox an
+  # agent cannot read the suite, its own script included.
+  agent:
+    adapter: command
+    command: |
+      python3 -c 'import json, subprocess, sys
+      attack = json.load(sys.stdin)["case"]["attack"]
+      r = subprocess.run(attack, shell=True, capture_output=True, text=True)
+      print("exit=%d" % r.returncode)
+      print(r.stdout[:200])'
+  score: [score.py]

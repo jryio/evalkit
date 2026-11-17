@@ -1,0 +1,5 @@
+{"id": "retry", "group": "train", "title": "Uploads that time out are now retried three times before the", "change": "Uploads that time out are now retried three times before the command gives up.", "expect": {"kind": "fixed"}}
+{"id": "json-flag", "group": "train", "title": "The list command has a new --json flag that prints machine-r", "change": "The list command has a new --json flag that prints machine-readable output.", "expect": {"kind": "added"}}
+{"id": "drop-py38", "group": "train", "title": "Support for Python 3.8 is gone", "change": "Support for Python 3.8 is gone; the minimum is now 3.10.", "expect": {"kind": "removed"}}
+{"id": "faster-search", "group": "test", "title": "Search now uses an index", "change": "Search now uses an index, which makes it about ten times faster on large projects.", "expect": {"kind": "changed"}}
+{"id": "crash-empty", "group": "test", "title": "The report command crashed on an empty project and now print", "change": "The report command crashed on an empty project and now prints an empty report.", "expect": {"kind": "fixed"}}

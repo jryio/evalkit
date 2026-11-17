@@ -1,0 +1,24 @@
+{
+  "id": "round3",
+  "note": "Moved the threshold from 3 to 6: the best version misses 0 spam and flags 1 real messages.",
+  "started_at": "2026-11-17T23:12:35Z",
+  "items_from": "runs/round3/rows.jsonl",
+  "dims": {
+    "round": 3
+  },
+  "meta": {
+    "agent": "command",
+    "cases": 12,
+    "commit": "68e8600",
+    "concurrency": 4,
+    "cost_usd": 0,
+    "failed": 0,
+    "finished_at": "2026-11-17T23:12:35Z",
+    "harness": "59aa2dc7c1",
+    "parent": "round2",
+    "reps": 1,
+    "rows": 12,
+    "seconds": 0.5,
+    "variant": "8bbdb7be10"
+  }
+}

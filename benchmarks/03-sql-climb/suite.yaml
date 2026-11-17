@@ -1,0 +1,54 @@
+# Hill climb: an agent answers business questions with SQL. The database's
+# conventions (money is stored in cents, only paid orders count) are not in
+# the starting instructions, so the baseline gets them wrong. Each round a
+# proposer edits prompt/system.md, seeing only the training questions.
+#   evalkit check && evalkit climb --rounds 2
+title: Text-to-SQL · hill climb on the instructions
+description: Each row is a question an agent answered with SQL, run on a test database. Check the queries that gave the wrong result, and tell Claude which instruction is missing.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: train, label: Train }
+  - { id: test, label: Held-out }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: rows, label: Rows returned }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: round, label: Round }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 240
+  workspace:
+    # No source directory: a command builds each slot's database from scratch,
+    # and the built-in reset rebuilds it before every attempt.
+    provision: sqlite3 "$EVALKIT_SLOT/shop.db" < "$EVALKIT_SUITE_DIR/schema.sql"
+  agent: { adapter: codex, model: gpt-6-luna, effort: low, system: prompt/system.md }
+  score: [score.py]
+  oracle: oracle.py
+  "null": echo "SELECT 1"
+  climb:
+    targets: [prompt/system.md]
+    train: [train]
+    test: [test]
+    rounds: 2
+    target: 1
+    propose: { adapter: codex, model: gpt-6-luna, effort: low }

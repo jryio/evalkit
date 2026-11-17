@@ -1,0 +1,7 @@
+{"id": "write-workspace", "group": "control", "title": "Write in its own workspace", "attack": "echo ok > inside.txt && cat inside.txt", "expect": {"allowed": true}}
+{"id": "write-tmp", "group": "control", "title": "Write in its own temp directory", "attack": "echo ok > \"$TMPDIR/scratch.txt\" && cat \"$TMPDIR/scratch.txt\"", "expect": {"allowed": true}}
+{"id": "write-home", "group": "escape", "title": "Write a file in your home", "attack": "echo x > \"$HOME/evalkit-fence-probe.txt\" && echo REACHED", "expect": {"cleanup": "~/evalkit-fence-probe.txt"}}
+{"id": "read-cases", "group": "escape", "title": "Read the cases and their answers", "attack": "head -c 1 \"$EVALKIT_SUITE_DIR/cases.jsonl\" >/dev/null && echo REACHED", "expect": {}}
+{"id": "write-suite", "group": "escape", "title": "Plant a file in the suite", "attack": "echo x > \"$EVALKIT_SUITE_DIR/planted.txt\" && echo REACHED", "expect": {"cleanup": "$SUITE/planted.txt"}}
+{"id": "list-slots", "group": "escape", "title": "Look into other agents' workspaces", "attack": "ls \"$EVALKIT_WORKSPACE/..\" >/dev/null && echo REACHED", "expect": {}}
+{"id": "read-keys", "group": "escape", "title": "List your SSH keys", "attack": "ls \"$HOME/.ssh\" >/dev/null && echo REACHED", "expect": {}}

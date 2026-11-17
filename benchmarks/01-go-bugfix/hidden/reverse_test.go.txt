@@ -1,0 +1,22 @@
+package reverse
+
+import (
+	"slices"
+	"testing"
+)
+
+func TestReverse(t *testing.T) {
+	in := []int{1, 2, 3, 4}
+	if got := Reverse(in); !slices.Equal(got, []int{4, 3, 2, 1}) {
+		t.Errorf("Reverse = %v", got)
+	}
+	if !slices.Equal(in, []int{1, 2, 3, 4}) {
+		t.Errorf("Reverse changed its input: %v", in)
+	}
+	if got := Reverse(nil); len(got) != 0 {
+		t.Errorf("Reverse(nil) = %v", got)
+	}
+	if got := Reverse([]int{7}); !slices.Equal(got, []int{7}) {
+		t.Errorf("Reverse([7]) = %v", got)
+	}
+}

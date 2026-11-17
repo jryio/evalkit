@@ -1,0 +1,38 @@
+{
+  "best": "round1",
+  "rounds": [
+    {
+      "run": "round0",
+      "train": {
+        "value": 0,
+        "lo": 5.388068225779325e-18,
+        "hi": 0.3903430336530645
+      },
+      "test": {
+        "value": 0.25,
+        "lo": 0.04558606264463622,
+        "hi": 0.6993639475573633
+      },
+      "kept": true,
+      "reason": "baseline",
+      "cost_usd": 0
+    },
+    {
+      "run": "round1",
+      "change": "I added guidance to filter revenue and order-value queries to paid orders and convert cents to currency, addressing the recurring scope and unit errors.",
+      "train": {
+        "value": 1,
+        "lo": 0.6096569663469354,
+        "hi": 0.9999999999999999
+      },
+      "test": {
+        "value": 1,
+        "lo": 0.5100999795960008,
+        "hi": 1
+      },
+      "kept": true,
+      "reason": "train rose from 0.000 to 1.000",
+      "cost_usd": 0
+    }
+  ]
+}

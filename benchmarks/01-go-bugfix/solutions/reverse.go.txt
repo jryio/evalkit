@@ -1,0 +1,10 @@
+package reverse
+
+// Reverse returns the elements of s in the opposite order.
+func Reverse(s []int) []int {
+	out := make([]int, len(s))
+	for i := range s {
+		out[len(s)-1-i] = s[i]
+	}
+	return out
+}

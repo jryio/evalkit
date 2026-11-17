@@ -1,0 +1,27 @@
+{
+  "id": "round1",
+  "note": "I added guidance to filter revenue and order-value queries to paid orders and convert cents to currency, addressing the recurring scope and unit errors.",
+  "started_at": "2026-11-17T23:19:39Z",
+  "items_from": "runs/round1/rows.jsonl",
+  "dims": {
+    "round": 1
+  },
+  "meta": {
+    "agent": "codex",
+    "agent_version": "codex-cli 0.167.1",
+    "cases": 10,
+    "commit": "ee5f3ad",
+    "concurrency": 5,
+    "cost_usd": 0,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:19:59Z",
+    "harness": "fc23b377e2",
+    "model": "gpt-6-luna",
+    "parent": "round0",
+    "reps": 1,
+    "rows": 10,
+    "seconds": 20.8,
+    "variant": "31c8abdd58"
+  }
+}

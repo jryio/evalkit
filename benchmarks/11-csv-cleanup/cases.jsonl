@@ -1,0 +1,5 @@
+{"id": "trim", "title": "Remove the spaces before and after every field", "task": "Remove the spaces before and after every field."}
+{"id": "lower-email", "title": "Make every email address lower case, and change nothing else", "task": "Make every email address lower case, and change nothing else."}
+{"id": "drop-no-email", "title": "Remove every row whose email field is empty", "task": "Remove every row whose email field is empty."}
+{"id": "sort-by-city", "title": "Sort the rows by city, A to Z, comparing the city text exactly as it is in the file", "task": "Sort the rows by city, A to Z, comparing the city text exactly as it is in the file."}
+{"id": "dedupe-email", "title": "Keep only the first row for each email address, comparing emails after trimming spaces and ignoring case. Leave the kept rows exactly as they are", "task": "Keep only the first row for each email address, comparing emails after trimming spaces and ignoring case. Leave the kept rows exactly as they are."}

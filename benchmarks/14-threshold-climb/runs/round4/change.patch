@@ -1,0 +1,10 @@
+diff -ruN /Users/CASE/code/personal/evalkit/.claude/worktrees/jryio+bench-run/benchmarks/14-threshold-climb/runs/round2/variant/config/filter.json /var/folders/7y/6lby868949d1lkmsld22brq00000gn/T/evalkit-propose-1045301008/targets/config/filter.json
+--- /Users/CASE/code/personal/evalkit/.claude/worktrees/jryio+bench-run/benchmarks/14-threshold-climb/runs/round2/variant/config/filter.json	2026-11-17 18:12:34
++++ /var/folders/7y/6lby868949d1lkmsld22brq00000gn/T/evalkit-propose-1045301008/targets/config/filter.json	2026-11-17 18:12:35
+@@ -1,5 +1,5 @@
+ {
+-  "threshold": 3,
++  "threshold": 4,
+   "weights": {
+     "free": 3,
+     "winner": 3,

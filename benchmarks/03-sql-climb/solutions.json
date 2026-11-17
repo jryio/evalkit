@@ -1,0 +1,12 @@
+{
+ "total-revenue": "SELECT SUM(total_cents)/100.0 FROM orders WHERE status = 'paid'",
+ "revenue-by-country": "SELECT c.country, SUM(o.total_cents)/100.0 FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' GROUP BY c.country ORDER BY 2 DESC",
+ "orders-sold": "SELECT COUNT(*) FROM orders WHERE status = 'paid'",
+ "average-order": "SELECT AVG(total_cents)/100.0 FROM orders WHERE status = 'paid'",
+ "net-revenue": "SELECT (SELECT SUM(total_cents) FROM orders WHERE status = 'paid')/100.0 - (SELECT SUM(amount_cents) FROM refunds)/100.0",
+ "top-customer": "SELECT c.name, SUM(o.total_cents)/100.0 FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' GROUP BY c.id ORDER BY 2 DESC LIMIT 1",
+ "revenue-germany": "SELECT SUM(o.total_cents)/100.0 FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND c.country = 'DE'",
+ "buyers": "SELECT COUNT(DISTINCT customer_id) FROM orders WHERE status = 'paid'",
+ "largest-order": "SELECT MAX(total_cents)/100.0 FROM orders WHERE status = 'paid'",
+ "march-revenue": "SELECT SUM(total_cents)/100.0 FROM orders WHERE status = 'paid' AND placed_at BETWEEN '2026-03-01' AND '2026-03-31'"
+}

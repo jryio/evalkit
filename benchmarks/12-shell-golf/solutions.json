@@ -1,0 +1,7 @@
+{
+ "sum": "awk '{s+=$1} END {print s+0}'",
+ "distinct": "sort -u | wc -l | tr -d ' '",
+ "reverse": "awk '{a[NR]=$0} END {for (i=NR; i>0; i--) print a[i]}'",
+ "second-field": "cut -d, -f2",
+ "longest": "awk 'length($0) > n {n = length($0); l = $0} END {print l}'"
+}

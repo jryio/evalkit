@@ -1,0 +1,26 @@
+{
+  "id": "pi",
+  "started_at": "2026-11-17T23:12:22Z",
+  "items_from": "runs/pi/rows.jsonl",
+  "dims": {
+    "agent": "pi",
+    "model": "claude-haiku-5-5"
+  },
+  "meta": {
+    "agent": "pi",
+    "agent_version": "1.5.2",
+    "cases": 5,
+    "commit": "68e8600",
+    "concurrency": 5,
+    "cost_usd": 0.0017,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:12:29Z",
+    "harness": "f6e9f1d629",
+    "model": "claude-haiku-5-5",
+    "reps": 1,
+    "rows": 5,
+    "seconds": 7.6,
+    "variant": "708174cf83"
+  }
+}

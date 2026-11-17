@@ -1,0 +1,89 @@
+{
+  "best": "round4",
+  "rounds": [
+    {
+      "run": "round0",
+      "train": {
+        "value": 0.625,
+        "lo": 0.30573785458380187,
+        "hi": 0.863158240538479
+      },
+      "test": {
+        "value": 0.5,
+        "lo": 0.15003570882017148,
+        "hi": 0.8499642911798285
+      },
+      "kept": true,
+      "reason": "baseline",
+      "cost_usd": 0
+    },
+    {
+      "run": "round1",
+      "change": "Moved the threshold from 9 to 6: the best version misses 3 spam and flags 0 real messages.",
+      "train": {
+        "value": 0.75,
+        "lo": 0.40926987910258916,
+        "hi": 0.9285223111419724
+      },
+      "test": {
+        "value": 0.75,
+        "lo": 0.3006360524426366,
+        "hi": 0.9544139373553637
+      },
+      "kept": true,
+      "reason": "train rose from 0.625 to 0.750",
+      "cost_usd": 0
+    },
+    {
+      "run": "round2",
+      "change": "Moved the threshold from 6 to 3: the best version misses 2 spam and flags 0 real messages.",
+      "train": {
+        "value": 0.875,
+        "lo": 0.5291051942301386,
+        "hi": 0.9775830911367038
+      },
+      "test": {
+        "value": 0.75,
+        "lo": 0.3006360524426366,
+        "hi": 0.9544139373553637
+      },
+      "kept": true,
+      "reason": "train rose from 0.750 to 0.875",
+      "cost_usd": 0
+    },
+    {
+      "run": "round3",
+      "change": "Moved the threshold from 3 to 6: the best version misses 0 spam and flags 1 real messages.",
+      "train": {
+        "value": 0.75,
+        "lo": 0.40926987910258916,
+        "hi": 0.9285223111419724
+      },
+      "test": {
+        "value": 0.75,
+        "lo": 0.3006360524426366,
+        "hi": 0.9544139373553637
+      },
+      "kept": false,
+      "reason": "train 0.750 did not beat 0.875; reverted",
+      "cost_usd": 0
+    },
+    {
+      "run": "round4",
+      "change": "Moved the threshold from 3 to 4: the best version misses 0 spam and flags 1 real messages.",
+      "train": {
+        "value": 1,
+        "lo": 0.6755843804891231,
+        "hi": 1
+      },
+      "test": {
+        "value": 0.75,
+        "lo": 0.3006360524426366,
+        "hi": 0.9544139373553637
+      },
+      "kept": true,
+      "reason": "train rose from 0.875 to 1.000",
+      "cost_usd": 0
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+package median
+
+import "slices"
+
+// Median returns the middle value of xs.
+func Median(xs []float64) float64 {
+	if len(xs) == 0 {
+		return 0
+	}
+	s := slices.Sorted(slices.Values(xs))
+	mid := len(s) / 2
+	if len(s)%2 == 0 {
+		return (s[mid-1] + s[mid]) / 2
+	}
+	return s[mid]
+}

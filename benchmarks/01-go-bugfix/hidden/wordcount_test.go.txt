@@ -1,0 +1,11 @@
+package wordcount
+
+import "testing"
+
+func TestCount(t *testing.T) {
+	for in, want := range map[string]int{"": 0, "one": 1, "two words": 2, "  padded   out  ": 2, "tab\tand\nnewline": 3} {
+		if got := Count(in); got != want {
+			t.Errorf("Count(%q) = %d, want %d", in, got, want)
+		}
+	}
+}

@@ -1,0 +1,47 @@
+# An agent writes a small shell filter into an empty directory. Hidden inputs
+# decide pass or fail, and the script's length is measured beside it. Two
+# attempts per case show how much the same agent varies.
+#   evalkit check && evalkit run --run luna --baseline
+title: Shell filters · hidden inputs, two attempts each
+description: Each row is a shell script an agent wrote, tried twice. Check the scripts that fail a hidden input.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: chars, label: Script length, unit: chars, better: lower }
+  - { id: inputs_passed, label: Inputs passed, better: higher }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: model, label: Model }
+  - { id: reps, label: Attempts per case }
+bench:
+  cases: cases.jsonl
+  reps: 2
+  concurrency: 5
+  timeout: 240
+  # No workspace: every attempt starts in an empty directory.
+  agent:
+    adapter: codex
+    model: gpt-6-luna
+    effort: low
+    prompt: "Write a POSIX shell script named solve.sh in this directory. It reads text on standard input and writes to standard output. {{.task}} Use only sh and the standard Unix tools. Write the file and nothing else."
+  score: [score.py]
+  oracle: oracle.py
+  "null": 'echo cat > solve.sh'

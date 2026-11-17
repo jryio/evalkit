@@ -1,0 +1,48 @@
+# An agent cleans a CSV file one way per case and must write out.csv. The
+# run has a spending limit and retries an attempt the harness lost.
+#   evalkit check && evalkit run --run pi --baseline
+title: CSV clean-up · output compared with a reference
+description: Each row is one clean-up an agent made to a CSV file. Check the rows whose output differs from the reference.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: rows_out, label: Rows written }
+  - { id: rows_wrong, label: Rows that differ, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: agent, label: Agent }
+  - { id: model, label: Model }
+bench:
+  cases: cases.jsonl
+  concurrency: 5
+  timeout: 240
+  budget_usd: 0.50      # stop starting attempts once the run has spent this
+  retries: 1            # one more try after a timeout or a harness failure
+  workspace:
+    sources: [{ path: data }]
+  agent:
+    adapter: pi
+    model: claude-haiku-5-5
+    effort: low
+    prompt: "The file people.csv in this directory has a header row and the columns name, email, city. {{.task}} Write the result to out.csv in this directory, with the same header and column order. Do not change people.csv."
+  score: [score.py]
+  oracle: oracle.py
+  "null": cp people.csv out.csv

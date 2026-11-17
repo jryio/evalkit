@@ -1,0 +1,11 @@
+{
+  "threshold": 4,
+  "weights": {
+    "free": 3,
+    "winner": 3,
+    "prize": 3,
+    "click": 2,
+    "urgent": 2,
+    "offer": 2
+  }
+}

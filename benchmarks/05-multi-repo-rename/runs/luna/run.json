@@ -1,0 +1,27 @@
+{
+  "id": "luna",
+  "baseline": true,
+  "started_at": "2026-11-17T23:11:44Z",
+  "items_from": "runs/luna/rows.jsonl",
+  "dims": {
+    "agent": "codex",
+    "model": "gpt-6-luna"
+  },
+  "meta": {
+    "agent": "codex",
+    "agent_version": "codex-cli 0.167.1",
+    "cases": 5,
+    "commit": "68e8600",
+    "concurrency": 5,
+    "cost_usd": 0,
+    "effort": "low",
+    "failed": 0,
+    "finished_at": "2026-11-17T23:12:07Z",
+    "harness": "5d4f75b181",
+    "model": "gpt-6-luna",
+    "reps": 1,
+    "rows": 5,
+    "seconds": 22.3,
+    "variant": "aca2f1f602"
+  }
+}

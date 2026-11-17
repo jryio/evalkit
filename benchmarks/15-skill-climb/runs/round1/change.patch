@@ -1,0 +1,18 @@
+diff -ruN /Users/CASE/code/personal/evalkit/.claude/worktrees/jryio+bench-run/benchmarks/15-skill-climb/runs/round0/variant/skill/SKILL.md /var/folders/7y/6lby868949d1lkmsld22brq00000gn/T/evalkit-propose-190200333/targets/skill/SKILL.md
+--- /Users/CASE/code/personal/evalkit/.claude/worktrees/jryio+bench-run/benchmarks/15-skill-climb/runs/round0/variant/skill/SKILL.md	2026-11-17 18:12:34
++++ /var/folders/7y/6lby868949d1lkmsld22brq00000gn/T/evalkit-propose-190200333/targets/skill/SKILL.md	2026-11-17 18:12:47
+@@ -6,3 +6,14 @@
+ # Changelog
+ 
+ When asked for a changelog entry, add it to CHANGELOG.md.
++
++## Where the entry goes
++
++- Put the new entry in the `## Unreleased` section.
++- Insert it as the first bullet under the `## Unreleased` heading, above any existing entries. Do not append it to the end of the section.
++
++## Format
++
++- Use the bullet format already used in CHANGELOG.md, with a bracketed kind tag such as `[added]`, `[changed]`, `[fixed]` or `[removed]`, followed by the change description.
++- Choose the tag that matches the kind of change: a new capability is `[added]`, a bug fix is `[fixed]`, a behaviour change is `[changed]`, and a removal is `[removed]`.
++- Check the existing entries for the tag vocabulary in use before writing a new tag.

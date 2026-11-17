@@ -1,0 +1,44 @@
+# Every case starts the workspace at a different commit of one repository
+# (the case's pin), as a benchmark built from real history does. A slot is
+# moved to the case's commit before the attempt, and the later commits are
+# not reachable from it.
+#   ../fixtures.sh && evalkit check && evalkit run --run luna --baseline
+title: Pinned commits · each case at its own point in history
+description: Each row asked an agent what the program prints at one commit. A fail means the agent saw a different commit than the case names.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+groups:
+  - { id: release, label: What a release prints }
+  - { id: history, label: What history is visible }
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: model, label: Model }
+bench:
+  cases: cases.jsonl
+  concurrency: 3        # fewer slots than cases, so slots move between commits
+  timeout: 240
+  workspace:
+    sources: [{ path: .work/repo }]
+  agent: { adapter: codex, model: gpt-6-luna, effort: low }
+  score: [score.py]
+  oracle: oracle.py
+  "null": echo nothing

@@ -1,0 +1,47 @@
+# A workspace with installed dependencies. The install runs once per slot
+# (workspace.setup) and survives every reset (workspace.keep), so ten attempts
+# on five slots install five times, not ten. Hidden node tests grade the fix.
+# evalkit clean removes the slots, so the next run installs again.
+#   ../fixtures.sh && evalkit check && evalkit clean && evalkit run --run luna --baseline
+title: JavaScript fixes · dependencies installed once per slot
+description: Each row is a formatting function an agent fixed, twice. Check the fixes the hidden tests rejected.
+send: Send to Claude
+view: runs
+runs_from: runs/*/run.json
+questions:
+  - id: verdict
+    kind: choice
+    label: Verdict
+    primary: true
+    status: true
+    options:
+      - { value: pass, label: Pass, tone: positive, icon: check }
+      - { value: fail, label: Fail, tone: negative, icon: cross }
+  - id: note
+    kind: text
+    label: Note to Claude
+    key: n
+    placeholder: What did the grader get wrong, or what should the next run change?
+columns:
+  - { id: installs, label: Installs since the slots were made, better: lower }
+  - { id: test_s, label: Test time, unit: s, decimals: 2, better: lower }
+  - { id: cost_usd, label: Cost, unit: $, decimals: 4, better: lower }
+  - { id: latency_s, label: Latency, unit: s, decimals: 1, better: lower }
+  - { id: turns, label: Turns, better: lower }
+  - { id: tokens_out, label: Output tokens, better: lower }
+dimensions:
+  - { id: model, label: Model }
+  - { id: reps, label: Attempts per case }
+bench:
+  cases: cases.jsonl
+  reps: 2
+  concurrency: 5
+  timeout: 300
+  workspace:
+    sources: [{ path: .work/app }]
+    setup: sh "$EVALKIT_SUITE_DIR/bin/install.sh"   # once per slot
+    keep: [app/node_modules]                         # a reset leaves the install alone
+  agent: { adapter: codex, model: gpt-6-luna, effort: low }
+  score: [score.py]
+  oracle: 'cp "$EVALKIT_SUITE_DIR/solutions/format.js" lib/format.js'
+  "null": 'true'
