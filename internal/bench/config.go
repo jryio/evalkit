@@ -41,7 +41,7 @@ type Config struct {
 	Judge       *JudgeStage      `json:"judge"`
 	Oracle      string           `json:"oracle"` // shell agent that must score every case as a pass
 	Null        string           `json:"null"`   // shell agent that must score every case as a fail
-	Climb       *Climb           `json:"climb"`
+	Climb       *ClimbConfig     `json:"climb"`
 }
 
 // Overlay copies a file or directory of the suite into the slot: the thing
@@ -66,8 +66,8 @@ type JudgeStage struct {
 	Questions []string `json:"questions"` // suite question ids to answer; default: every choice, number, scale and toggle
 }
 
-// Climb is the hill-climbing block: what may change between rounds and how.
-type Climb struct {
+// ClimbConfig is the hill-climbing block: what may change between rounds and how.
+type ClimbConfig struct {
 	Targets []string   `json:"targets"` // suite files a round may edit
 	Train   []string   `json:"train"`   // groups the proposer sees and rounds are accepted on
 	Test    []string   `json:"test"`    // held-out groups: scored every round, never shown to the proposer

@@ -93,7 +93,7 @@ It reads the feedback directory, so it works across server restarts.
 it. The item then shows a done link and the action cannot be approved again.
 
   evalkit done pr-9875 post --url https://github.com/acme/app/pull/9875`},
-	benchCommands[0], benchCommands[1], benchCommands[2],
+	benchCommands[0], benchCommands[1], benchCommands[2], benchCommands[3],
 	statsCommand,
 	{name: "docs", summary: "print the suite reference (markdown)", run: runDocs},
 	{name: "schema", summary: "print the suite JSON Schema, for editors", run: runSchema},
