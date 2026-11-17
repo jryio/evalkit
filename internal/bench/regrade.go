@@ -122,7 +122,7 @@ func (r *runner) regradeOne(ctx context.Context, p payload, opts RegradeOptions,
 	if err != nil {
 		p.Row["flag"] = judgeFailed + err.Error()
 	}
-	if values, ok := p.Row["values"].(map[string]any); ok && r.l.Columns["judge_cost_usd"] {
+	if values, ok := p.Row["values"].(map[string]any); ok && r.l.Columns["judge_cost_usd"] && cost > 0 {
 		values["judge_cost_usd"] = round(cost, 4)
 	}
 	return cost, nil

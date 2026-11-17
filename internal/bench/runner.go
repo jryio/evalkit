@@ -3,6 +3,7 @@ package bench
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -10,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,6 +38,11 @@ type Options struct {
 	SlotsRoot   string         // where workspaces live; default: the user cache
 	RunsDir     string         // where runs are written; default: runs/ beside the suite
 	Agent       *AgentStage    // stands in for bench.agent
+	Adapter     string         // overrides bench.agent.adapter, for a sweep over agents
+	Model       string         // overrides bench.agent.model
+	Effort      string         // overrides bench.agent.effort
+	Isolate     string         // overrides bench.agent.isolate
+	Sandbox     bool           // turns bench.sandbox on
 	NoJudge     bool           // skip the judge stage
 	Log         io.Writer      // progress lines
 }
@@ -101,6 +108,15 @@ func Run(ctx context.Context, l *Loaded, opts Options) (Summary, error) {
 	if opts.Agent != nil {
 		cfg.Agent = *opts.Agent
 	}
+	for _, o := range []struct {
+		value string
+		field *string
+	}{{opts.Adapter, &cfg.Agent.Adapter}, {opts.Model, &cfg.Agent.Model}, {opts.Effort, &cfg.Agent.Effort}, {opts.Isolate, &cfg.Agent.Isolate}} {
+		if o.value != "" {
+			*o.field = o.value
+		}
+	}
+	cfg.Sandbox = cfg.Sandbox || opts.Sandbox
 	if opts.NoJudge {
 		cfg.Judge = nil
 	}
@@ -155,6 +171,7 @@ func Run(ctx context.Context, l *Loaded, opts Options) (Summary, error) {
 	if r.pool, err = workspace.NewPool(ctx, cfg.Workspace, l.Dir, r.slots, cfg.Concurrency); err != nil {
 		return r.sum, err
 	}
+	defer r.pool.Close()
 	started := time.Now()
 	man := r.manifest(ctx, started)
 	if err := r.writeManifest(man); err != nil {
@@ -276,6 +293,12 @@ func (r *runner) manifest(ctx context.Context, started time.Time) manifest {
 	if a.Effort != "" {
 		meta["effort"] = a.Effort
 	}
+	if a.Isolate != "" {
+		meta["isolate"] = a.Isolate
+	}
+	if r.cfg.Sandbox {
+		meta["sandbox"] = true
+	}
 	if v := agent.Version(ctx, a.Adapter); v != "" {
 		meta["agent_version"] = v
 	}
@@ -286,7 +309,41 @@ func (r *runner) manifest(ctx context.Context, started time.Time) manifest {
 		meta[k] = v
 	}
 	return manifest{ID: r.opts.Run, Label: r.opts.Label, Note: r.opts.Note, Baseline: r.opts.Baseline,
-		StartedAt: startedAt, ItemsFrom: filepath.ToSlash(rows), Dims: r.opts.Dims, Meta: meta}
+		StartedAt: startedAt, ItemsFrom: filepath.ToSlash(rows), Dims: r.dims(), Meta: meta}
+}
+
+// dims is the run's value for each dimension: what the caller gave, and for
+// the dimensions the suite declares under a name the run knows about itself
+// (agent, model, effort, isolate, sandbox, reps), what the run actually used.
+func (r *runner) dims() map[string]any {
+	a := r.cfg.Agent
+	isolate := cmp.Or(a.Isolate, "agent")
+	if r.cfg.Sandbox {
+		isolate = "sandbox"
+	}
+	known := map[string]any{
+		"agent": a.Adapter, "model": a.Model, "effort": a.Effort, "isolate": isolate,
+		"sandbox": map[bool]string{true: "on", false: "off"}[r.cfg.Sandbox], "reps": r.cfg.Reps,
+	}
+	dims := maps.Clone(r.opts.Dims)
+	for _, d := range r.l.Suite.Dimensions {
+		v, ok := known[d.ID]
+		if !ok {
+			// A variable the suite passes through (bench.env: [IMPL]) is what a run varies by.
+			name := strings.ToUpper(d.ID)
+			if slices.Contains(r.cfg.Env, name) {
+				v, ok = os.Getenv(name), true
+			}
+		}
+		if _, given := dims[d.ID]; given || !ok || v == "" {
+			continue
+		}
+		if dims == nil {
+			dims = map[string]any{}
+		}
+		dims[d.ID] = v
+	}
+	return dims
 }
 
 func (r *runner) writeManifest(m manifest) error {

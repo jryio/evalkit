@@ -12,7 +12,8 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
-	"time"
+
+	"github.com/jryio/evalkit/internal/proc"
 )
 
 // Adapters.
@@ -32,7 +33,7 @@ type Spec struct {
 	Args      []string `json:"args"`       // extra arguments for the CLI
 	Tools     string   `json:"tools"`      // none: the agent gets no tools
 	BudgetUSD float64  `json:"budget_usd"` // spend limit for one attempt, where the CLI has one
-	Isolate   string   `json:"isolate"`    // agent (default): ignore the user's own config and use the CLI's sandbox; none
+	Isolate   string   `json:"isolate"`    // agent (default): nothing of the user's loads; project: claude also loads the workspace's own settings; none
 }
 
 // Request is one attempt.
@@ -102,10 +103,12 @@ func fail(class, format string, a ...any) *Failure {
 
 // invocation is a built command line.
 type invocation struct {
-	name  string
-	args  []string
-	stdin []byte
-	parse func(stdout []byte, req Request) (Result, error)
+	name    string
+	args    []string
+	stdin   []byte
+	env     []string // variables set over the request's environment
+	cleanup func()   // removes what the invocation made, if anything
+	parse   func(stdout []byte, req Request) (Result, error)
 }
 
 // Run runs one attempt. ctx's deadline is the attempt's wall-clock limit: when
@@ -115,8 +118,11 @@ func Run(ctx context.Context, req Request) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	if inv.cleanup != nil {
+		defer inv.cleanup()
+	}
 	argv := append(append(slices.Clone(req.Wrap), inv.name), inv.args...)
-	stdout, stderr, seconds, runErr := execute(ctx, argv, inv.stdin, req.Dir, req.Env)
+	stdout, stderr, seconds, runErr := execute(ctx, argv, inv.stdin, req.Dir, override(req.Env, inv.env))
 	res, parseErr := inv.parse(stdout, req)
 	res.Seconds = seconds
 	// A timeout or a cancelled run wins over whatever the cut-off output parses to.
@@ -147,44 +153,21 @@ func Exec(ctx context.Context, command string, stdin []byte, dir string, env []s
 	return string(stdout), err
 }
 
-// execute runs argv to the end or to ctx's deadline. A non-zero exit is an
-// AgentError failure, a deadline a Timeout failure.
+// execute runs argv through proc.Run and names what went wrong: a deadline is
+// a Timeout failure, a non-zero exit an AgentError, a command that would not
+// start a Harness failure. A cancelled context stays ctx's own error.
 func execute(ctx context.Context, argv []string, stdin []byte, dir string, env []string) (stdout, stderr []byte, seconds float64, err error) {
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Dir = dir
-	cmd.Env = environ(env)
-	cmd.Stdin = bytes.NewReader(stdin)
-	var out, errOut bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errOut
-	ownGroup(cmd)
-	// A child that outlives the command and holds its output open must not hang the attempt.
-	cmd.WaitDelay = 5 * time.Second
-
-	start := time.Now()
-	if err := cmd.Start(); err != nil {
-		return nil, nil, 0, fail(Harness, "start %s: %v", argv[0], err)
-	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	select {
-	case err = <-done:
-		// Children left running (a dev server, a watcher) end with the command.
-		killGroup(cmd)
-	case <-ctx.Done():
-		killGroup(cmd)
-		<-done
-		err = ctx.Err()
-	}
-	seconds = time.Since(start).Seconds()
+	out, err := proc.Run(ctx, argv, stdin, dir, environ(env))
 	switch {
-	case errors.Is(err, context.DeadlineExceeded):
-		err = fail(Timeout, "no result after %.0fs", seconds)
-	case err != nil && ctx.Err() == nil && !errors.Is(err, exec.ErrWaitDelay):
+	case err == nil, ctx.Err() != nil && !errors.Is(err, proc.ErrTimeout):
+	case errors.Is(err, proc.ErrTimeout):
+		err = fail(Timeout, "no result after %.0fs", out.Seconds)
+	case errors.As(err, new(*exec.ExitError)):
 		err = fail(AgentError, "%v", err)
-	case errors.Is(err, exec.ErrWaitDelay):
-		err = nil
+	default:
+		err = fail(Harness, "start %s: %v", argv[0], err)
 	}
-	return out.Bytes(), errOut.Bytes(), seconds, err
+	return out.Stdout, out.Stderr, out.Seconds, err
 }
 
 func build(req Request) (invocation, error) {
@@ -206,6 +189,29 @@ func build(req Request) (invocation, error) {
 		return invocation{name: "sh", args: []string{"-c", req.Spec.Command}, stdin: stdin, parse: parseCommand}, nil
 	}
 	return invocation{}, fmt.Errorf("adapter %q: want claude, codex, pi or command", req.Spec.Adapter)
+}
+
+// override returns env (nil: this process's) with the set variables replacing
+// any of the same name.
+func override(env, set []string) []string {
+	if len(set) == 0 {
+		return env
+	}
+	if env == nil {
+		env = os.Environ()
+	}
+	names := map[string]bool{}
+	for _, kv := range set {
+		k, _, _ := strings.Cut(kv, "=")
+		names[k] = true
+	}
+	out := make([]string, 0, len(env)+len(set))
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); !names[k] {
+			out = append(out, kv)
+		}
+	}
+	return append(out, set...)
 }
 
 // environ drops the variables that make a nested claude think it is a child session.

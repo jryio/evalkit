@@ -96,6 +96,9 @@ func run(tb testing.TB, dir string, opts bench.Options) bench.Summary {
 	if err != nil {
 		tb.Fatalf("bench.Run: %v", err)
 	}
+	if sum.ByClass["harness"] > 0 {
+		tb.Logf("run %s had harness failures: %v", opts.Run, errorLines(tb, dir, opts.Run))
+	}
 	return sum
 }
 
@@ -225,6 +228,7 @@ func TestRun_AttemptsAreIsolated(t *testing.T) {
 [ -e litter ] && seen=repo-litter
 [ "$(cat a.txt)" != broken ] && seen=dirty-repo
 [ -n "$EVALKIT_TEST_SECRET" ] && seen=leaked-env
+[ "$(git config --global user.name)" != evalkit ] && seen=the-users-git-config
 grep -q SECRET-ANSWER && seen=saw-the-answer
 case "$TMPDIR" in "$EVALKIT_OUT"/*) ;; *) seen=shared-tmp ;; esac
 case "$HOME" in "$EVALKIT_OUT"/*) ;; *) seen=shared-home ;; esac
@@ -372,6 +376,80 @@ func TestRun_JudgeProposesAndRegrades(t *testing.T) {
 	}
 }
 
+func manifestDims(tb testing.TB, dir, runID string) map[string]any {
+	tb.Helper()
+	b, err := os.ReadFile(filepath.Join(dir, "runs", runID, "run.json"))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	var m struct {
+		Dims map[string]any `json:"dims"`
+	}
+	if err := json.Unmarshal(b, &m); err != nil {
+		tb.Fatal(err)
+	}
+	return m.Dims
+}
+
+// A run fills the dimensions the suite declares from what it actually ran.
+func TestRun_FillsDeclaredDimensions(t *testing.T) {
+	// Not parallel: it sets an environment variable.
+	dir := fixture(t, "  reps: 2\n  agent: { adapter: command, command: 'echo done', effort: low }\n", "a")
+	suitePath := filepath.Join(dir, "suite.yaml")
+	b, err := os.ReadFile(suitePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, suitePath, strings.Replace(string(b), "bench:", "dimensions: [{ id: agent }, { id: effort }, { id: model }, { id: isolate }, { id: reps }, { id: round }]\nbench:", 1))
+
+	run(t, dir, bench.Options{Run: "auto"})
+	// model is empty and round is not something a run knows: both stay unset.
+	want := map[string]any{"agent": "command", "effort": "low", "isolate": "agent", "reps": 2.0}
+	if got := manifestDims(t, dir, "auto"); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("dims = %v, want %v", got, want)
+	}
+
+	// A declared dimension named after a variable the suite passes through takes its value.
+	t.Setenv("FLAVOUR", "vanilla")
+	b, _ = os.ReadFile(suitePath)
+	write(t, suitePath, strings.Replace(strings.Replace(string(b), "{ id: round }", "{ id: round }, { id: flavour }", 1), "  reps: 2\n", "  reps: 2\n  env: [FLAVOUR]\n", 1))
+	run(t, dir, bench.Options{Run: "env"})
+	if got := manifestDims(t, dir, "env")["flavour"]; got != "vanilla" {
+		t.Errorf("dims[flavour] = %v, want the passed-through variable's value", got)
+	}
+
+	run(t, dir, bench.Options{Run: "given", Effort: "high", Dims: map[string]any{"agent": "mine", "round": 3}})
+	want = map[string]any{"agent": "mine", "effort": "high", "flavour": "vanilla", "isolate": "agent", "reps": 2.0, "round": 3.0}
+	if got := manifestDims(t, dir, "given"); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("dims = %v, want the caller's values kept and the rest filled: %v", got, want)
+	}
+	report(t, dir)
+}
+
+// require_skills is about the real agent: evalkit check's stand-ins, which are
+// command agents, must still be able to run the suite.
+func TestRun_RequiredSkillsDoNotApplyToAStandIn(t *testing.T) {
+	t.Parallel()
+	dir := fixture(t, "  agent: { adapter: command, command: 'echo done', require_skills: [changelog] }\n", "a")
+	if sum := run(t, dir, bench.Options{Run: "s"}); sum.Done != 1 {
+		t.Errorf("summary = %+v, want the command agent's attempt to count; errors: %v", sum, errorLines(t, dir, "s"))
+	}
+}
+
+// A command agent reads the case on stdin, so its cases need no prompt field.
+func TestRun_CommandAgentNeedsNoPrompt(t *testing.T) {
+	t.Parallel()
+	dir := fixture(t, "  agent: { adapter: command, command: 'grep -o size...[0-9]*' }\n", "unused")
+	write(t, filepath.Join(dir, "cases.jsonl"), `{"id":"a","size":42}`+"\n")
+	if sum := run(t, dir, bench.Options{Run: "n"}); sum.Done != 1 {
+		t.Fatalf("summary = %+v, want 1 row; errors: %v", sum, errorLines(t, dir, "n"))
+	}
+	answer := rows(t, dir, "n")[0]["show"].([]any)[0].(map[string]any)["text"].(string)
+	if !strings.Contains(answer, "42") {
+		t.Errorf("answer = %q, want the agent to have read the case from stdin", answer)
+	}
+}
+
 func TestRun_CasePinsTheWorkspace(t *testing.T) {
 	t.Parallel()
 	dir := fixture(t, "  agent: { adapter: command, command: 'cat a.txt' }\n", "x")
@@ -437,7 +515,8 @@ func TestScore_OracleAndNull(t *testing.T) {
 		runs := t.TempDir()
 		sum, err := bench.Run(t.Context(), l, bench.Options{Run: tc.name, RunsDir: runs, SlotsRoot: filepath.Join(t.TempDir(), "slots"), Agent: &stage})
 		if err != nil || sum.Done != 2 {
-			t.Fatalf("%s: summary = %+v, %v", tc.name, sum, err)
+			failures, _ := os.ReadFile(filepath.Join(sum.Dir, "errors.jsonl"))
+			t.Fatalf("%s: summary = %+v, %v\n%s", tc.name, sum, err, failures)
 		}
 		got, err := bench.Score(l, filepath.Join(sum.Dir, "rows.jsonl"))
 		if err != nil || got.Value != tc.want || got.N != 2 {

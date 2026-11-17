@@ -49,6 +49,11 @@ var benchCommands = []*command{
 			fs.Int("reps", 0, "attempts per case (default: bench.reps)")
 			fs.Int("concurrency", 0, "attempts at once (default: bench.concurrency)")
 			fs.String("slots", "", "where workspaces live (default: the user cache)")
+			fs.String("adapter", "", "run this agent instead of bench.agent.adapter: claude, codex, pi or command")
+			fs.String("model", "", "use this model instead of bench.agent.model")
+			fs.String("effort", "", "use this effort instead of bench.agent.effort")
+			fs.String("isolate", "", "agent, project or none, instead of bench.agent.isolate")
+			fs.Bool("sandbox", false, "run the agent under the OS sandbox, as bench.sandbox: true")
 		},
 		help: `Runs every case of the suite's bench block through its agent, each attempt in
 its own workspace slot, then through the collect, score and judge stages. Rows
@@ -59,7 +64,8 @@ into the score. Running the same id again makes only what is missing.
 
   evalkit run --run baseline --baseline
   evalkit run --run v2 --dim round=2 --note "shorter prompt"
-  evalkit run --run v2 --only auth,refund`},
+  evalkit run --run v2 --only auth,refund
+  evalkit run --run opus-high --model claude-opus-5-5 --effort high --dim effort=high`},
 	{name: "check", args: "[SUITE]", summary: "prove a benchmark is sound before paying for a run", run: runCheck,
 		flags: func(fs *flag.FlagSet) {
 			fs.String("slots", "", "where workspaces live (default: the user cache)")
@@ -94,6 +100,18 @@ the train score rises and reverted when it does not. Held-out cases
 climb.json beside the suite records every round, so a climb can continue.
 
   evalkit climb --rounds 3`},
+	{name: "clean", args: "[SUITE]", summary: "remove a benchmark's workspace slots, or one of its runs", run: runClean,
+		flags: func(fs *flag.FlagSet) {
+			fs.String("run", "", "also delete this run: its rows, errors and stored attempts")
+			fs.String("slots", "", "where workspaces live (default: the user cache)")
+		},
+		help: `Deletes the workspace slots evalkit made for the suite, so the next run
+provisions them from scratch: sources are copied again and setup runs again.
+Slots a running evalkit holds are left alone. With --run, the run's directory
+is deleted too, and the suite no longer lists it.
+
+  evalkit clean
+  evalkit clean --run v2`},
 }
 
 func signalContext() (context.Context, context.CancelFunc) {
@@ -120,6 +138,7 @@ func runRun(f *flag.FlagSet, pos []string) error {
 		Run: str(f, "run"), Label: str(f, "label"), Note: str(f, "note"), Baseline: boolean(f, "baseline"),
 		Only: splitList(str(f, "only")), Limit: integer(f, "limit"), Reps: integer(f, "reps"),
 		Concurrency: integer(f, "concurrency"), SlotsRoot: str(f, "slots"), Log: os.Stdout,
+		Adapter: str(f, "adapter"), Model: str(f, "model"), Effort: str(f, "effort"), Isolate: str(f, "isolate"), Sandbox: boolean(f, "sandbox"),
 	}
 	if dims := f.Lookup("dim").Value.(flag.Getter).Get().(map[string]any); len(dims) > 0 {
 		opts.Dims = dims
@@ -203,6 +222,7 @@ func runCheck(f *flag.FlagSet, pos []string) error {
 	if err != nil {
 		return err
 	}
+	defer pool.Close()
 	est, err := pool.Probe(ctx)
 	if err != nil {
 		return fmt.Errorf("workspace: %w", err)
@@ -319,4 +339,37 @@ func runClimb(f *flag.FlagSet, pos []string) error {
 	}
 	w.Flush()
 	return err
+}
+
+func runClean(f *flag.FlagSet, pos []string) error {
+	l, err := loadBench(pos, "clean")
+	if err != nil {
+		return err
+	}
+	slots := str(f, "slots")
+	if slots == "" {
+		if slots, err = bench.SlotsRoot(l.Dir); err != nil {
+			return err
+		}
+	}
+	removed, busy, err := workspace.RemoveSlots(slots)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("removed %d workspace slot(s) under %s", removed, slots)
+	if busy > 0 {
+		fmt.Printf("; %d in use by a running evalkit were left", busy)
+	}
+	fmt.Println()
+	if id := str(f, "run"); id != "" {
+		dir := filepath.Join(l.Dir, "runs", id)
+		if _, err := os.Stat(filepath.Join(dir, "run.json")); err != nil {
+			return fmt.Errorf("clean: %s is not a run of this suite", id)
+		}
+		if err := os.RemoveAll(dir); err != nil {
+			return err
+		}
+		fmt.Printf("deleted run %s\n", id)
+	}
+	return nil
 }

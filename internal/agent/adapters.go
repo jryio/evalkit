@@ -4,18 +4,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-const isolateNone = "none"
+// Isolation levels of Spec.Isolate.
+const (
+	isolateNone    = "none"    // the CLI runs as the user runs it
+	isolateProject = "project" // claude: the workspace's own CLAUDE.md and skills load; so does the user's CLAUDE.md
+)
 
 func claudeInvocation(req Request) invocation {
 	s := req.Spec
 	args := []string{"-p", req.Prompt, "--output-format", "stream-json", "--verbose",
 		"--no-session-persistence", "--permission-mode", "bypassPermissions"}
-	if s.Isolate != isolateNone {
-		// Project settings only: the user's own skills, memory and MCP servers stay out.
+	switch s.Isolate {
+	case isolateNone:
+	case isolateProject:
+		// The workspace's settings load, so a skill or CLAUDE.md placed there is
+		// tested through discovery. claude still reads ~/.claude/CLAUDE.md here.
 		args = append(args, "--setting-sources", "project", "--strict-mcp-config")
+	default:
+		// Safe mode is the only switch that keeps the user's CLAUDE.md out; it
+		// turns the workspace's customizations off with it.
+		args = append(args, "--safe-mode", "--strict-mcp-config")
 	}
 	if s.Model != "" {
 		args = append(args, "--model", s.Model)
@@ -144,13 +156,22 @@ func blockText(content json.RawMessage) string {
 func codexInvocation(req Request) (invocation, error) {
 	s := req.Spec
 	args := []string{"exec", "--json", "--ephemeral", "--skip-git-repo-check"}
+	if s.Isolate != isolateNone {
+		args = append(args, "--ignore-user-config", "--ignore-rules")
+		// The account's connectors, plugins and hooks load whatever the config
+		// flags say, so each is switched off by name.
+		for _, feature := range codexPersonalFeatures {
+			args = append(args, "--disable", feature)
+		}
+	}
 	switch {
-	case s.Isolate == isolateNone:
+	case s.Isolate == isolateNone || len(req.Wrap) > 0:
+		// One sandbox cannot start inside another: a wrapped agent leaves the fence to its wrapper.
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	case s.Tools == "none":
-		args = append(args, "--ignore-user-config", "--ignore-rules", "-s", "read-only")
+		args = append(args, "-s", "read-only")
 	default:
-		args = append(args, "--ignore-user-config", "--ignore-rules", "-s", "workspace-write")
+		args = append(args, "-s", "workspace-write")
 	}
 	if s.Model != "" {
 		args = append(args, "-m", s.Model)
@@ -173,12 +194,44 @@ func codexInvocation(req Request) (invocation, error) {
 	if req.System != "" {
 		prompt = req.System + "\n\n" + prompt
 	}
-	return invocation{name: "codex", args: append(append(args, s.Args...), prompt), parse: parseCodex}, nil
+	inv := invocation{name: "codex", args: append(append(args, s.Args...), prompt), parse: parseCodex}
+	if s.Isolate != isolateNone {
+		// codex finds the user's own skills and AGENTS.md under HOME (~/.agents),
+		// whatever flags it gets. An empty HOME hides them; CODEX_HOME keeps the login.
+		home, err := os.MkdirTemp("", "evalkit-codex-home-*")
+		if err != nil {
+			return invocation{}, err
+		}
+		inv.env = []string{"HOME=" + home, "CODEX_HOME=" + codexHome(req.Env)}
+		inv.cleanup = func() { os.RemoveAll(home) }
+	}
+	return inv, nil
+}
+
+// codexPersonalFeatures bring the user's own account and machine into a session.
+var codexPersonalFeatures = []string{"apps", "plugins", "remote_plugin", "hooks", "memories", "goals", "browser_use", "computer_use", "image_generation"}
+
+// codexHome is where codex keeps its login: $CODEX_HOME, else ~/.codex.
+func codexHome(env []string) string {
+	if env == nil {
+		env = os.Environ()
+	}
+	home := ""
+	for _, kv := range env {
+		if v, ok := strings.CutPrefix(kv, "CODEX_HOME="); ok && v != "" {
+			return v
+		}
+		if v, ok := strings.CutPrefix(kv, "HOME="); ok {
+			home = v
+		}
+	}
+	return filepath.Join(home, ".codex")
 }
 
 func parseCodex(stdout []byte, req Request) (Result, error) {
 	res := Result{Model: req.Spec.Model}
 	var failure error
+	var notice string // the last error item: a warning unless no turn completes
 	eachLine(stdout, func(line json.RawMessage) {
 		var e struct {
 			Type    string `json:"type"`
@@ -217,7 +270,9 @@ func parseCodex(stdout []byte, req Request) (Result, error) {
 			case "file_change":
 				res.Transcript = append(res.Transcript, Turn{ID: turnID(res.Transcript), Role: "tool_call", Name: "file_change", Input: e.Item.Changes})
 			case "error":
-				failure = fail(AgentError, "codex: %s", e.Item.Message)
+				// codex reports warnings (an ignored config key) as error items and carries on.
+				notice = e.Item.Message
+				res.Transcript = append(res.Transcript, Turn{ID: turnID(res.Transcript), Role: "system", Text: e.Item.Message})
 			}
 		case "turn.completed":
 			res.Turns++
@@ -232,6 +287,9 @@ func parseCodex(stdout []byte, req Request) (Result, error) {
 		}
 	})
 	if res.Turns == 0 && failure == nil {
+		if notice != "" {
+			return res, fail(AgentError, "codex: %s", notice)
+		}
 		return res, fail(Harness, "codex finished no turn")
 	}
 	return res, failure
@@ -241,7 +299,9 @@ func piInvocation(req Request) invocation {
 	s := req.Spec
 	args := []string{"-p", "--mode", "json", "--no-session"}
 	if s.Isolate != isolateNone {
-		args = append(args, "--no-extensions", "--no-mcp")
+		// No extensions, MCP servers, skills, prompt templates or AGENTS.md and
+		// CLAUDE.md files: pi has no way to load the project's and not the user's.
+		args = append(args, "--no-extensions", "--no-mcp", "--no-skills", "--no-prompt-templates", "--no-context-files")
 	}
 	if s.Model != "" {
 		args = append(args, "--model", s.Model)
