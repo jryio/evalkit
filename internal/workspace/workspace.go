@@ -452,14 +452,21 @@ func (s *Slot) removeStrays(known map[string]bool) error {
 }
 
 // Diff returns each git source's changes since the commit it started from,
-// untracked files included, as unified diffs keyed by source name.
-func (s *Slot) Diff(ctx context.Context) (map[string]string, error) {
+// untracked files included, as unified diffs keyed by source name. It leaves
+// out the keep paths and the slot-relative exclude paths.
+func (s *Slot) Diff(ctx context.Context, exclude ...string) (map[string]string, error) {
 	out := map[string]string{}
 	for _, r := range s.pool.sources {
 		if !r.git {
 			continue
 		}
-		d, err := diffSince(ctx, s.Path(r.As), s.bases[r.As], s.keepUnder(r))
+		skip := s.keepUnder(r)
+		for _, e := range exclude {
+			if rest, ok := strings.CutPrefix(filepath.ToSlash(e), r.As+"/"); ok {
+				skip = append(skip, rest)
+			}
+		}
+		d, err := diffSince(ctx, s.Path(r.As), s.bases[r.As], skip)
 		if err != nil {
 			return nil, fmt.Errorf("diff %s: %w", r.As, err)
 		}
