@@ -27,6 +27,10 @@ func sandboxWrap(dir string, own, protected []string) ([]string, error) {
 		filepath.Join(home, ".cache"), filepath.Join(home, ".config"), filepath.Join(home, ".local"), filepath.Join(home, ".npm"),
 		filepath.Join(home, "Library", "Caches"), filepath.Join(home, "Library", "Application Support"), filepath.Join(home, "Library", "Keychains"),
 		filepath.Join(home, "go")}
+	// The user's keys and personal agent files: nothing an agent under test should read.
+	for _, private := range []string{".ssh", ".aws", ".gnupg", ".netrc", ".config/gh", ".docker", ".kube", ".agents", ".claude/skills", ".claude/CLAUDE.md", ".codex/skills", ".pi/agent/skills"} {
+		protected = append(protected, filepath.Join(home, private))
+	}
 	var b strings.Builder
 	// The last matching rule wins: general rules first, then the protected
 	// paths, then the attempt's own paths, which sit inside protected ones.

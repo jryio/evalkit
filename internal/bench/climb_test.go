@@ -66,7 +66,7 @@ func TestClimb_KeepsRoundsThatRaiseTheTrainScore(t *testing.T) {
 	dir := climbFixture(t, "0", `n=$(cat targets/variant/level.txt)
 cp failures.json "$EVALKIT_SUITE_DIR/seen-$n.json"
 echo $((n+1)) > targets/variant/level.txt
-echo "Raised the level to $((n+1))."`)
+echo "Raised the level to $((n+1)) in $(pwd -P)/targets/variant/level.txt."`)
 
 	rounds := climb(t, dir, 5)
 	// Train: 0/3, 1/3, 2/3, 3/3, then the target of 1 stops the climb.
@@ -85,8 +85,9 @@ echo "Raised the level to $((n+1))."`)
 			t.Errorf("round %d held-out = %+v, want %v", i, r.Test, wantTest[i])
 		}
 	}
-	if rounds[1].Change != "Raised the level to 1." {
-		t.Errorf("round 1 change = %q, want the proposer's sentence", rounds[1].Change)
+	// The proposer names its scratch copy; the note keeps the path inside the suite.
+	if rounds[1].Change != "Raised the level to 1 in variant/level.txt." {
+		t.Errorf("round 1 change = %q, want the proposer's sentence without its scratch directory", rounds[1].Change)
 	}
 	if got := level(t, dir); got != "3" {
 		t.Errorf("level.txt = %s after the climb, want the best round's 3", got)

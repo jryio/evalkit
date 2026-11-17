@@ -1682,9 +1682,10 @@
         "isolate": {
           "enum": [
             "agent",
+            "project",
             "none"
           ],
-          "description": "agent (default): the CLI ignores your own settings, skills and MCP servers and uses its own sandbox. none: it runs as you run it."
+          "description": "agent (default): nothing of yours loads: no settings, skills, memory files or MCP servers. project (claude): the workspace's own CLAUDE.md and skills load too, and so does your ~/.claude/CLAUDE.md. none: the CLI runs as you run it."
         },
         "prompt": {
           "type": "string",
@@ -1755,7 +1756,7 @@
         },
         "sandbox": {
           "type": "boolean",
-          "description": "Run the agent under the macOS sandbox: it writes only in its workspace and cannot read the suite, the runs or other slots."
+          "description": "Run the agent under the macOS sandbox: it writes only in its workspace and temp directory, and cannot read the suite, the runs, other slots, or your keys and personal skills."
         },
         "workspace": {
           "type": "object",
@@ -1922,9 +1923,10 @@
             "isolate": {
               "enum": [
                 "agent",
+                "project",
                 "none"
               ],
-              "description": "agent (default): the CLI ignores your own settings, skills and MCP servers and uses its own sandbox. none: it runs as you run it."
+              "description": "agent (default): nothing of yours loads: no settings, skills, memory files or MCP servers. project (claude): the workspace's own CLAUDE.md and skills load too, and so does your ~/.claude/CLAUDE.md. none: the CLI runs as you run it."
             },
             "rubric": {
               "type": "string",

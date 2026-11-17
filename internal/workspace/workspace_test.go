@@ -127,6 +127,10 @@ func TestPool_CloneSource(t *testing.T) {
 	if strings.Contains(diffs["repo"], "deps/") {
 		t.Errorf("diff lists the included deps:\n%s", diffs["repo"])
 	}
+	// Reading the diff leaves the agent's repository as it was: wip.txt stays untracked.
+	if status := mustRun(t, repo, "git", "status", "--porcelain", "--", "wip.txt"); status != "?? wip.txt" {
+		t.Errorf("after Diff, git status of wip.txt = %q, want it still untracked", status)
+	}
 
 	p.Release(s)
 	s = acquire(t, p, map[string]string{"repo": first})
@@ -219,6 +223,72 @@ func TestPool_SlotsAreSeparate(t *testing.T) {
 	}
 }
 
+func TestPool_TwoRunsAtOnceGetDifferentSlots(t *testing.T) {
+	t.Parallel()
+	suite := t.TempDir()
+	write(t, filepath.Join(suite, "data", "x.txt"), "x\n")
+	cfg := workspace.Config{Sources: []workspace.Source{{Path: "data"}}}
+	root := filepath.Join(t.TempDir(), "slots")
+	open := func() *workspace.Pool {
+		p, err := workspace.NewPool(t.Context(), cfg, suite, root, 2)
+		if err != nil {
+			t.Fatalf("NewPool: %v", err)
+		}
+		t.Cleanup(p.Close)
+		return p
+	}
+	first, second := open(), open()
+	dirs := map[string]bool{}
+	for _, p := range []*workspace.Pool{first, second, first, second} {
+		s := acquire(t, p, nil)
+		if dirs[s.Dir] {
+			t.Errorf("two runs were both given %s", s.Dir)
+		}
+		dirs[s.Dir] = true
+	}
+
+	// Once the first run ends, a later run takes its slots over instead of making more.
+	first.Close()
+	third := open()
+	if s := acquire(t, third, nil); !dirs[s.Dir] {
+		t.Errorf("a later run made a new slot %s, want it to reuse a released one", s.Dir)
+	}
+}
+
+func TestRemoveSlots_LeavesSlotsInUse(t *testing.T) {
+	t.Parallel()
+	suite := t.TempDir()
+	write(t, filepath.Join(suite, "data", "x.txt"), "x\n")
+	cfg := workspace.Config{Sources: []workspace.Source{{Path: "data"}}}
+	root := filepath.Join(t.TempDir(), "slots")
+	open := func() *workspace.Pool {
+		p, err := workspace.NewPool(t.Context(), cfg, suite, root, 1)
+		if err != nil {
+			t.Fatalf("NewPool: %v", err)
+		}
+		t.Cleanup(p.Close)
+		return p
+	}
+	ended, running := open(), open()
+	idle := acquire(t, ended, nil)
+	held := acquire(t, running, nil)
+	ended.Close()
+
+	removed, busy, err := workspace.RemoveSlots(root)
+	if err != nil || removed != 1 || busy != 1 {
+		t.Fatalf("RemoveSlots = %d removed, %d busy, %v; want 1, 1", removed, busy, err)
+	}
+	if exists(idle.Dir) {
+		t.Error("the idle slot is still on disk")
+	}
+	if !exists(filepath.Join(held.Dir, "data", "x.txt")) {
+		t.Error("a slot a running pool holds was removed")
+	}
+	if removed, busy, err := workspace.RemoveSlots(filepath.Join(root, "nowhere")); err != nil || removed+busy != 0 {
+		t.Errorf("RemoveSlots of a missing root = %d, %d, %v; want nothing and no error", removed, busy, err)
+	}
+}
+
 func TestPool_ResetPolicies(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -255,7 +325,10 @@ func TestPool_ResetPolicies(t *testing.T) {
 				t.Errorf("left.txt present on the next attempt = %v, want %v", got, tc.wantInRun)
 			}
 			write(t, left, "left\n")
-			acquire(t, open(), nil)
+			p.Close() // the run ends; the next run takes its slot over
+			next := open()
+			t.Cleanup(next.Close)
+			acquire(t, next, nil)
 			if got := exists(left); got != tc.wantAcrossRun {
 				t.Errorf("left.txt present in the next run = %v, want %v", got, tc.wantAcrossRun)
 			}
@@ -275,6 +348,7 @@ func TestPool_ReusesSlotsUntilConfigChanges(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewPool: %v", err)
 		}
+		defer p.Close()
 		acquire(t, p, nil)
 	}
 	open(cfg)

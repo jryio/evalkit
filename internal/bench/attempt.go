@@ -73,6 +73,9 @@ func (r *runner) once(ctx context.Context, j job) (res attemptResult) {
 			return failed(res, err)
 		}
 	}
+	if err := os.WriteFile(filepath.Join(out, "gitconfig"), []byte(attemptGitConfig), 0o644); err != nil {
+		return failed(res, err)
+	}
 	for _, o := range r.cfg.Overlay {
 		if err := copyPath(filepath.Join(r.l.Dir, o.From), filepath.Join(slot.Dir, o.To)); err != nil {
 			return failed(res, fmt.Errorf("overlay %s: %w", o.From, err))
@@ -92,7 +95,7 @@ func (r *runner) once(ctx context.Context, j job) (res attemptResult) {
 		}
 	}
 
-	if p.Prompt, err = renderPrompt(r.cfg.Agent.Prompt, p.Case); err != nil {
+	if p.Prompt, err = renderPrompt(r.cfg.Agent, p.Case); err != nil {
 		return failed(res, err)
 	}
 	req := agent.Request{Spec: r.cfg.Agent.Spec, Prompt: p.Prompt, System: r.system, Dir: p.Cwd, Env: env}
@@ -111,9 +114,12 @@ func (r *runner) once(ctx context.Context, j job) (res attemptResult) {
 	if err != nil {
 		return failed(res, err)
 	}
-	for _, skill := range r.cfg.Agent.RequireSkills {
-		if !slices.Contains(ar.Skills, skill) {
-			return failed(res, fmt.Errorf("the agent did not load the skill %q, so this attempt did not test it", skill))
+	// Only claude reports the skills it loaded; a stand-in agent has none to report.
+	if r.cfg.Agent.Adapter == agent.Claude {
+		for _, skill := range r.cfg.Agent.RequireSkills {
+			if !slices.Contains(ar.Skills, skill) {
+				return failed(res, fmt.Errorf("the agent did not load the skill %q, so this attempt did not test it", skill))
+			}
 		}
 	}
 	p.Agent = &ar
@@ -152,7 +158,9 @@ func (r *runner) once(ctx context.Context, j job) (res attemptResult) {
 			res.judgeErr = err
 			p.Row["flag"] = judgeFailed + err.Error()
 		}
-		r.setValue(p.Row, "judge_cost_usd", round(cost, 4))
+		if cost > 0 {
+			r.setValue(p.Row, "judge_cost_usd", round(cost, 4))
+		}
 	}
 	savePayload(p)
 	res.row = p.Row
@@ -165,7 +173,7 @@ func savePayload(p payload) {
 	if b, err := json.MarshalIndent(p, "", " "); err == nil {
 		os.WriteFile(p.Out+".json", b, 0o644)
 	}
-	for _, d := range []string{"tmp", "home", "judge", "sandbox.sb"} {
+	for _, d := range []string{"tmp", "home", "judge", "sandbox.sb", "gitconfig"} {
 		os.RemoveAll(filepath.Join(p.Out, d))
 	}
 	os.Remove(p.Out) // gone unless a stage left files there
@@ -202,6 +210,11 @@ func (r *runner) env(p payload) []string {
 	}
 	vars["PATH"] = filepath.Join(r.l.Dir, "bin") + string(os.PathListSeparator) + vars["PATH"]
 	vars["TMPDIR"] = filepath.Join(p.Out, "tmp")
+	// The agent's git reads this file and not the user's config: no signing
+	// prompt, hooks or credential helper, and the same identity on every machine.
+	vars["GIT_CONFIG_GLOBAL"] = filepath.Join(p.Out, "gitconfig")
+	vars["GIT_CONFIG_SYSTEM"] = os.DevNull
+	vars["GIT_TERMINAL_PROMPT"] = "0"
 	if r.cfg.Home == "private" {
 		vars["HOME"] = filepath.Join(p.Out, "home")
 	}
@@ -248,8 +261,15 @@ func (r *runner) stage(ctx context.Context, name, command string, p payload, env
 	return frag, nil
 }
 
-func renderPrompt(tmpl string, c Case) (string, error) {
+// renderPrompt fills the agent's prompt template from the case. Without a
+// template the prompt is the case's prompt field; a command agent, which reads
+// the whole case on stdin, may have neither.
+func renderPrompt(a AgentStage, c Case) (string, error) {
+	tmpl := a.Prompt
 	if tmpl == "" {
+		if _, has := c["prompt"]; !has && a.Adapter == agent.Command {
+			return "", nil
+		}
 		tmpl = "{{.prompt}}"
 	}
 	t, err := template.New("prompt").Option("missingkey=error").Parse(tmpl)
@@ -314,6 +334,9 @@ func merge(row, frag Row) error {
 	return nil
 }
 
+// attemptGitConfig is the whole global git config of an agent under test.
+const attemptGitConfig = "[user]\n\tname = evalkit\n\temail = evalkit@localhost\n[gc]\n\tauto = 0\n[maintenance]\n\tauto = false\n"
+
 const judgeFailed = "The judge failed, so this row has no verdict: "
 
 const maxToolOutput = 4000
@@ -354,7 +377,9 @@ func (r *runner) fillDefaults(p payload) {
 	if len(context) > 0 {
 		row["context"] = context
 	}
-	r.setValue(row, "cost_usd", round(a.CostUSD, 4))
+	if a.CostUSD > 0 { // codex reports tokens, not dollars: an unknown cost is not a cost of zero
+		r.setValue(row, "cost_usd", round(a.CostUSD, 4))
+	}
 	r.setValue(row, "latency_s", round(a.Seconds, 1))
 	r.setValue(row, "turns", a.Turns)
 	r.setValue(row, "tokens_in", a.Tokens.In+a.Tokens.CacheRead+a.Tokens.CacheWrite)

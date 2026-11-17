@@ -22,6 +22,11 @@ Get started:
   evalkit serve       open the review page (keeps running across sends)
   evalkit wait        block until the human sends, then print what changed
 
+Run the eval itself (a suite with a bench block; see "evalkit docs"):
+  evalkit check       prove the grader before paying for a run
+  evalkit run         put every case through an agent, isolated, as one run
+  evalkit climb       hill-climb a prompt or a skill, round by round
+
 Commands:
 `
 
@@ -93,7 +98,7 @@ It reads the feedback directory, so it works across server restarts.
 it. The item then shows a done link and the action cannot be approved again.
 
   evalkit done pr-9875 post --url https://github.com/acme/app/pull/9875`},
-	benchCommands[0], benchCommands[1], benchCommands[2], benchCommands[3],
+	benchCommands[0], benchCommands[1], benchCommands[2], benchCommands[3], benchCommands[4],
 	statsCommand,
 	{name: "docs", summary: "print the suite reference (markdown)", run: runDocs},
 	{name: "schema", summary: "print the suite JSON Schema, for editors", run: runSchema},

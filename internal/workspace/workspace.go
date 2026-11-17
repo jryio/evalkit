@@ -55,7 +55,11 @@ type Pool struct {
 
 	mu    sync.Mutex
 	slots map[int]*Slot
+	locks []*os.File // one per slot this process claimed, held until Close
 }
+
+// unclaimed stands in the free list for a slot not yet claimed from the root.
+const unclaimed = -1
 
 // resolved is a Source with its paths and method worked out.
 type resolved struct {
@@ -108,10 +112,38 @@ func NewPool(ctx context.Context, cfg Config, suiteDir, root string, n int) (*Po
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return nil, err
 	}
-	for i := range n {
-		p.free <- i
+	for range n {
+		p.free <- unclaimed
 	}
 	return p, nil
+}
+
+// claim takes the lowest-numbered slot under the root that no process holds,
+// this one included. Two runs of one suite at once get different slots.
+func (p *Pool) claim() (int, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for i := 0; i < 10_000; i++ {
+		if _, mine := p.slots[i]; mine {
+			continue
+		}
+		if f, ok := tryLock(filepath.Join(p.root, strconv.Itoa(i)+".lock")); ok {
+			p.locks = append(p.locks, f)
+			p.slots[i] = nil
+			return i, nil
+		}
+	}
+	return 0, errors.New("no free workspace slot under " + p.root)
+}
+
+// Close gives the pool's slots back to other processes. The slots stay on disk.
+func (p *Pool) Close() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, f := range p.locks {
+		f.Close()
+	}
+	p.locks = nil
 }
 
 func (p *Pool) fingerprints() []string {
@@ -177,6 +209,14 @@ func (p *Pool) Acquire(ctx context.Context, pins map[string]string) (*Slot, erro
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+	if i == unclaimed {
+		claimed, err := p.claim()
+		if err != nil {
+			p.free <- unclaimed
+			return nil, err
+		}
+		i = claimed
+	}
 	s, err := p.ready(ctx, i, pins)
 	if err != nil {
 		p.free <- i
@@ -241,8 +281,36 @@ func (p *Pool) source(name string) (resolved, bool) {
 	return resolved{}, false
 }
 
-// Remove deletes every slot under the pool's root.
-func (p *Pool) Remove() error { return os.RemoveAll(p.root) }
+// RemoveSlots deletes the slots under root that no running process holds, and
+// reports how many it removed and how many are in use.
+func RemoveSlots(root string) (removed, busy int, err error) {
+	entries, err := os.ReadDir(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, 0, nil
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		lock := filepath.Join(root, e.Name()+".lock")
+		f, free := tryLock(lock)
+		if !free {
+			busy++
+			continue
+		}
+		err = errors.Join(os.RemoveAll(filepath.Join(root, e.Name())), os.Remove(filepath.Join(root, e.Name()+".json")))
+		f.Close()
+		os.Remove(lock)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return removed, busy, err
+		}
+		removed++
+	}
+	return removed, busy, nil
+}
 
 // Estimate is what provisioning one slot cost.
 type Estimate struct {
@@ -252,20 +320,22 @@ type Estimate struct {
 	FreeBytes int64 // -1 when the platform does not say
 }
 
-// Probe provisions slot 0, dirties it, resets it and reports the cost, so a
-// run can be sized before all its slots are made.
+// Probe provisions one slot from nothing, dirties it, resets it and reports
+// the cost, so a run can be sized before all its slots are made.
 func (p *Pool) Probe(ctx context.Context) (Estimate, error) {
 	var e Estimate
-	dir := filepath.Join(p.root, "0")
-	if err := os.RemoveAll(dir); err != nil {
-		return e, err
-	}
-	start := time.Now()
-	s, err := p.Acquire(ctx, nil)
+	i, err := p.claim()
 	if err != nil {
 		return e, err
 	}
-	defer p.Release(s)
+	s := &Slot{Index: i, Dir: filepath.Join(p.root, strconv.Itoa(i)), pool: p}
+	start := time.Now()
+	if err := s.provision(ctx); err != nil {
+		return e, err
+	}
+	p.mu.Lock()
+	p.slots[i] = s
+	p.mu.Unlock()
 	e.Provision = time.Since(start)
 	e.SlotBytes = diskUsage(ctx, s.Dir)
 	e.FreeBytes = freeBytes(p.root)

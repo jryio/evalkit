@@ -130,12 +130,15 @@ func Climb(ctx context.Context, path string, opts ClimbOptions) ([]Round, error)
 		n := len(st.Rounds)
 		id := fmt.Sprintf("%s%d", opts.Prefix, n)
 		fmt.Fprintf(opts.Log, "round %d: proposing a change on top of %s\n", n, st.Best)
-		change, patch, cost, err := propose(ctx, l, st)
+		prop, err := propose(ctx, l, st)
 		if err != nil {
 			return st.Rounds, fmt.Errorf("round %d: propose: %w", n, err)
 		}
+		change, patch, cost := prop.change, prop.patch, prop.result.CostUSD
 		if patch == "" {
-			fmt.Fprintln(opts.Log, "stopping: the proposer changed nothing")
+			// Kept beside the best run, so a climb that stalls can be read.
+			saveJSON(filepath.Join(l.Dir, "runs", st.Best, "proposer-"+id+".json"), prop.result)
+			fmt.Fprintf(opts.Log, "stopping: the proposer changed nothing. It said: %s\n", change)
 			break
 		}
 		if l, err = Load(path); err != nil { // the targets may be files the suite reads
@@ -144,6 +147,7 @@ func Climb(ctx context.Context, path string, opts ClimbOptions) ([]Round, error)
 		r, err := runOne(id, n, change, false)
 		r.CostUSD += cost
 		os.WriteFile(filepath.Join(l.Dir, "runs", id, "change.patch"), []byte(patch), 0o644)
+		saveJSON(filepath.Join(l.Dir, "runs", id, "proposer.json"), prop.result)
 		if err != nil {
 			restore(l.Dir, c.Targets, variantDir(l.Dir, st.Best))
 			return st.Rounds, err
@@ -221,36 +225,53 @@ func groupScore(path, run string, groups []string) (*stats.Interval, error) {
 	return rep.Runs[i].Score, nil
 }
 
+// proposal is what one run of the proposer came to.
+type proposal struct {
+	change string       // its closing sentence
+	patch  string       // its edit to the targets as a unified diff; empty: no change
+	result agent.Result // what it said and did, and what it cost
+}
+
+func saveJSON(path string, v any) {
+	if b, err := json.MarshalIndent(v, "", " "); err == nil {
+		os.WriteFile(path, b, 0o644)
+	}
+}
+
 // propose runs the proposer in a scratch directory that holds the targets, the
 // best run's failed train cases and the history, then copies the edited
-// targets back. patch is the edit as a unified diff; empty means no change.
-func propose(ctx context.Context, l *Loaded, st climbState) (change, patch string, cost float64, err error) {
+// targets back.
+func propose(ctx context.Context, l *Loaded, st climbState) (prop proposal, err error) {
 	c := l.Config.Climb
 	dir, err := os.MkdirTemp("", "evalkit-propose-*")
 	if err != nil {
-		return "", "", 0, err
+		return prop, err
 	}
 	defer os.RemoveAll(dir)
+	// The proposer reports paths as the OS resolves them (/private/var on macOS).
+	if real, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = real
+	}
 	targets := filepath.Join(dir, "targets")
 	if err := snapshot(l.Dir, c.Targets, targets); err != nil {
-		return "", "", 0, err
+		return prop, err
 	}
 	failures, passing, err := trainCases(l, st.Best)
 	if err != nil {
-		return "", "", 0, err
+		return prop, err
 	}
 	files := map[string]any{"failures.json": failures, "passing.json": passing}
 	for name, v := range files {
 		b, err := json.MarshalIndent(v, "", " ")
 		if err != nil {
-			return "", "", 0, err
+			return prop, err
 		}
 		if err := os.WriteFile(filepath.Join(dir, name), b, 0o644); err != nil {
-			return "", "", 0, err
+			return prop, err
 		}
 	}
 	if err := os.WriteFile(filepath.Join(dir, "history.md"), []byte(history(st)), 0o644); err != nil {
-		return "", "", 0, err
+		return prop, err
 	}
 
 	prompt := proposerPrompt
@@ -261,7 +282,7 @@ func propose(ctx context.Context, l *Loaded, st climbState) (change, patch strin
 	if c.Propose.System != "" {
 		b, err := os.ReadFile(filepath.Join(l.Dir, c.Propose.System))
 		if err != nil {
-			return "", "", 0, fmt.Errorf("bench.climb.propose.system: %w", err)
+			return prop, fmt.Errorf("bench.climb.propose.system: %w", err)
 		}
 		system = string(b)
 	}
@@ -270,18 +291,20 @@ func propose(ctx context.Context, l *Loaded, st climbState) (change, patch strin
 	// The proposer is the user's own improver, so it keeps their environment; bin/ is on PATH as for stages.
 	env := append(os.Environ(), "EVALKIT_SUITE_DIR="+l.Dir, "PATH="+filepath.Join(l.Dir, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"))
 	res, err := agent.Run(ctx, agent.Request{Spec: c.Propose.Spec, Prompt: prompt, System: system, Dir: dir, Env: env})
+	prop.result = res
 	if err != nil {
-		return "", "", res.CostUSD, err
+		return prop, err
 	}
+	// The proposer names files by their scratch path; the note keeps the path inside the suite.
+	said := strings.NewReplacer(targets+string(filepath.Separator), "", dir+string(filepath.Separator), "").Replace(res.Output)
+	prop.change = lastLine(said)
 	// diff exits 1 when the trees differ.
 	diff, _ := exec.CommandContext(ctx, "diff", "-ruN", variantDir(l.Dir, st.Best), targets).Output()
 	if len(strings.TrimSpace(string(diff))) == 0 {
-		return "", "", res.CostUSD, nil
+		return prop, nil
 	}
-	if err := restore(l.Dir, c.Targets, targets); err != nil {
-		return "", "", res.CostUSD, err
-	}
-	return lastLine(res.Output), string(diff), res.CostUSD, nil
+	prop.patch = string(diff)
+	return prop, restore(l.Dir, c.Targets, targets)
 }
 
 // trainCase is one training attempt as the proposer sees it.
@@ -354,7 +377,12 @@ func history(st climbState) string {
 	return b.String()
 }
 
+// lastLine is the proposer's closing sentence, short enough for a run's note.
 func lastLine(s string) string {
 	lines := strings.Split(strings.TrimSpace(s), "\n")
-	return clip(strings.TrimSpace(lines[len(lines)-1]), 200)
+	line := []rune(strings.TrimSpace(lines[len(lines)-1]))
+	if len(line) > 160 {
+		return string(line[:159]) + "…"
+	}
+	return string(line)
 }

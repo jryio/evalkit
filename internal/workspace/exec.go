@@ -1,8 +1,8 @@
 package workspace
 
 import (
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,30 +10,49 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/jryio/evalkit/internal/proc"
 )
+
+// commandLimit is the longest any one workspace command may take: a clone, a
+// copy, a setup. A command that hangs must fail the attempt, not the run.
+const commandLimit = 30 * time.Minute
+
+// limited bounds ctx by commandLimit. The timer is released when ctx ends.
+func limited(ctx context.Context) context.Context {
+	ctx, cancel := context.WithTimeout(ctx, commandLimit)
+	context.AfterFunc(ctx, cancel)
+	return ctx
+}
 
 // run runs a command and returns its standard output. A failure carries the
 // end of what the command printed.
 func run(ctx context.Context, dir string, env []string, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	cmd.Env = env
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
-		tail := strings.TrimSpace(stderr.String() + stdout.String())
+	out, err := proc.Run(limited(ctx), append([]string{name}, args...), nil, dir, env)
+	if err != nil {
+		tail := strings.TrimSpace(string(out.Stderr) + string(out.Stdout))
 		if len(tail) > 600 {
 			tail = "…" + tail[len(tail)-600:]
 		}
 		return "", fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, tail)
 	}
-	return stdout.String(), nil
+	return string(out.Stdout), nil
+}
+
+// gitEnv is the environment of every git command evalkit runs in a slot. The
+// user's own git config stays out: no signing, hooks, credential helpers or
+// background maintenance, so a slot's git behaves the same on every machine.
+func gitEnv() []string {
+	return append(os.Environ(),
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
+		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0",
+		"GIT_CONFIG_COUNT=2", "GIT_CONFIG_KEY_0=gc.auto", "GIT_CONFIG_VALUE_0=0",
+		"GIT_CONFIG_KEY_1=maintenance.auto", "GIT_CONFIG_VALUE_1=false")
 }
 
 func git(ctx context.Context, dir string, args ...string) (string, error) {
-	// A slot's git must not pick up the source's hooks or the user's prompts.
-	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0")
-	out, err := run(ctx, dir, env, "git", args...)
+	out, err := run(ctx, dir, gitEnv(), "git", args...)
 	return strings.TrimSpace(out), err
 }
 
@@ -108,16 +127,37 @@ func resetClone(ctx context.Context, dir, sha string, keep []string) error {
 }
 
 // diffSince is the tree's difference from sha: commits, edits and new files.
+// It only reads the repository: the index stays as the attempt left it, so
+// the stages that run next see the agent's own state.
 func diffSince(ctx context.Context, dir, sha string, keep []string) (string, error) {
-	if _, err := git(ctx, dir, "add", "-A", "-N", "."); err != nil {
+	var paths []string
+	for _, k := range keep {
+		paths = append(paths, ":(exclude)"+strings.Trim(filepath.ToSlash(k), "/"))
+	}
+	scope := append([]string{"--", "."}, paths...)
+	diff, err := run(ctx, dir, gitEnv(), "git", append([]string{"-c", "core.quotepath=false", "diff", "--no-color", "--no-ext-diff", sha}, scope...)...)
+	if err != nil {
 		return "", err
 	}
-	args := []string{"-c", "core.quotepath=false", "diff", "--no-color", "--no-ext-diff", sha, "--", "."}
-	for _, k := range keep {
-		args = append(args, ":(exclude)"+strings.Trim(filepath.ToSlash(k), "/"))
+	// Files git does not track yet are not in that diff: each is added as a new file.
+	untracked, err := run(ctx, dir, gitEnv(), "git", append([]string{"ls-files", "--others", "--exclude-standard", "-z"}, scope...)...)
+	if err != nil {
+		return "", err
 	}
-	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	return run(ctx, dir, env, "git", args...)
+	var b strings.Builder
+	b.WriteString(diff)
+	for file := range strings.SplitSeq(untracked, "\x00") {
+		if file == "" {
+			continue
+		}
+		// diff --no-index exits 1 when the two sides differ, which they always do here.
+		out, err := proc.Run(limited(ctx), []string{"git", "-c", "core.quotepath=false", "diff", "--no-color", "--no-ext-diff", "--no-index", "--", os.DevNull, file}, nil, dir, gitEnv())
+		if exit, ok := errors.AsType[*exec.ExitError](err); err != nil && (!ok || exit.ExitCode() != 1) {
+			return "", fmt.Errorf("git diff --no-index %s: %w: %s", file, err, strings.TrimSpace(string(out.Stderr)))
+		}
+		b.Write(out.Stdout)
+	}
+	return b.String(), nil
 }
 
 // copyTree copies src to dst, which must not exist, with copy-on-write where
