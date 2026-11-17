@@ -18,8 +18,8 @@ import (
 func check(s Suite, dir string, hasItemsKey bool) []issue {
 	c := checker{suite: s, dir: dir, keys: map[string]string{}, items: map[string]int{}}
 	runsFrom := slices.ContainsFunc(s.Runs, func(r Run) bool { return r.ItemsFrom != nil })
-	if !hasItemsKey && s.ItemsFrom == nil && !runsFrom {
-		c.add("a suite needs items or items_from (at the top level or in runs)")
+	if !hasItemsKey && s.ItemsFrom == nil && !runsFrom && s.RunsFrom == nil {
+		c.add("a suite needs items, items_from (at the top level or in runs) or runs_from")
 	}
 	c.suiteLevel()
 	c.runs()

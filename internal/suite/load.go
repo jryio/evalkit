@@ -117,8 +117,10 @@ func Load(path string) (Result, error) {
 	if top.Kind != yaml.MappingNode {
 		return fatal(root.Line, root.Column, "the top level must be a mapping")
 	}
-	sources, issues := readSources(top, dir)
-	res.Version = version(src, sources)
+	manifests, issues := readRunManifests(top, dir)
+	sources, sourceIssues := readSources(top, dir)
+	issues = append(issues, sourceIssues...)
+	res.Version = version(src, append(manifests, sources...))
 	hasItemsKey := child(top, "items") != nil
 	itemFiles, lineProblems := mergeItems(top, name, sources)
 	res.Problems = append(res.Problems, lineProblems...)
@@ -234,8 +236,9 @@ func Version(path string) (string, error) {
 	if yaml.Unmarshal(src, &root) != nil || len(root.Content) == 0 {
 		return version(src, nil), nil
 	}
+	manifests, _ := readRunManifests(root.Content[0], filepath.Dir(path))
 	sources, _ := readSources(root.Content[0], filepath.Dir(path))
-	return version(src, sources), nil
+	return version(src, append(manifests, sources...)), nil
 }
 
 func version(src []byte, sources []source) string {

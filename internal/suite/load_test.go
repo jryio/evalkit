@@ -298,7 +298,7 @@ func TestLoad_InvalidSuites(t *testing.T) {
 		},
 		{
 			name: "no items and no items_from", file: "no-items.yaml",
-			contains: []string{"a suite needs items or items_from"}, line: 1, fatal: true,
+			contains: []string{"a suite needs items, items_from"}, line: 1, fatal: true,
 		},
 		{
 			name: "duplicate column id", file: "duplicate-column.yaml",
